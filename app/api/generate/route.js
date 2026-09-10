@@ -37,6 +37,12 @@ export async function POST(req) {
     checkRestaurantMenu(idea, location, storyBeat, notes),
   ]);
 
+  console.log(
+    `[generate] platform=${resolvedPlatform} trend_source=${trendResult.source} menu_check=${
+      menuCheck ? `"${menuCheck.slice(0, 200)}${menuCheck.length > 200 ? "…" : ""}"` : "none/skipped"
+    }`
+  );
+
   try {
     const { usedWebSearch, ...result } = await generatePost({
       idea,
