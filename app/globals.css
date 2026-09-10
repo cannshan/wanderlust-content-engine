@@ -191,6 +191,19 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 .badge.live { background: var(--forest-soft); color: var(--forest); }
 .badge.estimated { background: var(--amber-soft); color: var(--amber); }
 
+.strategy-box {
+  background: var(--forest-soft);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+}
+
+.strategy-box p {
+  font-size: 13.5px;
+  color: var(--ink-soft);
+  margin: 0;
+}
+
 .description-box {
   white-space: pre-wrap;
   font-size: 15px;

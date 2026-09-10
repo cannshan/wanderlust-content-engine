@@ -2,6 +2,17 @@
 
 import { useState } from "react";
 
+const PATTERN_LABELS = {
+  "animal-content": "Lever: animal content",
+  "pop-culture-tie-in": "Lever: pop-culture tie-in",
+  "insider-access": "Lever: insider access",
+  standard: "No specific lever — standard post",
+};
+
+function formatPattern(pattern) {
+  return PATTERN_LABELS[pattern] || "Why this should work";
+}
+
 const initialForm = {
   idea: "",
   location: "",
@@ -143,6 +154,15 @@ export default function Dashboard() {
               {result.trend_source === "apify" ? "Live trend data" : "AI-estimated tags"}
             </span>
           </div>
+
+          {result.hook_strategy && (
+            <div className="strategy-box">
+              <span className="badge live" style={{ marginBottom: 6, display: "inline-block" }}>
+                {formatPattern(result.pattern_used)}
+              </span>
+              <p>{result.hook_strategy}</p>
+            </div>
+          )}
 
           <div className="description-box">{result.description}</div>
           <button className="btn-ghost" onClick={() => copy(result.description, "description")} style={{ marginBottom: 20 }}>
