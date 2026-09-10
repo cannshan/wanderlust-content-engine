@@ -212,6 +212,9 @@ export default function Dashboard() {
               {result.video_length.why && (
                 <p className="rationale" style={{ marginTop: 10 }}>{result.video_length.why}</p>
               )}
+              <p className="hint" style={{ marginTop: 8 }}>
+                Floor is always 60s — Creator Rewards Program pays $0 on anything shorter, regardless of performance.
+              </p>
             </div>
           )}
 
