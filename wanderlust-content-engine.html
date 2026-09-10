@@ -1,0 +1,725 @@
+<title>Wanderlust Content Engine</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,500&family=Work+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+  :root{
+    --bg:#F4F3EE;
+    --bg-raised:#FFFFFF;
+    --ink:#22252A;
+    --ink-soft:#5B5F56;
+    --ink-faint:#8A8D82;
+    --line:#DEDBD0;
+    --wine:#7A2E3A;
+    --wine-soft:#F2E1E4;
+    --forest:#33513F;
+    --forest-soft:#E1EBE2;
+    --amber:#A66A16;
+    --amber-soft:#F5E6CB;
+    --chip-bg:#ECE9DF;
+    --shadow: 0 1px 2px rgba(34,37,42,.06), 0 6px 20px rgba(34,37,42,.05);
+    --good:#33513F;
+    --bad:#8A2F2F;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#1A1C19;
+      --bg-raised:#232520;
+      --ink:#ECE9E1;
+      --ink-soft:#AFAC9F;
+      --ink-faint:#7C7A6E;
+      --line:#38392F;
+      --wine:#E39BA4;
+      --wine-soft:#3A2226;
+      --forest:#93C0A4;
+      --forest-soft:#1F2C22;
+      --amber:#E3A94E;
+      --amber-soft:#3A2C15;
+      --chip-bg:#2A2B24;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 6px 24px rgba(0,0,0,.35);
+      --good:#93C0A4;
+      --bad:#E1918F;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#1A1C19;
+    --bg-raised:#232520;
+    --ink:#ECE9E1;
+    --ink-soft:#AFAC9F;
+    --ink-faint:#7C7A6E;
+    --line:#38392F;
+    --wine:#E39BA4;
+    --wine-soft:#3A2226;
+    --forest:#93C0A4;
+    --forest-soft:#1F2C22;
+    --amber:#E3A94E;
+    --amber-soft:#3A2C15;
+    --chip-bg:#2A2B24;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 6px 24px rgba(0,0,0,.35);
+    --good:#93C0A4;
+    --bad:#E1918F;
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'Work Sans', ui-sans-serif, system-ui, sans-serif;
+    line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3{
+    font-family:'Fraunces', Georgia, serif;
+    text-wrap:balance;
+    color:var(--ink);
+    font-weight:500;
+    margin:0;
+  }
+  .mono{ font-family:'IBM Plex Mono', ui-monospace, monospace; }
+
+  a{ color:var(--wine); }
+  a:focus-visible, button:focus-visible, .tab:focus-visible{
+    outline:2px solid var(--wine);
+    outline-offset:2px;
+  }
+
+  .wrap{ max-width:840px; margin:0 auto; padding:56px 24px 96px; }
+
+  /* header */
+  .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12.5px;
+    letter-spacing:.06em;
+    text-transform:uppercase;
+    color:var(--wine);
+    margin:0 0 14px;
+  }
+  header h1{ font-size:clamp(32px,5vw,46px); line-height:1.08; max-width:14ch; }
+  header p.lede{
+    max-width:62ch;
+    color:var(--ink-soft);
+    font-size:17px;
+    margin:18px 0 0;
+  }
+  .brandrow{
+    display:flex; flex-wrap:wrap; gap:8px;
+    margin-top:24px;
+  }
+  .brandrow a{
+    font-size:13px;
+    text-decoration:none;
+    color:var(--ink-soft);
+    background:var(--bg-raised);
+    border:1px solid var(--line);
+    padding:6px 12px;
+    border-radius:100px;
+  }
+  .brandrow a:hover{ color:var(--wine); border-color:var(--wine); }
+
+  /* stat strip */
+  .stats{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:1px;
+    background:var(--line);
+    border:1px solid var(--line);
+    border-radius:10px;
+    overflow:hidden;
+    margin:40px 0 0;
+    box-shadow:var(--shadow);
+  }
+  .stat{ background:var(--bg-raised); padding:18px 16px; }
+  .stat .num{
+    font-family:'Fraunces', serif;
+    font-size:26px;
+    color:var(--wine);
+    font-variant-numeric: tabular-nums;
+    line-height:1.1;
+  }
+  .stat .label{ font-size:12.5px; color:var(--ink-soft); margin-top:6px; }
+  .stat .src{ font-size:10.5px; color:var(--ink-faint); margin-top:8px; }
+  .stat .src a{ color:var(--ink-faint); }
+
+  /* sections */
+  section{ margin-top:64px; }
+  .kicker{
+    display:flex; align-items:baseline; gap:10px;
+    margin-bottom:18px;
+  }
+  .kicker .tag{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    color:var(--forest);
+    background:var(--forest-soft);
+    padding:3px 8px;
+    border-radius:5px;
+    white-space:nowrap;
+  }
+  section h2{ font-size:26px; }
+  section > p.dek{ color:var(--ink-soft); max-width:64ch; margin:10px 0 0; }
+
+  .prose{ max-width:66ch; }
+  .prose p{ margin:14px 0; }
+  .prose strong{ color:var(--ink); }
+
+  h3.sub{
+    font-family:'Work Sans', sans-serif;
+    font-weight:600;
+    font-size:15.5px;
+    color:var(--ink);
+    margin:26px 0 8px;
+  }
+
+  .cite{ font-size:12px; color:var(--ink-faint); }
+  .cite a{ color:var(--ink-faint); text-decoration:underline; text-decoration-color:var(--line); }
+
+  /* three-column automate framework */
+  .cases{
+    display:grid;
+    grid-template-columns:repeat(2,1fr);
+    gap:14px;
+    margin-top:22px;
+  }
+  @media (max-width:560px){ .cases{ grid-template-columns:1fr; } }
+  .case-card{
+    background:var(--bg-raised);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:18px 18px 16px;
+    box-shadow:var(--shadow);
+    display:flex; flex-direction:column;
+  }
+  .case-card .plat{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:10px;
+  }
+  .case-card .plat span:first-child{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10.5px; text-transform:uppercase; letter-spacing:.05em;
+    color:var(--ink-faint);
+  }
+  .case-card .num{
+    font-family:'Fraunces', serif;
+    font-size:30px;
+    color:var(--wine);
+    line-height:1;
+  }
+  .case-card .num-label{ font-size:11px; color:var(--ink-faint); margin-top:2px; margin-bottom:12px; }
+  .case-card .excerpt{
+    font-size:13px;
+    color:var(--ink-soft);
+    border-left:2px solid var(--line);
+    padding-left:10px;
+    margin:0 0 12px;
+    font-style:italic;
+  }
+  .case-card .takeaway{ font-size:13px; color:var(--ink); margin-top:auto; }
+  .case-card .takeaway b{ color:var(--forest); }
+
+  .voice-formula{
+    margin-top:26px;
+    background:var(--bg-raised);
+    border:1px solid var(--line);
+    border-radius:10px;
+    box-shadow:var(--shadow);
+    overflow:hidden;
+  }
+  .vf-row{
+    display:grid;
+    grid-template-columns:140px 1fr;
+    gap:16px;
+    padding:13px 18px;
+    border-bottom:1px solid var(--line);
+    font-size:13.5px;
+  }
+  .vf-row:last-child{ border-bottom:none; }
+  .vf-row .k{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:.04em;
+    color:var(--forest);
+    padding-top:2px;
+  }
+  .vf-row .v{ color:var(--ink-soft); }
+  .vf-row .v em{ color:var(--ink); font-style:normal; }
+
+  .angles{
+    display:grid;
+    grid-template-columns:repeat(2,1fr);
+    gap:14px;
+    margin-top:22px;
+  }
+  @media (max-width:640px){ .angles{ grid-template-columns:1fr; } }
+  .angle-card{
+    background:var(--bg-raised);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:16px 18px;
+    box-shadow:var(--shadow);
+  }
+  .angle-card .kind{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10.5px;
+    text-transform:uppercase;
+    letter-spacing:.04em;
+    color:var(--amber);
+    background:var(--amber-soft);
+    display:inline-block;
+    padding:3px 8px;
+    border-radius:5px;
+    margin-bottom:10px;
+  }
+  .angle-card h4{
+    font-family:'Fraunces', serif;
+    font-weight:500;
+    font-size:16.5px;
+    margin:0 0 6px;
+  }
+  .angle-card p{ font-size:13.5px; color:var(--ink-soft); margin:0; }
+
+  .framework{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:14px;
+    margin-top:22px;
+  }
+  .fw-card{
+    background:var(--bg-raised);
+    border:1px solid var(--line);
+    border-top:3px solid var(--fw-color, var(--ink-faint));
+    border-radius:10px;
+    padding:18px 16px;
+    box-shadow:var(--shadow);
+  }
+  .fw-card.automate{ --fw-color: var(--forest); }
+  .fw-card.assist{ --fw-color: var(--amber); }
+  .fw-card.never{ --fw-color: var(--bad); }
+  .fw-card h4{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    letter-spacing:.03em;
+    text-transform:uppercase;
+    margin:0 0 12px;
+    color:var(--fw-color);
+  }
+  .fw-card ul{ margin:0; padding-left:18px; font-size:13.5px; color:var(--ink-soft); }
+  .fw-card li{ margin:7px 0; }
+
+  /* red flags */
+  .flags{ margin-top:20px; display:flex; flex-direction:column; gap:10px; }
+  .flag{
+    display:flex; gap:12px;
+    background:var(--wine-soft);
+    border-radius:8px;
+    padding:12px 14px;
+    font-size:14px;
+  }
+  .flag .x{ color:var(--bad); font-family:'IBM Plex Mono',monospace; font-weight:600; flex:none; }
+  .flag b{ color:var(--ink); }
+
+  /* before / after */
+  .flow{
+    display:grid;
+    grid-template-columns:1fr auto 1fr;
+    gap:20px;
+    align-items:start;
+    margin-top:22px;
+  }
+  .flow-col h4{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:.05em;
+    color:var(--ink-faint);
+    margin:0 0 12px;
+  }
+  .flow-col ol{ margin:0; padding-left:20px; font-size:14px; color:var(--ink-soft); }
+  .flow-col.after ol{ color:var(--ink); }
+  .flow-col li{ margin:10px 0; }
+  .flow-col.after li strong{ color:var(--forest); }
+  .flow-arrow{
+    color:var(--ink-faint);
+    font-size:20px;
+    padding-top:20px;
+  }
+  @media (max-width:640px){
+    .flow{ grid-template-columns:1fr; }
+    .flow-arrow{ display:none; }
+  }
+
+  /* dashboard mockup */
+  .mock{
+    margin-top:24px;
+    background:var(--bg-raised);
+    border:1px solid var(--line);
+    border-radius:14px;
+    box-shadow:var(--shadow);
+    overflow:hidden;
+  }
+  .mock-bar{
+    display:flex; align-items:center; gap:8px;
+    padding:10px 16px;
+    border-bottom:1px solid var(--line);
+    background:var(--chip-bg);
+  }
+  .mock-bar .dot{ width:9px; height:9px; border-radius:50%; background:var(--line); }
+  .mock-bar .example-badge{
+    margin-left:auto;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10.5px;
+    color:var(--ink-faint);
+    letter-spacing:.04em;
+    text-transform:uppercase;
+  }
+  .mock-body{ display:grid; grid-template-columns:1fr 1fr; }
+  @media (max-width:700px){ .mock-body{ grid-template-columns:1fr; } }
+  .mock-in, .mock-out{ padding:22px 20px; }
+  .mock-in{ border-right:1px solid var(--line); }
+  @media (max-width:700px){ .mock-in{ border-right:none; border-bottom:1px solid var(--line); } }
+  .field{ margin-bottom:16px; }
+  .field label{
+    display:block;
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:.05em;
+    color:var(--ink-faint);
+    margin-bottom:5px;
+    font-family:'IBM Plex Mono', monospace;
+  }
+  .field .val{
+    font-size:14.5px;
+    color:var(--ink);
+    background:var(--bg);
+    border:1px solid var(--line);
+    border-radius:7px;
+    padding:8px 10px;
+  }
+  .out-block{ margin-bottom:20px; }
+  .out-block h5{
+    font-size:11px; text-transform:uppercase; letter-spacing:.05em;
+    color:var(--wine); margin:0 0 8px; font-family:'IBM Plex Mono', monospace;
+  }
+  .hooks{ display:flex; flex-direction:column; gap:6px; }
+  .hooks .hook{
+    font-size:14px; background:var(--bg); border:1px solid var(--line);
+    border-radius:7px; padding:8px 10px;
+  }
+  .out-block p{ font-size:14px; margin:0; color:var(--ink-soft); }
+  .chipset{ display:flex; flex-wrap:wrap; gap:6px; }
+  .chip{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    background:var(--chip-bg);
+    padding:4px 9px;
+    border-radius:100px;
+    color:var(--ink-soft);
+  }
+  .chip.b{ background:var(--wine-soft); color:var(--wine); }
+  .chip.n{ background:var(--forest-soft); color:var(--forest); }
+  .chip.u{ background:var(--amber-soft); color:var(--amber); }
+
+  .stack-note{
+    display:flex; gap:12px; margin-top:22px;
+    background:var(--forest-soft);
+    border-radius:10px;
+    padding:16px 18px;
+  }
+  .stack-note .icon{ font-family:'IBM Plex Mono',monospace; color:var(--forest); font-weight:600; flex:none;}
+  .stack-note p{ font-size:13.5px; color:var(--ink-soft); margin:0; }
+
+  /* checklist */
+  .checklist{ margin-top:20px; display:flex; flex-direction:column; gap:0; border-top:1px solid var(--line); }
+  .check{
+    display:flex; gap:12px; align-items:flex-start;
+    padding:14px 0;
+    border-bottom:1px solid var(--line);
+  }
+  .check .n{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    color:var(--ink-faint);
+    padding-top:2px;
+  }
+  .check .body b{ color:var(--ink); font-size:14.5px; }
+  .check .body p{ margin:4px 0 0; font-size:13.5px; color:var(--ink-soft); }
+
+  footer{
+    margin-top:72px;
+    padding-top:24px;
+    border-top:1px solid var(--line);
+    font-size:12.5px;
+    color:var(--ink-faint);
+  }
+
+  @media (max-width:700px){
+    .stats{ grid-template-columns:1fr 1fr; }
+    .framework{ grid-template-columns:1fr; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header>
+    <p class="eyebrow">Content strategy + automation plan — Wine Wilderness Wanderlust</p>
+    <h1>You already have the idea. You need the reach.</h1>
+    <p class="lede">By the time she sits down to write a caption, the hard part — going somewhere and filming it — is done. The idea and the location are decided before the tool ever gets involved. What's actually slow is the last mile: which hashtags are working right now, and what description gets this specific video the most reach. I pulled real numbers from her own Instagram and TikTok to answer that, instead of guessing.</p>
+    <div class="brandrow">
+      <a href="https://www.winewildernesswanderlust.com" target="_blank" rel="noopener">winewildernesswanderlust.com</a>
+      <a href="https://www.instagram.com/winewildernesswanderlust/" target="_blank" rel="noopener">@winewildernesswanderlust · IG</a>
+      <a href="https://www.tiktok.com/@winewildernesswanderlust" target="_blank" rel="noopener">@winewildernesswanderlust · TikTok</a>
+    </div>
+
+    <div class="stats">
+      <div class="stat">
+        <div class="num">70%+</div>
+        <div class="label">completion rate needed to go viral in 2026, up from 50% in 2024</div>
+        <div class="src"><a href="https://www.voqusa.com/en/blog/tiktok-algorithm-2026" target="_blank" rel="noopener">Voqusa</a></div>
+      </div>
+      <div class="stat">
+        <div class="num">3 sec</div>
+        <div class="label">to earn the watch — 71% of viewers decide by then</div>
+        <div class="src"><a href="https://www.opus.pro/blog/tiktok-hook-formulas" target="_blank" rel="noopener">OpusClip</a></div>
+      </div>
+      <div class="stat">
+        <div class="num">21–34s</div>
+        <div class="label">sweet spot for depth; travel storytelling often runs 60–90s</div>
+        <div class="src"><a href="https://stackinfluence.com/blog/best-tiktok-video-lengths-for-creators-in-2026" target="_blank" rel="noopener">Stack Influence</a></div>
+      </div>
+      <div class="stat">
+        <div class="num">3–5</div>
+        <div class="label">hashtags beat 15–30 — fewer, tighter tags win</div>
+        <div class="src"><a href="https://skedsocial.com/blog/how-to-use-hashtags-on-tiktok-in-2026-maximize-your-tiktok-reach-and-engagement" target="_blank" rel="noopener">Sked Social</a></div>
+      </div>
+    </div>
+  </header>
+
+  <section id="voice">
+    <div class="kicker"><span class="tag">01</span><h2>What already works for her</h2></div>
+    <p class="dek">I read through 15 of her real captions across Instagram and TikTok. Four posts stand far enough above her baseline (a few hundred views/likes) to count as signal, not noise — and they're not random.</p>
+    <div class="cases">
+      <div class="case-card">
+        <div class="plat"><span>Instagram Reel</span><span class="chip">dogs</span></div>
+        <div class="num">31K</div>
+        <div class="num-label">likes · 501 comments</div>
+        <p class="excerpt">"I just spent the day hiking with 10 corgis and this might be one of the best activities I have ever done in Maine."</p>
+        <p class="takeaway">A specific number + a superlative claim in line one, a story that builds to puppies at the very end, and <b>@corgibliss tagged directly</b> — the business almost certainly reshared it to their own audience.</p>
+      </div>
+      <div class="case-card">
+        <div class="plat"><span>TikTok</span><span class="chip">dogs</span></div>
+        <div class="num">59.2K</div>
+        <div class="num-label">views — same story, different platform</div>
+        <p class="excerpt">"Did you know there is a beach in Maine that has lifeguard dogs?"</p>
+        <p class="takeaway">This is the <b>same lifeguard-dog story</b> that only got 366 likes on Instagram. Identical footage, wildly different result by platform — the case for posting everything to both, not pre-judging what will land where.</p>
+      </div>
+      <div class="case-card">
+        <div class="plat"><span>TikTok</span><span class="chip">pop culture</span></div>
+        <div class="num">39.7K</div>
+        <div class="num-label">views (pinned)</div>
+        <p class="excerpt">"It felt like I was transported straight into The Summer I Turned Pretty."</p>
+        <p class="takeaway">Tying a real place to a trending show or movie is a repeatable hook pattern in her own data — borrowed cultural relevance, not just destination facts.</p>
+      </div>
+      <div class="case-card">
+        <div class="plat"><span>Instagram Reel</span><span class="chip">insider access</span></div>
+        <div class="num">3,908</div>
+        <div class="num-label">likes · 124 comments</div>
+        <p class="excerpt">"One of the highlights of our Lofoten trip was an unexpected sauna and cold plunge... guests staying nearby get priority booking."</p>
+        <p class="takeaway">A fourth pattern: an experience that feels hard to access, paired with the exact insider tip to get it (who to ask, what to watch for — lion's mane jellyfish, in this case).</p>
+      </div>
+    </div>
+
+    <h3 class="sub" style="margin-top:32px;">Her caption formula, decoded</h3>
+    <p class="prose" style="max-width:64ch; color:var(--ink-soft); font-size:14px; margin-top:-4px;">Across all 15 captions, the structure repeats almost every time — this is what the dashboard should replicate, not a generic travel-caption template.</p>
+    <div class="voice-formula">
+      <div class="vf-row"><span class="k">Hook</span><span class="v">First-person and specific: <em>"Did you know…"</em>, <em>"I just spent the day…"</em>, or <em>"Have you seen…"</em> — never a generic scene-setter.</span></div>
+      <div class="vf-row"><span class="k">Story beat</span><span class="v">One unexpected detail (fairy houses on the trail, a jellyfish warning, a waffle folded a specific way) that a stock description wouldn't include.</span></div>
+      <div class="vf-row"><span class="k">Practical info</span><span class="v">Real logistics woven in — distance from a known landmark, price, or how to book. Occasionally a full itinerary as an emoji bullet list instead of prose (Mont Tremblant: hike → village → gondola → dessert).</span></div>
+      <div class="vf-row"><span class="k">CTA</span><span class="v">Ends on a direct question or an explicit next step ("DM for the link," "Would you try it?!," "Save this for your trip") — drives comments and saves, both weighted heavily.</span></div>
+      <div class="vf-row"><span class="k">Location + tag</span><span class="v">Almost always a 📍 pin and the venue tagged by handle (<em>@corgibliss, @lonepinebrewing, @reinefjordsjohus</em>) — skipped only a handful of times, usually when no clean handle exists.</span></div>
+      <div class="vf-row"><span class="k">Hashtags</span><span class="v">Exactly 5 in 14 of 15 posts: 1–2 broad regional (<em>#visitmaine, #visitnorway</em>) + 1–2 specific/niche (<em>#lofotenislands, #hammondcastle</em>) + 1 community tag (<em>#dogsofinstagram, #castlesofinstagram</em>).</span></div>
+      <div class="vf-row"><span class="k">Series framing</span><span class="v">Recurring bits get numbered — "Maine Lobster Roll Series, stop 9," "Next up in my Oslo series" — makes single posts feel part of a saveable collection.</span></div>
+    </div>
+  </section>
+
+  <section id="algorithm">
+    <div class="kicker"><span class="tag">02</span><h2>How the algorithm actually grades a trip video</h2></div>
+    <p class="dek">The rules changed enough since 2024 that old advice ("keep it under 15 seconds," "post anything daily") now actively hurts reach.</p>
+    <div class="prose">
+      <h3 class="sub">Watch-through beats everything, including view count</h3>
+      <p>Every video is first shown to a small pool of her own followers. If that pool watches to the end and engages fast, TikTok expands the audience — if they drop early, the video stalls no matter how good the idea was. A rewatch (one person watching three times) counts for more than three people watching once. <span class="cite">(<a href="https://www.socialync.io/blog/tiktok-algorithm-2026-what-works-now" target="_blank" rel="noopener">Socialync</a>, <a href="https://www.heyorca.com/blog/how-tiktoks-algorithm-actually-works-2026" target="_blank" rel="noopener">HeyOrca</a>)</span></p>
+
+      <h3 class="sub">The hook is the whole pitch, not the intro</h3>
+      <p>The spoken line, the first visual frame, and the on-screen caption all have to land inside 1–3 seconds — a curiosity gap, a specific number, or a contrarian claim, not a warm-up. The three formulas that consistently outperform across niches right now are the <strong>contrarian claim</strong>, the <strong>mistake warning</strong>, and the <strong>list tease</strong>. <span class="cite">(<a href="https://kineclip.com/blog/how-to-write-viral-hooks-short-form-2026/" target="_blank" rel="noopener">Kineclip</a>)</span></p>
+
+      <h3 class="sub">Length should match the content, not a magic number</h3>
+      <p>Entertainment clips peak at 15–30s, educational content at 30–60s, and storytelling at 60–90s. Cinematic travel content aimed at adults tends to reward the longer end — the old "shorter always wins" rule doesn't hold anymore. <span class="cite">(<a href="https://quso.ai/blog/best-video-length-for-tiktok" target="_blank" rel="noopener">Quso</a>)</span></p>
+
+      <h3 class="sub">Sound: trending helps a little, original is rewarded more now</h3>
+      <p>A trending sound gives a small distribution boost when it genuinely fits — forced use doesn't help. TikTok rebalanced its 2026 ranking to favor original audio, which also happens to suit a brand built on someone's own voice. <span class="cite">(<a href="https://miraflow.ai/blog/tiktok-algorithm-2026-what-creators-need-to-know" target="_blank" rel="noopener">Miraflow</a>)</span></p>
+
+      <h3 class="sub">Travel has its own pattern worth stealing</h3>
+      <p>Specific-number cost reveals ("stayed in a 5-star hotel for $80/night") consistently outperform vague luxury content — the gap between the expectation and the real number is the hook itself. And because TikTok surfaces destination content by search intent, videos about a place tend to get discovered for weeks <em>before</em> people actually travel there — a seasonal content calendar compounds this. <span class="cite">(<a href="https://littlewavemedia.com/travel-branyik-tiktok-case-study/" target="_blank" rel="noopener">Little Wave Media</a>)</span></p>
+    </div>
+  </section>
+
+  <section id="research">
+    <div class="kicker"><span class="tag">03</span><h2>Where to actually find "viral" — not guess it</h2></div>
+    <p class="dek">Two free tools, both built by TikTok itself, solve the exact problem she described: not knowing which tags or topics are actually working right now.</p>
+    <div class="prose">
+      <p><strong>TikTok Creative Center</strong> (<span class="mono">ads.tiktok.com/business/creativecenter</span>) — no login required. Shows trending hashtags and sounds with view counts, growth rate, and related examples, refreshed every 24–48 hours. This is the single best free source of "what's actually trending right now" data. <span class="cite">(<a href="https://creatify.ai/blog/tiktok-creative-center" target="_blank" rel="noopener">Creatify</a>)</span></p>
+      <p><strong>Creator Search Insights → Content Gap</strong> (in the TikTok app, under Settings) — this is the one most creators never find. It flags searches with high demand and low supply: topics people are actively typing into TikTok search with almost no good videos answering them. Filling a content gap gets rewarded with outsized reach because there's no competition for it. <span class="cite">(<a href="https://www.hookstudio.ai/blog/tiktok-creator-search-insights-content-gap-hack" target="_blank" rel="noopener">Hook Studio</a>)</span></p>
+      <p>Neither tool has a public API — TikTok doesn't let outside apps pull this data automatically, and scraping it would violate their terms. So the realistic workflow is: she spends two minutes a week skimming both, and the dashboard below takes whatever she found (or nothing at all) and turns it into a usable script.</p>
+    </div>
+  </section>
+
+  <section id="angles">
+    <div class="kicker"><span class="tag">04</span><h2>One trip is not one video</h2></div>
+    <p class="dek">This is the real lever for a couple who already travels to film. The same footage from one hike or one vineyard afternoon splits cleanly into several different videos, each built around a different hook — not the same clip re-posted.</p>
+    <div class="prose">
+      <p>Creators who batch-film a single outing typically pull <strong>5–10 short videos out of one session</strong> instead of one — what changes between them isn't the footage, it's the framing. <span class="cite">(<a href="https://cutback.video/blog/batch-filming-editing-the-creator-s-secret-to-posting-consistently" target="_blank" rel="noopener">Cutback</a>, <a href="https://www.postquick.ai/blog/repurpose-video-content" target="_blank" rel="noopener">PostQuick</a>)</span></p>
+    </div>
+    <div class="angles">
+      <div class="angle-card"><span class="kind">Cost reveal</span><h4>"$80 for this view"</h4><p>The exact price, meal cost, or entry fee — travel's single best-performing hook pattern, because the gap between expectation and the real number does the work.</p></div>
+      <div class="angle-card"><span class="kind">Mistake warning</span><h4>"We almost skipped this"</h4><p>What you nearly missed or got wrong — parking, timing, the trail you almost didn't take.</p></div>
+      <div class="angle-card"><span class="kind">List tease</span><h4>"3 things to know before you go"</h4><p>Practical, saveable — logistics content earns the highest save-rate of any travel format.</p></div>
+      <div class="angle-card"><span class="kind">POV / story</span><h4>"POV: you found the place"</h4><p>The cinematic, longer-form cut for storytelling — same clips, slower pacing, 60–90s.</p></div>
+    </div>
+    <p class="prose" style="margin-top:16px; max-width:64ch; color:var(--ink-soft); font-size:14px;">One production notes tip worth adopting on-site: grab a few extra seconds of raw footage before and after every shot. That buffer makes it much easier to re-cut the same clip for a second or third angle later without a reshoot. <span class="cite">(<a href="https://www.postquick.ai/blog/how-to-repurpose-video-content-into-shorts-reels-tiktok-youtube" target="_blank" rel="noopener">PostQuick</a>)</span></p>
+  </section>
+
+  <section id="framework">
+    <div class="kicker"><span class="tag">05</span><h2>What to automate, what to keep human</h2></div>
+    <p class="dek">"Automate video creation" covers a wide range — some of it saves real time safely, some of it is exactly what makes faceless AI channels feel hollow and get penalized.</p>
+    <div class="framework">
+      <div class="fw-card automate">
+        <h4>Automate</h4>
+        <ul>
+          <li>Description written in her established voice/structure</li>
+          <li>Hashtag sets matched to her proven broad + niche + community ratio</li>
+          <li>Checking a caption draft against current trending tags/sounds</li>
+          <li>Suggested location + business tags to include</li>
+          <li>Flagging when a video fits a repeatable pattern (animal content, pop-culture tie-in) worth leaning into</li>
+        </ul>
+      </div>
+      <div class="fw-card assist">
+        <h4>AI-assist, she decides</h4>
+        <ul>
+          <li>Which trend is actually on-brand</li>
+          <li>Final take / voice while filming</li>
+          <li>Descript's Underlord first-pass edit — she reviews every cut</li>
+          <li>Which of 3 thumbnail concepts to use</li>
+        </ul>
+      </div>
+      <div class="fw-card never">
+        <h4>Never automate</h4>
+        <ul>
+          <li>Posting without her review</li>
+          <li>Bought views, followers, or engagement</li>
+          <li>Fully AI-voiced/AI-faced "faceless" videos</li>
+          <li>Any tool promising guaranteed virality</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="scams">
+    <div class="kicker"><span class="tag">06</span><h2>The scammy version — and how to spot it</h2></div>
+    <p class="dek">The YouTube/TikTok "faceless automation" course industry is exactly the noise you flagged. The pattern repeats enough to be a checklist.</p>
+    <div class="flags">
+      <div class="flag"><span class="x">✕</span><span><b>Guaranteed income promises</b> — "$5,000 in 30 days" is a marketing hook, not a plan. <span class="cite">(<a href="https://aifunnelinsider.com/views-for-income-review-2026/" target="_blank" rel="noopener">AI Funnel Insider</a>)</span></span></div>
+      <div class="flag"><span class="x">✕</span><span><b>Suspicious reviews</b> — one course had 91% five-star ratings, but 87% of those accounts had posted only one review ever. <span class="cite">(source above)</span></span></div>
+      <div class="flag"><span class="x">✕</span><span><b>"Why would they sell the secret?"</b> — if a guru's automation actually printed money reliably, they'd run more channels, not sell courses about it.</span></div>
+      <div class="flag"><span class="x">✕</span><span><b>Fully AI-generated videos underperform</b> — they lack the human connection that builds loyalty, and 100% automated channels typically see near-zero real engagement. <span class="cite">(<a href="https://medium.com/@horizonhunter/youtube-faceless-automation-is-a-scam-let-me-explain-5ffd3666f8e5" target="_blank" rel="noopener">Medium</a>)</span></span></div>
+      <div class="flag"><span class="x">✕</span><span><b>Broken "auto-post" promises</b> — many paid tools simply fail to post; TikTok requires a real app-review process (2–6 weeks) before any third party can publish to an account, so a $30/month tool claiming instant auto-posting is usually either not really posting for you or violating TikTok's own terms. <span class="cite">(<a href="https://developers.tiktok.com/docs/en/content-posting-api-get-started" target="_blank" rel="noopener">TikTok for Developers</a>)</span></span></div>
+    </div>
+    <p class="prose" style="margin-top:16px; max-width:64ch; color:var(--ink-soft); font-size:14px;">The plan below avoids every one of these because she stays the face, the voice, and the final editor on every video — the dashboard only removes the blank-page problem.</p>
+  </section>
+
+  <section id="workflow">
+    <div class="kicker"><span class="tag">07</span><h2>Her new workflow</h2></div>
+    <p class="dek">The idea, the trip, and the filming don't change. One step gets replaced: the 15 minutes of guessing at hashtags and staring at the caption box.</p>
+    <div class="flow">
+      <div class="flow-col before">
+        <h4>Today</h4>
+        <ol>
+          <li>Idea + location already decided, footage already shot</li>
+          <li>Record audio, edit in Descript</li>
+          <li>Stare at the caption box, write it from scratch</li>
+          <li>Guess at 5 hashtags, hope they're the right mix</li>
+          <li>Post, wait, see what sticks</li>
+        </ol>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-col after">
+        <h4>With the engine</h4>
+        <ol>
+          <li>Idea + location already decided, footage already shot</li>
+          <li>Record audio, edit in Descript</li>
+          <li><strong>Enter idea + location + any story beats</strong> (1 minute)</li>
+          <li>Get a description in her voice + a 5-tag set (broad / niche / community), checked against what's trending right now</li>
+          <li>Tweak, post, schedule via TikTok Studio or Metricool</li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <section id="dashboard">
+    <div class="kicker"><span class="tag">08</span><h2>The dashboard</h2></div>
+    <p class="dek">She enters the idea, location, and whatever story beats stood out — it hands back a description written in her established voice, plus a 5-tag set. Not a new script, not a new idea: the exact two things she said take the guessing.</p>
+
+    <div class="mock">
+      <div class="mock-bar">
+        <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+        <span class="example-badge">Example — modeled on her real posts, not live data</span>
+      </div>
+      <div class="mock-body">
+        <div class="mock-in">
+          <div class="field"><label>Idea</label><div class="val">Goat yoga at a working farm</div></div>
+          <div class="field"><label>Location</label><div class="val">Cricket Creek Farm, Williamstown, MA</div></div>
+          <div class="field"><label>Story beat / detail</label><div class="val">Baby goats climb on you mid-pose; class ends with farm cheese tasting</div></div>
+          <div class="field"><label>Business to tag (optional)</label><div class="val">@cricketcreekfarm</div></div>
+          <div class="field"><label>Trend spotted (optional)</label><div class="val">— none this week —</div></div>
+        </div>
+        <div class="mock-out">
+          <div class="out-block">
+            <h5>Description</h5>
+            <p>Did you know you can do yoga surrounded by baby goats in the Berkshires? 🐐 At Cricket Creek Farm in Williamstown, the goats climb right onto your mat mid-downward-dog — chaos, but the best kind. Class wraps with a tasting of cheese made from their own herd. If you're in the Berkshires this fall, add this to your list. 📍 Cricket Creek Farm, Williamstown, MA @cricketcreekfarm</p>
+          </div>
+          <div class="out-block">
+            <h5>Hashtag set</h5>
+            <div class="chipset">
+              <span class="chip b">#visitmassachusetts</span>
+              <span class="chip b">#berkshires</span>
+              <span class="chip n">#goatyoga</span>
+              <span class="chip n">#williamstownma</span>
+              <span class="chip u">#goatsofinstagram</span>
+            </div>
+          </div>
+          <div class="out-block">
+            <h5>Why these tags</h5>
+            <p>Matches her formula exactly: 2 broad regional, 2 niche/specific, 1 community tag — same ratio as the corgi and lifeguard-dog posts that outperformed everything else she's posted.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="stack-note">
+      <span class="icon">→</span>
+      <p><strong>How it's actually built:</strong> a small web form on top of the Claude API (Sonnet), prompted with her real caption formula plus 15–20 of her best examples so the output sounds like her by default — not generic travel-creator copy. Generation costs a few cents per post. Live trend data stays human-curated: she pastes in whatever she spotted on Creative Center or Content Gap (or leaves it blank), since TikTok has no public API for that and scraping it isn't worth the risk. No auto-posting bot — she still schedules through TikTok's own free Studio scheduler or Metricool's free tier if she wants to plan further ahead.</p>
+    </div>
+  </section>
+
+  <section id="next">
+    <div class="kicker"><span class="tag">09</span><h2>What I need from you two to start building</h2></div>
+    <div class="checklist">
+      <div class="check"><span class="n">01</span><div class="body"><b>Confirm this direction</b><p>A description + hashtag generator built on her own voice — not an idea or script generator. No auto-posting, no bought engagement, nothing that touches her account without her clicking post.</p></div></div>
+      <div class="check"><span class="n">02</span><div class="body"><b>Scheduling: built-in or not?</b><p>I can wire in Metricool's free tier so scheduling happens from the same dashboard, or leave that to TikTok's native scheduler and keep the tool script-only.</p></div></div>
+      <div class="check"><span class="n">03</span><div class="body"><b>Voice sample — done</b><p>Pulled 15 real captions across both platforms already (this doc). Good enough to build the first version; we can keep adding her best performers as she posts.</p></div></div>
+      <div class="check"><span class="n">04</span><div class="body"><b>Where it lives</b><p>Private tool just for her, or built to eventually plug into the WWW travel app as a shared content engine for both.</p></div></div>
+    </div>
+  </section>
+
+  <footer>
+    Compiled from TikTok's own Creative Center and Creator Search Insights documentation, and current (September 2026) reporting from Socialync, Voqusa, OpusClip, Sked Social, Stack Influence, Quso, Cutback, PostQuick, and TikTok for Developers — linked inline throughout.
+  </footer>
+
+</div>
