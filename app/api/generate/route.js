@@ -2,12 +2,11 @@ import { NextResponse } from "next/server";
 import { getTrendingHashtags } from "../../../lib/trends";
 import { generatePost } from "../../../lib/claude";
 
-// Web search adds a real round trip on top of generation. Live testing hit
-// the 60s ceiling itself (request killed mid-flight, returning an HTML
-// error page the client can't parse as JSON) on a run that used extra
-// search rounds - 120s gives real headroom for that without much downside
+// generatePost() now retries up to 3x internally on a malformed/incomplete
+// model response, so a single request can involve up to 3 full generation
+// attempts (~30-60s each observed). 240s gives room for that worst case
 // (Vercel bills for actual duration, not the ceiling).
-export const maxDuration = 120;
+export const maxDuration = 240;
 
 export async function POST(req) {
   let body;
