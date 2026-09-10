@@ -16,7 +16,7 @@ export async function POST(req) {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
-  const { idea, location, storyBeat, notes, lengthSeconds, platform } = body;
+  const { idea, location, storyBeat, notes, lengthSeconds, platform, menuCheck: precomputedMenuCheck } = body;
 
   if (!idea || !location) {
     return NextResponse.json(
@@ -28,13 +28,20 @@ export async function POST(req) {
   const resolvedPlatform = ["instagram", "youtube"].includes(platform) ? platform : "tiktok";
   const resolvedLength = lengthSeconds === 30 ? 30 : 60;
 
-  // Both are independent pre-fetches (neither depends on the other's
-  // result), run in parallel to avoid adding sequential latency. Like the
-  // trend fetch, the menu check degrades to null/empty on its own rather
-  // than failing the request - see checkRestaurantMenu() for why.
+  // The trend search is deliberately platform-specific (the query embeds
+  // the platform name, since trending tags genuinely differ by platform),
+  // so it still runs per-request here. The menu check is NOT platform-
+  // specific - a restaurant's menu doesn't change based on which app it's
+  // being posted to - so the caller (page.js) is expected to run it once
+  // via /api/menu-check and pass the result in as `menuCheck`, shared
+  // across every platform's request instead of repeating the same live
+  // search per platform. Falling back to computing it here too, so this
+  // endpoint still works standalone if menuCheck is never provided.
   const [trendResult, menuCheck] = await Promise.all([
     getTrendingHashtags(`${idea} ${location} ${resolvedPlatform} ${notes || ""}`.trim()),
-    checkRestaurantMenu(idea, location, storyBeat, notes),
+    precomputedMenuCheck !== undefined
+      ? Promise.resolve(precomputedMenuCheck)
+      : checkRestaurantMenu(idea, location, storyBeat, notes),
   ]);
 
   console.log(

@@ -15,6 +15,8 @@ const PLATFORM_LABELS = {
   youtube: "YouTube",
 };
 
+const PLATFORM_ORDER = ["tiktok", "instagram", "youtube"];
+
 function formatPattern(pattern) {
   return PATTERN_LABELS[pattern] || "Why this should work";
 }
@@ -29,6 +31,11 @@ const initialForm = {
 
 export default function Dashboard() {
   const [form, setForm] = useState(initialForm);
+  const [selectedPlatforms, setSelectedPlatforms] = useState({
+    tiktok: true,
+    instagram: true,
+    youtube: true,
+  });
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -39,11 +46,17 @@ export default function Dashboard() {
     setForm((f) => ({ ...f, [field]: value }));
   }
 
-  async function generateOne(platformName) {
+  function togglePlatform(p) {
+    setSelectedPlatforms((s) => ({ ...s, [p]: !s[p] }));
+  }
+
+  const platformsToGenerate = PLATFORM_ORDER.filter((p) => selectedPlatforms[p]);
+
+  async function generateOne(platformName, menuCheck) {
     const res = await fetch("/api/generate", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ ...form, platform: platformName }),
+      body: JSON.stringify({ ...form, platform: platformName, menuCheck }),
     });
     const raw = await res.text();
     let data;
@@ -61,33 +74,63 @@ export default function Dashboard() {
 
   async function onSubmit(e) {
     e.preventDefault();
+    if (platformsToGenerate.length === 0) return;
+
     setLoading(true);
     setError("");
     setResult(null);
-    setActiveTab("tiktok");
+    setActiveTab(platformsToGenerate[0]);
 
-    // Three independent, parallel requests - each platform's generation is
-    // faster and more reliable on its own than one combined call (a
-    // combined version routinely hit Vercel's function timeout in testing).
-    const [tiktokOutcome, instagramOutcome, youtubeOutcome] = await Promise.allSettled([
-      generateOne("tiktok"),
-      generateOne("instagram"),
-      generateOne("youtube"),
-    ]);
+    // The menu check doesn't vary by platform (a restaurant's menu is the
+    // same regardless of which app it's posted to), so it runs once here
+    // and gets passed into every platform request below - instead of each
+    // platform's own /api/generate call repeating the same live search.
+    let menuCheck = null;
+    try {
+      const menuRes = await fetch("/api/menu-check", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          idea: form.idea,
+          location: form.location,
+          storyBeat: form.storyBeat,
+          notes: form.notes,
+        }),
+      });
+      if (menuRes.ok) {
+        const menuData = await menuRes.json();
+        menuCheck = menuData.menuCheck ?? null;
+      }
+    } catch {
+      // Degrades silently, same as if the check had found nothing -
+      // generation still proceeds, just without menu grounding.
+    }
+
+    // Independent, parallel requests, one per selected platform - each
+    // platform's generation is faster and more reliable on its own than
+    // one combined call (a combined version routinely hit Vercel's
+    // function timeout in testing).
+    const outcomes = await Promise.allSettled(
+      platformsToGenerate.map((p) => generateOne(p, menuCheck))
+    );
 
     const platforms = {};
     const errors = {};
-    if (tiktokOutcome.status === "fulfilled") platforms.tiktok = tiktokOutcome.value;
-    else errors.tiktok = tiktokOutcome.reason?.message || "Failed to generate.";
-    if (instagramOutcome.status === "fulfilled") platforms.instagram = instagramOutcome.value;
-    else errors.instagram = instagramOutcome.reason?.message || "Failed to generate.";
-    if (youtubeOutcome.status === "fulfilled") platforms.youtube = youtubeOutcome.value;
-    else errors.youtube = youtubeOutcome.reason?.message || "Failed to generate.";
+    outcomes.forEach((outcome, i) => {
+      const p = platformsToGenerate[i];
+      if (outcome.status === "fulfilled") platforms[p] = outcome.value;
+      else errors[p] = outcome.reason?.message || "Failed to generate.";
+    });
 
-    if (!platforms.tiktok && !platforms.instagram && !platforms.youtube) {
-      setError(errors.tiktok || errors.instagram || errors.youtube || "All platforms failed to generate.");
+    if (Object.keys(platforms).length === 0) {
+      setError(
+        errors[platformsToGenerate[0]] ||
+          (platformsToGenerate.length > 1
+            ? "All selected platforms failed to generate."
+            : "Failed to generate.")
+      );
     } else {
-      setResult({ platforms, errors });
+      setResult({ platforms, errors, attempted: platformsToGenerate });
     }
     setLoading(false);
   }
@@ -143,6 +186,26 @@ export default function Dashboard() {
         </div>
 
         <div className="field">
+          <label>Platforms to generate</label>
+          <div className="platform-toggle">
+            {PLATFORM_ORDER.map((p) => (
+              <button
+                key={p}
+                type="button"
+                className={`goal-option ${selectedPlatforms[p] ? "active" : ""}`}
+                onClick={() => togglePlatform(p)}
+                aria-pressed={selectedPlatforms[p]}
+              >
+                <span className="goal-title">{PLATFORM_LABELS[p]}</span>
+              </button>
+            ))}
+          </div>
+          {platformsToGenerate.length === 0 && (
+            <p className="hint" style={{ marginTop: 6 }}>Pick at least one platform.</p>
+          )}
+        </div>
+
+        <div className="field">
           <label>Video length (same target across platforms)</label>
           <div className="goal-toggle">
             <button
@@ -176,7 +239,7 @@ export default function Dashboard() {
 
         {error && <div className="error-banner">{error}</div>}
 
-        <button className="btn-primary" disabled={loading}>
+        <button className="btn-primary" disabled={loading || platformsToGenerate.length === 0}>
           {loading ? "Writing…" : "Generate description + tags"}
         </button>
       </form>
@@ -188,7 +251,7 @@ export default function Dashboard() {
           </div>
 
           <div className="tabs">
-            {["tiktok", "instagram", "youtube"].map((p) => (
+            {(result.attempted || PLATFORM_ORDER).map((p) => (
               <button
                 key={p}
                 type="button"
