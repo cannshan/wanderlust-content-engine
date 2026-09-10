@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { findLocationTagOptions } from "../../../lib/claude";
 
-// Same reasoning as /api/menu-check: a dedicated endpoint so this live
-// search runs exactly once per "Generate" click instead of once per
-// selected platform. Unlike the menu check, this isn't conditional on
-// topic type - almost every post has a real location worth checking - so
-// page.js calls it unconditionally alongside the menu check, in parallel.
+// Same reasoning as /api/restaurant-check: a dedicated endpoint so this
+// live search runs exactly once per "Generate" click instead of once per
+// selected platform. Unlike the restaurant check, this isn't conditional
+// on topic type or a checkbox - almost every post has a real location
+// worth checking - so page.js calls it unconditionally, in parallel with
+// the restaurant check (when that one applies).
 export async function POST(req) {
   let body;
   try {

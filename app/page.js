@@ -17,6 +17,25 @@ const PLATFORM_LABELS = {
 
 const PLATFORM_ORDER = ["tiktok", "instagram", "youtube"];
 
+// Raw file size cap for an uploaded menu photo/PDF - base64 encoding
+// inflates size by ~33%, so 4MB raw becomes ~5.3MB in the request body.
+// Kept safely under Vercel's serverless request body limit.
+const MAX_MENU_FILE_BYTES = 4 * 1024 * 1024;
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      // reader.result is a data URL like "data:image/jpeg;base64,/9j/4AA...."
+      // - strip the prefix, keep just the base64 payload.
+      const base64 = String(reader.result).split(",")[1] || "";
+      resolve(base64);
+    };
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
 function formatPattern(pattern) {
   return PATTERN_LABELS[pattern] || "Why this should work";
 }
@@ -41,6 +60,11 @@ export default function Dashboard() {
     music: false,
     styling: false,
   });
+  const [isRestaurant, setIsRestaurant] = useState(false);
+  const [restaurantName, setRestaurantName] = useState("");
+  const [menuLink, setMenuLink] = useState("");
+  const [menuFile, setMenuFile] = useState(null);
+  const [menuFileError, setMenuFileError] = useState("");
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -155,16 +179,28 @@ export default function Dashboard() {
     setExtras((e) => ({ ...e, [key]: !e[key] }));
   }
 
+  function handleMenuFileChange(e) {
+    const file = e.target.files?.[0] || null;
+    if (file && file.size > MAX_MENU_FILE_BYTES) {
+      setMenuFileError("That file's too big - please use something under 4MB (a phone photo of the menu is fine).");
+      setMenuFile(null);
+      e.target.value = "";
+      return;
+    }
+    setMenuFileError("");
+    setMenuFile(file);
+  }
+
   const platformsToGenerate = PLATFORM_ORDER.filter((p) => selectedPlatforms[p]);
 
-  async function generateOne(platformName, menuCheck, locationContext) {
+  async function generateOne(platformName, restaurantContext, locationContext) {
     const res = await fetch("/api/generate", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         ...form,
         platform: platformName,
-        menuCheck,
+        restaurantContext,
         locationContext,
         includeVoiceover: extras.voiceover,
         includeMusic: extras.music,
@@ -198,12 +234,12 @@ export default function Dashboard() {
     setResult(null);
     setActiveTab(platformsToGenerate[0]);
 
-    // Neither the menu check nor the location-tag search varies by
-    // platform (a restaurant's menu and a place's real-world popularity
-    // don't change based on which app it's posted to), so both run once
-    // here, in parallel with each other, and get passed into every
-    // platform request below - instead of each platform's own
-    // /api/generate call repeating the same live searches.
+    // Neither the restaurant check nor the location-tag search varies by
+    // platform (a menu and a place's real-world popularity don't change
+    // based on which app it's posted to), so both run once here, in
+    // parallel with each other, and get passed into every platform
+    // request below - instead of each platform's own /api/generate call
+    // repeating the same live read/search.
     async function fetchContext(path, body) {
       try {
         const res = await fetch(path, {
@@ -220,16 +256,25 @@ export default function Dashboard() {
       }
     }
 
-    // Styling is opt-in and, like the two above, platform-agnostic - only
-    // fetched at all when the toggle is on, so the common case (extras off)
-    // adds no extra request here.
-    const [menuData, locationData, stylingData] = await Promise.all([
-      fetchContext("/api/menu-check", {
-        idea: form.idea,
-        location: form.location,
-        storyBeat: form.storyBeat,
-        notes: form.notes,
-      }),
+    // The restaurant check is opt-in via the checkbox now, not
+    // auto-detected - only fires (and only reads the uploaded menu file,
+    // which needs converting to base64 first) when isRestaurant is on and
+    // a restaurant name was actually given. Styling is opt-in the same
+    // way. Neither adds a request at all when its toggle is off.
+    const menuFileBase64 = menuFile ? await fileToBase64(menuFile) : null;
+
+    const [restaurantData, locationData, stylingData] = await Promise.all([
+      isRestaurant && restaurantName.trim()
+        ? fetchContext("/api/restaurant-check", {
+            restaurantName: restaurantName.trim(),
+            location: form.location,
+            idea: form.idea,
+            storyBeat: form.storyBeat,
+            menuLink: menuLink.trim() || null,
+            menuFileBase64,
+            menuFileMediaType: menuFile?.type || null,
+          })
+        : Promise.resolve(null),
       fetchContext("/api/location-search", {
         idea: form.idea,
         location: form.location,
@@ -243,7 +288,7 @@ export default function Dashboard() {
           })
         : Promise.resolve(null),
     ]);
-    const menuCheck = menuData?.menuCheck ?? null;
+    const restaurantContext = restaurantData?.restaurantContext ?? null;
     const locationContext = locationData?.locationContext ?? null;
     const stylingTip = stylingData?.stylingTip ?? null;
 
@@ -252,7 +297,7 @@ export default function Dashboard() {
     // one combined call (a combined version routinely hit Vercel's
     // function timeout in testing).
     const outcomes = await Promise.allSettled(
-      platformsToGenerate.map((p) => generateOne(p, menuCheck, locationContext))
+      platformsToGenerate.map((p) => generateOne(p, restaurantContext, locationContext))
     );
 
     const platforms = {};
@@ -377,6 +422,54 @@ export default function Dashboard() {
             </button>
           </div>
         </div>
+
+        <div className="field">
+          <label>Restaurant / bar (optional)</label>
+          <button
+            type="button"
+            className={`goal-option ${isRestaurant ? "active" : ""}`}
+            onClick={() => setIsRestaurant((v) => !v)}
+            aria-pressed={isRestaurant}
+            style={{ width: "100%" }}
+          >
+            <span className="goal-title">This post is about a restaurant/bar</span>
+            <span className="goal-sub">Pulls a real menu item and restaurant-specific research into the post</span>
+          </button>
+        </div>
+
+        {isRestaurant && (
+          <>
+            <div className="field">
+              <label htmlFor="restaurantName">Restaurant name</label>
+              <input
+                id="restaurantName"
+                required
+                placeholder="Freeport Oyster Bar"
+                value={restaurantName}
+                onChange={(e) => setRestaurantName(e.target.value)}
+              />
+            </div>
+
+            <div className="field">
+              <label htmlFor="menuLink">Menu link (optional)</label>
+              <input
+                id="menuLink"
+                placeholder="https://theirsite.com/menu"
+                value={menuLink}
+                onChange={(e) => setMenuLink(e.target.value)}
+              />
+            </div>
+
+            <div className="field">
+              <label htmlFor="menuFile">Or upload a menu photo/PDF (optional)</label>
+              <input id="menuFile" type="file" accept="image/*,application/pdf" onChange={handleMenuFileChange} />
+              {menuFile && <p className="hint" style={{ marginTop: 6 }}>{menuFile.name}</p>}
+              {menuFileError && (
+                <p className="hint" style={{ marginTop: 6, color: "var(--bad)" }}>{menuFileError}</p>
+              )}
+            </div>
+          </>
+        )}
 
         <div className="field">
           <label>Video length (same target across platforms)</label>

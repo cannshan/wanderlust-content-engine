@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getTrendingHashtags } from "../../../lib/trends";
-import { generatePost, checkRestaurantMenu, findLocationTagOptions } from "../../../lib/claude";
+import { generatePost, analyzeRestaurant, findLocationTagOptions } from "../../../lib/claude";
 
 // generatePost() now retries up to 3x internally on a malformed/incomplete
 // model response, so a single request can involve up to 3 full generation
@@ -23,7 +23,11 @@ export async function POST(req) {
     notes,
     lengthSeconds,
     platform,
-    menuCheck: precomputedMenuCheck,
+    restaurantContext: precomputedRestaurantContext,
+    restaurantName,
+    menuLink,
+    menuFileBase64,
+    menuFileMediaType,
     locationContext: precomputedLocationContext,
     includeVoiceover,
     includeMusic,
@@ -41,27 +45,32 @@ export async function POST(req) {
 
   // The trend search is deliberately platform-specific (the query embeds
   // the platform name, since trending tags genuinely differ by platform),
-  // so it still runs per-request here. The menu check and the location-tag
-  // search are NOT platform-specific - a restaurant's menu and a place's
+  // so it still runs per-request here. The restaurant check and the
+  // location-tag search are NOT platform-specific - a menu and a place's
   // real-world popularity don't change based on which app it's being
   // posted to - so the caller (page.js) is expected to run both once (via
-  // /api/menu-check and /api/location-search) and pass the results in,
-  // shared across every platform's request instead of repeating the same
-  // live searches per platform. Falling back to computing them here too,
-  // so this endpoint still works standalone if they're never provided.
-  const [trendResult, menuCheck, locationContext] = await Promise.all([
+  // /api/restaurant-check and /api/location-search) and pass the results
+  // in, shared across every platform's request instead of repeating the
+  // same live searches per platform. Falling back to computing them here
+  // too, so this endpoint still works standalone if they're never
+  // provided - the restaurant one only actually fires that fallback if a
+  // restaurantName was also passed, since it's opt-in via the checkbox,
+  // not auto-detected the way it used to be.
+  const [trendResult, restaurantContext, locationContext] = await Promise.all([
     getTrendingHashtags(`${idea} ${location} ${resolvedPlatform} ${notes || ""}`.trim()),
-    precomputedMenuCheck !== undefined
-      ? Promise.resolve(precomputedMenuCheck)
-      : checkRestaurantMenu(idea, location, storyBeat, notes),
+    precomputedRestaurantContext !== undefined
+      ? Promise.resolve(precomputedRestaurantContext)
+      : restaurantName
+      ? analyzeRestaurant({ restaurantName, location, idea, storyBeat, menuLink, menuFileBase64, menuFileMediaType })
+      : Promise.resolve(null),
     precomputedLocationContext !== undefined
       ? Promise.resolve(precomputedLocationContext)
       : findLocationTagOptions(idea, location, storyBeat),
   ]);
 
   console.log(
-    `[generate] platform=${resolvedPlatform} trend_source=${trendResult.source} menu_check=${
-      menuCheck ? `"${menuCheck.slice(0, 200)}${menuCheck.length > 200 ? "…" : ""}"` : "none/skipped"
+    `[generate] platform=${resolvedPlatform} trend_source=${trendResult.source} restaurant_context=${
+      restaurantContext ? `"${restaurantContext.slice(0, 200)}${restaurantContext.length > 200 ? "…" : ""}"` : "none/skipped"
     } location_context=${
       locationContext ? `"${locationContext.slice(0, 200)}${locationContext.length > 200 ? "…" : ""}"` : "none/skipped"
     }`
@@ -74,7 +83,7 @@ export async function POST(req) {
       storyBeat,
       notes,
       liveTrends: trendResult.hashtags,
-      menuCheck,
+      restaurantContext,
       locationContext,
       lengthSeconds: resolvedLength,
       platform: resolvedPlatform,

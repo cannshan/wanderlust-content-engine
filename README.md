@@ -84,7 +84,7 @@ The easiest path is [Vercel](https://vercel.com) (built by the makers of Next.js
 
 - `app/page.js` — the dashboard form + result UI.
 - `app/api/generate/route.js` — ties the trend lookup and Claude call together, per platform.
-- `app/api/menu-check/`, `app/api/location-search/`, `app/api/styling/` — the pre-fetch endpoints (restaurant menu, location-tag popularity, wardrobe tips) that run once per "Generate" click and get passed into every platform's request, instead of each platform repeating the same live search.
+- `app/api/restaurant-check/`, `app/api/location-search/`, `app/api/styling/` — the pre-fetch endpoints (restaurant menu + research, location-tag popularity, wardrobe tips) that run once per "Generate" click and get passed into every platform's request, instead of each platform repeating the same live read/search. The restaurant one only fires when the "Restaurant / bar" checkbox is on and a name is given - it reads the menu you provide directly (a link and/or an uploaded photo/PDF), it no longer guesses at whether a post is about a restaurant.
 - `lib/voiceProfile.js` — Leah's decoded caption formula, 15 real sample captions, and the per-platform algorithm/location-tag rules used to ground generated copy.
 - `lib/trends.js` — the Apify integration, degrades gracefully if unconfigured.
 - `lib/claude.js` — all the Anthropic API calls: the main per-platform generation, the hashtag step, and the optional voiceover/music/styling extras.
