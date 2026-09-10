@@ -21,6 +21,11 @@ const CONTENT_TYPE_LABELS = {
   story: "Story / POV (atmosphere to sit in)",
 };
 
+const PLATFORM_LABELS = {
+  tiktok: "TikTok",
+  instagram: "Instagram",
+};
+
 function formatPattern(pattern) {
   return PATTERN_LABELS[pattern] || "Why this should work";
 }
@@ -41,6 +46,7 @@ export default function Dashboard() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState("");
+  const [activeTab, setActiveTab] = useState("tiktok");
 
   function update(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
@@ -60,6 +66,7 @@ export default function Dashboard() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Something went wrong.");
       setResult(data);
+      setActiveTab("tiktok");
     } catch (err) {
       setError(err.message);
     } finally {
@@ -72,6 +79,8 @@ export default function Dashboard() {
     setCopied(label);
     setTimeout(() => setCopied(""), 1500);
   }
+
+  const platform = result?.platforms?.[activeTab];
 
   return (
     <div className="shell">
@@ -117,7 +126,7 @@ export default function Dashboard() {
         </div>
 
         <div className="field">
-          <label>Goal for this post</label>
+          <label>TikTok goal (Instagram has no monetization floor either way)</label>
           <div className="goal-toggle">
             <button
               type="button"
@@ -199,66 +208,97 @@ export default function Dashboard() {
             </div>
           )}
 
-          <div className="description-box">{result.description}</div>
-          <button className="btn-ghost" onClick={() => copy(result.description, "description")} style={{ marginBottom: 20 }}>
-            {copied === "description" ? "Copied" : "Copy description"}
-          </button>
-
-          <div className="field">
-            <label>Hashtags</label>
-            <div className="chipset">
-              {result.hashtags?.map((tag) => (
-                <span className="chip" key={tag}>{tag}</span>
-              ))}
+          {result.cross_post_warning && (
+            <div className="warning-box">
+              <span className="warning-title">Cross-posting both platforms?</span>
+              <p>{result.cross_post_warning}</p>
             </div>
-            <button
-              className="btn-ghost"
-              onClick={() => copy(result.hashtags?.join(" "), "tags")}
-            >
-              {copied === "tags" ? "Copied" : "Copy all tags"}
-            </button>
+          )}
+
+          <div className="tabs">
+            {["tiktok", "instagram"].map((p) => (
+              <button
+                key={p}
+                type="button"
+                className={`tab-btn ${activeTab === p ? "active" : ""}`}
+                onClick={() => setActiveTab(p)}
+              >
+                {PLATFORM_LABELS[p]}
+              </button>
+            ))}
           </div>
 
-          {result.hashtag_rationale && (
-            <p className="rationale" style={{ marginTop: 16 }}>{result.hashtag_rationale}</p>
-          )}
+          {platform && (
+            <>
+              <div className="description-box">{platform.description}</div>
+              <button className="btn-ghost" onClick={() => copy(platform.description, "description")} style={{ marginBottom: 20 }}>
+                {copied === "description" ? "Copied" : "Copy description"}
+              </button>
 
-          {result.video_length && (
-            <div className="field" style={{ marginTop: 24 }}>
-              <label>Video length</label>
-              <div className="video-meta">
-                <span className="video-length-pill">{result.video_length.target_seconds}</span>
-                <span className="video-type-label">
-                  {CONTENT_TYPE_LABELS[result.video_length.content_type] || result.video_length.content_type}
-                </span>
+              <div className="field">
+                <label>Hashtags</label>
+                <div className="chipset">
+                  {platform.hashtags?.map((tag) => (
+                    <span className="chip" key={tag}>{tag}</span>
+                  ))}
+                </div>
+                <button
+                  className="btn-ghost"
+                  onClick={() => copy(platform.hashtags?.join(" "), "tags")}
+                >
+                  {copied === "tags" ? "Copied" : "Copy all tags"}
+                </button>
               </div>
-              {result.video_length.why && (
-                <p className="rationale" style={{ marginTop: 10 }}>{result.video_length.why}</p>
+
+              {platform.hashtag_rationale && (
+                <p className="rationale" style={{ marginTop: 16 }}>{platform.hashtag_rationale}</p>
               )}
-              <p className="hint" style={{ marginTop: 8 }}>
-                {result.goal === "reach"
-                  ? "Goal was reach/growth — no length floor applied. On TikTok specifically, anything under 60s won't earn from Creator Rewards; Instagram Reels has no such minimum."
-                  : "Goal was TikTok monetization — floored at 60s, since Creator Rewards pays $0 on anything shorter regardless of performance."}
-              </p>
-            </div>
-          )}
 
-          {result.shot_notes?.length > 0 && (
-            <div className="field" style={{ marginTop: 20 }}>
-              <label>Filming notes</label>
-              <ul className="shotlist">
-                {result.shot_notes.map((note, i) => (
-                  <li key={i}>{note}</li>
-                ))}
-              </ul>
-            </div>
-          )}
+              {platform.video_length && (
+                <div className="field" style={{ marginTop: 24 }}>
+                  <label>Video length</label>
+                  <div className="video-meta">
+                    <span className="video-length-pill">{platform.video_length.target_seconds}</span>
+                    <span className="video-type-label">
+                      {CONTENT_TYPE_LABELS[platform.video_length.content_type] || platform.video_length.content_type}
+                    </span>
+                  </div>
+                  {platform.video_length.why && (
+                    <p className="rationale" style={{ marginTop: 10 }}>{platform.video_length.why}</p>
+                  )}
+                  {activeTab === "tiktok" && (
+                    <p className="hint" style={{ marginTop: 8 }}>
+                      {result.goal === "reach"
+                        ? "Goal was reach/growth — no length floor applied on TikTok. Anything under 60s won't earn from Creator Rewards though."
+                        : "Goal was TikTok monetization — floored at 60s, since Creator Rewards pays $0 on anything shorter regardless of performance."}
+                    </p>
+                  )}
+                  {activeTab === "instagram" && (
+                    <p className="hint" style={{ marginTop: 8 }}>
+                      Instagram Reels has no minimum length for its own monetization (Gifts on Reels) — this target is for completion rate, not a payout rule.
+                    </p>
+                  )}
+                </div>
+              )}
 
-          {result.cover_text && (
-            <div className="field" style={{ marginTop: 20 }}>
-              <label>Cover / thumbnail text</label>
-              <div className="cover-suggestion">"{result.cover_text}"</div>
-            </div>
+              {platform.shot_notes?.length > 0 && (
+                <div className="field" style={{ marginTop: 20 }}>
+                  <label>Filming notes</label>
+                  <ul className="shotlist">
+                    {platform.shot_notes.map((note, i) => (
+                      <li key={i}>{note}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {platform.cover_text && (
+                <div className="field" style={{ marginTop: 20 }}>
+                  <label>Cover / thumbnail text</label>
+                  <div className="cover-suggestion">"{platform.cover_text}"</div>
+                </div>
+              )}
+            </>
           )}
         </div>
       )}
