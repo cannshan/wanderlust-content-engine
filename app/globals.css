@@ -128,6 +128,46 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   margin-top: 4px;
 }
 
+.goal-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+@media (max-width: 480px) {
+  .goal-toggle { grid-template-columns: 1fr; }
+}
+
+.goal-option {
+  text-align: left;
+  background: var(--bg);
+  border: 1.5px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  cursor: pointer;
+}
+
+.goal-option:hover { border-color: var(--wine); }
+
+.goal-option.active {
+  border-color: var(--wine);
+  background: var(--wine-soft);
+}
+
+.goal-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.goal-sub {
+  font-size: 11.5px;
+  color: var(--ink-faint);
+}
+
 .row-2 {
   display: grid;
   grid-template-columns: 1fr 1fr;

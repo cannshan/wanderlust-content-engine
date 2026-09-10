@@ -32,6 +32,7 @@ const initialForm = {
   businessTag: "",
   format: "narrative",
   trendNotes: "",
+  goal: "monetize",
 };
 
 export default function Dashboard() {
@@ -113,6 +114,28 @@ export default function Dashboard() {
             value={form.storyBeat}
             onChange={(e) => update("storyBeat", e.target.value)}
           />
+        </div>
+
+        <div className="field">
+          <label>Goal for this post</label>
+          <div className="goal-toggle">
+            <button
+              type="button"
+              className={`goal-option ${form.goal === "monetize" ? "active" : ""}`}
+              onClick={() => update("goal", "monetize")}
+            >
+              <span className="goal-title">Monetize on TikTok</span>
+              <span className="goal-sub">60s+ — required to earn from Creator Rewards</span>
+            </button>
+            <button
+              type="button"
+              className={`goal-option ${form.goal === "reach" ? "active" : ""}`}
+              onClick={() => update("goal", "reach")}
+            >
+              <span className="goal-title">Maximize reach / growth</span>
+              <span className="goal-sub">No floor — shortest length that still holds attention</span>
+            </button>
+          </div>
         </div>
 
         <div className="row-2">
@@ -213,7 +236,9 @@ export default function Dashboard() {
                 <p className="rationale" style={{ marginTop: 10 }}>{result.video_length.why}</p>
               )}
               <p className="hint" style={{ marginTop: 8 }}>
-                Floor is always 60s — Creator Rewards Program pays $0 on anything shorter, regardless of performance.
+                {result.goal === "reach"
+                  ? "Goal was reach/growth — no length floor applied. On TikTok specifically, anything under 60s won't earn from Creator Rewards; Instagram Reels has no such minimum."
+                  : "Goal was TikTok monetization — floored at 60s, since Creator Rewards pays $0 on anything shorter regardless of performance."}
               </p>
             </div>
           )}
