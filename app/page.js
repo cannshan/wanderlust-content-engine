@@ -568,7 +568,15 @@ export default function Dashboard() {
               {platform.music_suggestion && (
                 <div className="field" style={{ marginTop: 20 }}>
                   <label>Music suggestion</label>
-                  <p className="rationale">{platform.music_suggestion}</p>
+                  <ul className="shotlist">
+                    {platform.music_suggestion
+                      .split("\n")
+                      .map((line) => line.trim())
+                      .filter(Boolean)
+                      .map((line, i) => (
+                        <li key={i}>{line}</li>
+                      ))}
+                  </ul>
                 </div>
               )}
             </>
