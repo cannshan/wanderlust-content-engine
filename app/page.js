@@ -15,6 +15,12 @@ const PATTERN_LABELS = {
   standard: "No specific lever — standard post",
 };
 
+const CONTENT_TYPE_LABELS = {
+  entertainment: "Entertainment (single striking moment)",
+  practical: "Practical (tips / itinerary)",
+  story: "Story / POV (atmosphere to sit in)",
+};
+
 function formatPattern(pattern) {
   return PATTERN_LABELS[pattern] || "Why this should work";
 }
@@ -192,6 +198,39 @@ export default function Dashboard() {
 
           {result.hashtag_rationale && (
             <p className="rationale" style={{ marginTop: 16 }}>{result.hashtag_rationale}</p>
+          )}
+
+          {result.video_length && (
+            <div className="field" style={{ marginTop: 24 }}>
+              <label>Video length</label>
+              <div className="video-meta">
+                <span className="video-length-pill">{result.video_length.target_seconds}</span>
+                <span className="video-type-label">
+                  {CONTENT_TYPE_LABELS[result.video_length.content_type] || result.video_length.content_type}
+                </span>
+              </div>
+              {result.video_length.why && (
+                <p className="rationale" style={{ marginTop: 10 }}>{result.video_length.why}</p>
+              )}
+            </div>
+          )}
+
+          {result.shot_notes?.length > 0 && (
+            <div className="field" style={{ marginTop: 20 }}>
+              <label>Filming notes</label>
+              <ul className="shotlist">
+                {result.shot_notes.map((note, i) => (
+                  <li key={i}>{note}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {result.cover_text && (
+            <div className="field" style={{ marginTop: 20 }}>
+              <label>Cover / thumbnail text</label>
+              <div className="cover-suggestion">"{result.cover_text}"</div>
+            </div>
           )}
         </div>
       )}
