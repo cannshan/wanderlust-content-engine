@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getTrendingHashtags } from "../../../lib/trends";
-import { generatePost, checkRestaurantMenu } from "../../../lib/claude";
+import { generatePost, checkRestaurantMenu, findLocationTagOptions } from "../../../lib/claude";
 
 // generatePost() now retries up to 3x internally on a malformed/incomplete
 // model response, so a single request can involve up to 3 full generation
@@ -16,7 +16,16 @@ export async function POST(req) {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
-  const { idea, location, storyBeat, notes, lengthSeconds, platform, menuCheck: precomputedMenuCheck } = body;
+  const {
+    idea,
+    location,
+    storyBeat,
+    notes,
+    lengthSeconds,
+    platform,
+    menuCheck: precomputedMenuCheck,
+    locationContext: precomputedLocationContext,
+  } = body;
 
   if (!idea || !location) {
     return NextResponse.json(
@@ -30,23 +39,29 @@ export async function POST(req) {
 
   // The trend search is deliberately platform-specific (the query embeds
   // the platform name, since trending tags genuinely differ by platform),
-  // so it still runs per-request here. The menu check is NOT platform-
-  // specific - a restaurant's menu doesn't change based on which app it's
-  // being posted to - so the caller (page.js) is expected to run it once
-  // via /api/menu-check and pass the result in as `menuCheck`, shared
-  // across every platform's request instead of repeating the same live
-  // search per platform. Falling back to computing it here too, so this
-  // endpoint still works standalone if menuCheck is never provided.
-  const [trendResult, menuCheck] = await Promise.all([
+  // so it still runs per-request here. The menu check and the location-tag
+  // search are NOT platform-specific - a restaurant's menu and a place's
+  // real-world popularity don't change based on which app it's being
+  // posted to - so the caller (page.js) is expected to run both once (via
+  // /api/menu-check and /api/location-search) and pass the results in,
+  // shared across every platform's request instead of repeating the same
+  // live searches per platform. Falling back to computing them here too,
+  // so this endpoint still works standalone if they're never provided.
+  const [trendResult, menuCheck, locationContext] = await Promise.all([
     getTrendingHashtags(`${idea} ${location} ${resolvedPlatform} ${notes || ""}`.trim()),
     precomputedMenuCheck !== undefined
       ? Promise.resolve(precomputedMenuCheck)
       : checkRestaurantMenu(idea, location, storyBeat, notes),
+    precomputedLocationContext !== undefined
+      ? Promise.resolve(precomputedLocationContext)
+      : findLocationTagOptions(idea, location, storyBeat),
   ]);
 
   console.log(
     `[generate] platform=${resolvedPlatform} trend_source=${trendResult.source} menu_check=${
       menuCheck ? `"${menuCheck.slice(0, 200)}${menuCheck.length > 200 ? "…" : ""}"` : "none/skipped"
+    } location_context=${
+      locationContext ? `"${locationContext.slice(0, 200)}${locationContext.length > 200 ? "…" : ""}"` : "none/skipped"
     }`
   );
 
@@ -58,6 +73,7 @@ export async function POST(req) {
       notes,
       liveTrends: trendResult.hashtags,
       menuCheck,
+      locationContext,
       lengthSeconds: resolvedLength,
       platform: resolvedPlatform,
     });

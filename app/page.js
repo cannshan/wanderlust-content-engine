@@ -52,11 +52,11 @@ export default function Dashboard() {
 
   const platformsToGenerate = PLATFORM_ORDER.filter((p) => selectedPlatforms[p]);
 
-  async function generateOne(platformName, menuCheck) {
+  async function generateOne(platformName, menuCheck, locationContext) {
     const res = await fetch("/api/generate", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ ...form, platform: platformName, menuCheck }),
+      body: JSON.stringify({ ...form, platform: platformName, menuCheck, locationContext }),
     });
     const raw = await res.text();
     let data;
@@ -81,37 +81,50 @@ export default function Dashboard() {
     setResult(null);
     setActiveTab(platformsToGenerate[0]);
 
-    // The menu check doesn't vary by platform (a restaurant's menu is the
-    // same regardless of which app it's posted to), so it runs once here
-    // and gets passed into every platform request below - instead of each
-    // platform's own /api/generate call repeating the same live search.
-    let menuCheck = null;
-    try {
-      const menuRes = await fetch("/api/menu-check", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          idea: form.idea,
-          location: form.location,
-          storyBeat: form.storyBeat,
-          notes: form.notes,
-        }),
-      });
-      if (menuRes.ok) {
-        const menuData = await menuRes.json();
-        menuCheck = menuData.menuCheck ?? null;
+    // Neither the menu check nor the location-tag search varies by
+    // platform (a restaurant's menu and a place's real-world popularity
+    // don't change based on which app it's posted to), so both run once
+    // here, in parallel with each other, and get passed into every
+    // platform request below - instead of each platform's own
+    // /api/generate call repeating the same live searches.
+    async function fetchContext(path, body) {
+      try {
+        const res = await fetch(path, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        if (!res.ok) return null;
+        return await res.json();
+      } catch {
+        // Degrades silently, same as if the check had found nothing -
+        // generation still proceeds, just without that grounding.
+        return null;
       }
-    } catch {
-      // Degrades silently, same as if the check had found nothing -
-      // generation still proceeds, just without menu grounding.
     }
+
+    const [menuData, locationData] = await Promise.all([
+      fetchContext("/api/menu-check", {
+        idea: form.idea,
+        location: form.location,
+        storyBeat: form.storyBeat,
+        notes: form.notes,
+      }),
+      fetchContext("/api/location-search", {
+        idea: form.idea,
+        location: form.location,
+        storyBeat: form.storyBeat,
+      }),
+    ]);
+    const menuCheck = menuData?.menuCheck ?? null;
+    const locationContext = locationData?.locationContext ?? null;
 
     // Independent, parallel requests, one per selected platform - each
     // platform's generation is faster and more reliable on its own than
     // one combined call (a combined version routinely hit Vercel's
     // function timeout in testing).
     const outcomes = await Promise.allSettled(
-      platformsToGenerate.map((p) => generateOne(p, menuCheck))
+      platformsToGenerate.map((p) => generateOne(p, menuCheck, locationContext))
     );
 
     const platforms = {};
