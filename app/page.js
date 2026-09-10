@@ -2,6 +2,12 @@
 
 import { useState } from "react";
 
+const TREND_LABELS = {
+  apify: "Live trend data (Apify)",
+  web_search: "Checked via live web search",
+  estimated: "AI-estimated tags",
+};
+
 const PATTERN_LABELS = {
   "animal-content": "Lever: animal content",
   "pop-culture-tie-in": "Lever: pop-culture tie-in",
@@ -150,8 +156,8 @@ export default function Dashboard() {
         <div className="result card">
           <div className="result-head">
             <h3 style={{ fontSize: 16 }}>Result</h3>
-            <span className={`badge ${result.trend_source === "apify" ? "live" : "estimated"}`}>
-              {result.trend_source === "apify" ? "Live trend data" : "AI-estimated tags"}
+            <span className={`badge ${result.trend_source === "estimated" ? "estimated" : "live"}`}>
+              {TREND_LABELS[result.trend_source] || "AI-estimated tags"}
             </span>
           </div>
 

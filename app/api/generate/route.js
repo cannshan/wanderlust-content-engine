@@ -22,7 +22,7 @@ export async function POST(req) {
   const trendResult = await getTrendingHashtags(`${idea} ${location}`);
 
   try {
-    const result = await generatePost({
+    const { usedWebSearch, ...result } = await generatePost({
       idea,
       location,
       storyBeat,
@@ -32,10 +32,16 @@ export async function POST(req) {
       liveTrends: trendResult.hashtags,
     });
 
-    return NextResponse.json({
-      ...result,
-      trend_source: trendResult.source, // "apify" | "none" | "error"
-    });
+    // Apify (pre-fetched) takes priority if it actually returned something;
+    // otherwise Claude's own live web search; otherwise proven-pattern estimate.
+    const trend_source =
+      trendResult.source === "apify" && trendResult.hashtags.length > 0
+        ? "apify"
+        : usedWebSearch
+        ? "web_search"
+        : "estimated";
+
+    return NextResponse.json({ ...result, trend_source });
   } catch (err) {
     return NextResponse.json({ error: String(err.message || err) }, { status: 500 });
   }

@@ -7,9 +7,8 @@ The research and design plan behind this (algorithm rules, caption-formula break
 ## What it does
 
 1. You enter an idea, location, and (optionally) a story beat, a business to tag, and a format.
-2. The server looks up currently trending hashtags related to the topic via Apify (if configured) — this is the "automated tag finding" piece, since TikTok itself has no public API for this.
-3. Claude (Sonnet) writes a description and picks 5 hashtags, following the exact formula pulled from 15 of Leah's real posts (see `lib/voiceProfile.js`), preferring live trending tags when they genuinely fit.
-4. You copy the description and tags into TikTok/Instagram yourself. Nothing posts automatically.
+2. Claude (Sonnet) writes a description and picks 5 hashtags, following the exact formula pulled from 15 of Leah's real posts (see `lib/voiceProfile.js`) — and actively runs one live web search for currently-trending TikTok hashtags on that topic before finalizing, using only what genuinely fits.
+3. You copy the description and tags into TikTok/Instagram yourself. Nothing posts automatically.
 
 ## Local setup
 
@@ -20,9 +19,9 @@ cp .env.example .env.local
 
 Fill in `.env.local`:
 
-- **`ANTHROPIC_API_KEY`** — required. Get one at [console.anthropic.com](https://console.anthropic.com). Costs a few cents per generation.
+- **`ANTHROPIC_API_KEY`** — required. Get one at [console.anthropic.com](https://console.anthropic.com). Covers both the writing and the trend search below — no second account needed.
 - **`DASHBOARD_PASSWORD`** — required once this is hosted online (anyone with the URL could otherwise use it and spend your Anthropic credits). Leave blank while testing locally.
-- **`APIFY_API_TOKEN` / `APIFY_ACTOR_ID`** — optional. Without these, tag generation still works, just from Claude's knowledge of proven patterns instead of this week's live trends. See the comments in `.env.example` for how to pick an actor.
+- **`APIFY_API_TOKEN` / `APIFY_ACTOR_ID`** — optional, see below. Not required for trend lookups to work.
 
 Then:
 
@@ -32,11 +31,15 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-## About the Apify trend lookup
+## How the "automated tag finding" actually works
 
-TikTok doesn't offer a public API for trending-hashtag lookups — its official Research API is restricted to academic institutions, not creators or commercial tools. The realistic "automated" option is a third-party service like [Apify](https://apify.com) that turns TikTok's own public Creative Center trend pages into structured data you can query by keyword. It's pay-per-use (Apify's free tier includes monthly credits, and a single hashtag lookup typically costs a small fraction of a dollar) — check the specific actor's pricing page before relying on it heavily.
+TikTok doesn't offer a public API for trending-hashtag lookups — its official Research API is restricted to academic institutions, not creators or commercial tools. Its own Creative Center site (the free browser tool creators use) now puts a login wall in front of anything beyond a generic top-3 teaser too, as of testing this in September 2026 — so scraping it, directly or through a third party, hits the same wall.
 
-This is a step below TikTok's own official tooling in reliability (actor schemas can change, runs can occasionally fail), which is why the app is built to degrade gracefully: if Apify isn't configured or a lookup fails, you still get a hashtag set — just estimated from proven patterns rather than pulled from this week's live data. The dashboard tells you which one you got (the "Live trend data" / "AI-estimated tags" badge on the result).
+The tool this app actually uses instead is **Claude's built-in web search** (`lib/claude.js`) — Claude runs a real search for current TikTok hashtag trends on the given topic before writing, billed at $0.01/search on the same `ANTHROPIC_API_KEY` you already have. No extra account, no login wall, effectively free at your posting volume. The result badge shows "Checked via live web search" when this ran.
+
+`lib/trends.js` (Apify) is still in the codebase as an optional pre-fetch layer — if you ever do set up `APIFY_API_TOKEN`/`APIFY_ACTOR_ID`, its results take priority over the web search. It's not required and nothing breaks without it.
+
+If neither finds anything useful for a given topic, the badge shows "AI-estimated tags" — still following the proven broad/niche/community formula, just not grounded in this week's live data.
 
 ## Deploying so it works on her phone
 
