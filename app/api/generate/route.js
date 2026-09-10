@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { getTrendingHashtags } from "../../../lib/trends";
 import { generatePost } from "../../../lib/claude";
 
+// Web search adds a real round trip on top of generation (~20-25s observed
+// in testing) - give it headroom above Vercel's legacy serverless default.
+export const maxDuration = 60;
+
 export async function POST(req) {
   let body;
   try {
