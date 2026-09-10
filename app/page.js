@@ -98,7 +98,7 @@ export default function Dashboard() {
       <div className="topbar">
         <div>
           <p className="eyebrow">Wine Wilderness Wanderlust</p>
-          <h1>Wanderlust Content Engine</h1>
+          <h1>WWW Content Engine</h1>
         </div>
       </div>
 
