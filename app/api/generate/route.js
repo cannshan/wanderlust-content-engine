@@ -25,7 +25,7 @@ export async function POST(req) {
     );
   }
 
-  const resolvedPlatform = platform === "instagram" ? "instagram" : "tiktok";
+  const resolvedPlatform = ["instagram", "youtube"].includes(platform) ? platform : "tiktok";
   const resolvedLength = lengthSeconds === 30 ? 30 : 60;
   const trendResult = await getTrendingHashtags(
     `${idea} ${location} ${resolvedPlatform} ${notes || ""}`.trim()

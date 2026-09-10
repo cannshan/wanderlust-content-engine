@@ -12,6 +12,7 @@ const PATTERN_LABELS = {
 const PLATFORM_LABELS = {
   tiktok: "TikTok",
   instagram: "Instagram",
+  youtube: "YouTube",
 };
 
 function formatPattern(pattern) {
@@ -65,12 +66,13 @@ export default function Dashboard() {
     setResult(null);
     setActiveTab("tiktok");
 
-    // Two independent, parallel requests - each platform's generation is
+    // Three independent, parallel requests - each platform's generation is
     // faster and more reliable on its own than one combined call (a
     // combined version routinely hit Vercel's function timeout in testing).
-    const [tiktokOutcome, instagramOutcome] = await Promise.allSettled([
+    const [tiktokOutcome, instagramOutcome, youtubeOutcome] = await Promise.allSettled([
       generateOne("tiktok"),
       generateOne("instagram"),
+      generateOne("youtube"),
     ]);
 
     const platforms = {};
@@ -79,9 +81,11 @@ export default function Dashboard() {
     else errors.tiktok = tiktokOutcome.reason?.message || "Failed to generate.";
     if (instagramOutcome.status === "fulfilled") platforms.instagram = instagramOutcome.value;
     else errors.instagram = instagramOutcome.reason?.message || "Failed to generate.";
+    if (youtubeOutcome.status === "fulfilled") platforms.youtube = youtubeOutcome.value;
+    else errors.youtube = youtubeOutcome.reason?.message || "Failed to generate.";
 
-    if (!platforms.tiktok && !platforms.instagram) {
-      setError(errors.tiktok || errors.instagram || "Both platforms failed to generate.");
+    if (!platforms.tiktok && !platforms.instagram && !platforms.youtube) {
+      setError(errors.tiktok || errors.instagram || errors.youtube || "All platforms failed to generate.");
     } else {
       setResult({ platforms, errors });
     }
@@ -139,7 +143,7 @@ export default function Dashboard() {
         </div>
 
         <div className="field">
-          <label>Video length (same target on both platforms)</label>
+          <label>Video length (same target across platforms)</label>
           <div className="goal-toggle">
             <button
               type="button"
@@ -184,7 +188,7 @@ export default function Dashboard() {
           </div>
 
           <div className="tabs">
-            {["tiktok", "instagram"].map((p) => (
+            {["tiktok", "instagram", "youtube"].map((p) => (
               <button
                 key={p}
                 type="button"
@@ -211,6 +215,16 @@ export default function Dashboard() {
                     {formatPattern(platform.pattern_used)}
                   </span>
                   <p>{platform.hook_strategy}</p>
+                </div>
+              )}
+
+              {platform.title && (
+                <div className="field">
+                  <label>Title</label>
+                  <div className="description-box">{platform.title}</div>
+                  <button className="btn-ghost" onClick={() => copy(platform.title, "title")}>
+                    {copied === "title" ? "Copied" : "Copy title"}
+                  </button>
                 </div>
               )}
 
@@ -257,6 +271,11 @@ export default function Dashboard() {
                   {activeTab === "instagram" && (
                     <p className="hint" style={{ marginTop: 8 }}>
                       Instagram Reels has no minimum length for its own monetization (Gifts on Reels) — this target is purely for completion rate.
+                    </p>
+                  )}
+                  {activeTab === "youtube" && (
+                    <p className="hint" style={{ marginTop: 8 }}>
+                      YouTube Shorts has no fixed monetization floor tied to this video's length like TikTok does — Partner Program eligibility runs off overall channel watch hours and subscribers, not this individual short.
                     </p>
                   )}
                 </div>
