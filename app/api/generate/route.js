@@ -14,7 +14,7 @@ export async function POST(req) {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
-  const { idea, location, storyBeat, businessTag, format, trendNotes, goal, platform } = body;
+  const { idea, location, storyBeat, notes, lengthSeconds, platform } = body;
 
   if (!idea || !location) {
     return NextResponse.json(
@@ -24,19 +24,19 @@ export async function POST(req) {
   }
 
   const resolvedPlatform = platform === "instagram" ? "instagram" : "tiktok";
-  const trendResult = await getTrendingHashtags(`${idea} ${location} ${resolvedPlatform}`);
-  const resolvedGoal = goal === "reach" ? "reach" : "monetize";
+  const resolvedLength = lengthSeconds === 30 ? 30 : 60;
+  const trendResult = await getTrendingHashtags(
+    `${idea} ${location} ${resolvedPlatform} ${notes || ""}`.trim()
+  );
 
   try {
     const { usedWebSearch, ...result } = await generatePost({
       idea,
       location,
       storyBeat,
-      businessTag,
-      format,
-      trendNotes,
+      notes,
       liveTrends: trendResult.hashtags,
-      goal: resolvedGoal,
+      lengthSeconds: resolvedLength,
       platform: resolvedPlatform,
     });
 
@@ -49,7 +49,7 @@ export async function POST(req) {
         ? "web_search"
         : "estimated";
 
-    return NextResponse.json({ ...result, trend_source, goal: resolvedGoal });
+    return NextResponse.json({ ...result, trend_source, lengthSeconds: resolvedLength });
   } catch (err) {
     return NextResponse.json({ error: String(err.message || err) }, { status: 500 });
   }

@@ -15,12 +15,6 @@ const PATTERN_LABELS = {
   standard: "No specific lever — standard post",
 };
 
-const CONTENT_TYPE_LABELS = {
-  entertainment: "Entertainment (single striking moment)",
-  practical: "Practical (tips / itinerary)",
-  story: "Story / POV (atmosphere to sit in)",
-};
-
 const PLATFORM_LABELS = {
   tiktok: "TikTok",
   instagram: "Instagram",
@@ -34,10 +28,8 @@ const initialForm = {
   idea: "",
   location: "",
   storyBeat: "",
-  businessTag: "",
-  format: "narrative",
-  trendNotes: "",
-  goal: "monetize",
+  notes: "",
+  lengthSeconds: 60,
 };
 
 export default function Dashboard() {
@@ -145,60 +137,37 @@ export default function Dashboard() {
         </div>
 
         <div className="field">
-          <label>TikTok goal (Instagram has no monetization floor either way)</label>
+          <label>Video length (same target on both platforms)</label>
           <div className="goal-toggle">
             <button
               type="button"
-              className={`goal-option ${form.goal === "monetize" ? "active" : ""}`}
-              onClick={() => update("goal", "monetize")}
+              className={`goal-option ${form.lengthSeconds === 60 ? "active" : ""}`}
+              onClick={() => update("lengthSeconds", 60)}
             >
-              <span className="goal-title">Monetize on TikTok</span>
-              <span className="goal-sub">60s+ — required to earn from Creator Rewards</span>
+              <span className="goal-title">~60 seconds</span>
+              <span className="goal-sub">Required for TikTok Creator Rewards to pay out</span>
             </button>
             <button
               type="button"
-              className={`goal-option ${form.goal === "reach" ? "active" : ""}`}
-              onClick={() => update("goal", "reach")}
+              className={`goal-option ${form.lengthSeconds === 30 ? "active" : ""}`}
+              onClick={() => update("lengthSeconds", 30)}
             >
-              <span className="goal-title">Maximize reach / growth</span>
-              <span className="goal-sub">No floor — shortest length that still holds attention</span>
+              <span className="goal-title">~30 seconds</span>
+              <span className="goal-sub">Faster/punchier — won't earn from TikTok Creator Rewards</span>
             </button>
-          </div>
-        </div>
-
-        <div className="row-2">
-          <div className="field">
-            <label htmlFor="businessTag">Business to tag (optional)</label>
-            <input
-              id="businessTag"
-              placeholder="@cricketcreekfarm"
-              value={form.businessTag}
-              onChange={(e) => update("businessTag", e.target.value)}
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="format">Format</label>
-            <select
-              id="format"
-              value={form.format}
-              onChange={(e) => update("format", e.target.value)}
-            >
-              <option value="narrative">Narrative story</option>
-              <option value="itinerary">Itinerary list</option>
-            </select>
           </div>
         </div>
 
         <div className="field">
-          <label htmlFor="trendNotes">Trend you spotted (optional)</label>
+          <label htmlFor="notes">Anything to factor in (optional)</label>
           <input
-            id="trendNotes"
-            placeholder="Sound or hashtag from Creative Center / Content Gap"
-            value={form.trendNotes}
-            onChange={(e) => update("trendNotes", e.target.value)}
+            id="notes"
+            placeholder="A trending hashtag, sound, or idea you spotted — anything"
+            value={form.notes}
+            onChange={(e) => update("notes", e.target.value)}
           />
           <p className="hint">
-            Checked automatically too — this is only for something you found yourself that's worth prioritizing.
+            We search for current trends automatically too — this is for something you found yourself that's worth weighing in.
           </p>
         </div>
 
@@ -286,23 +255,20 @@ export default function Dashboard() {
                   <label>Video length</label>
                   <div className="video-meta">
                     <span className="video-length-pill">{platform.video_length.target_seconds}</span>
-                    <span className="video-type-label">
-                      {CONTENT_TYPE_LABELS[platform.video_length.content_type] || platform.video_length.content_type}
-                    </span>
                   </div>
                   {platform.video_length.why && (
                     <p className="rationale" style={{ marginTop: 10 }}>{platform.video_length.why}</p>
                   )}
                   {activeTab === "tiktok" && (
                     <p className="hint" style={{ marginTop: 8 }}>
-                      {platform.goal === "reach"
-                        ? "Goal was reach/growth — no length floor applied on TikTok. Anything under 60s won't earn from Creator Rewards though."
-                        : "Goal was TikTok monetization — floored at 60s, since Creator Rewards pays $0 on anything shorter regardless of performance."}
+                      {platform.lengthSeconds < 60
+                        ? "At ~30s this won't earn from TikTok Creator Rewards (60s minimum), regardless of performance — a deliberate reach tradeoff, not an oversight."
+                        : "Meets TikTok Creator Rewards' 60s minimum, so this one is monetization-eligible."}
                     </p>
                   )}
                   {activeTab === "instagram" && (
                     <p className="hint" style={{ marginTop: 8 }}>
-                      Instagram Reels has no minimum length for its own monetization (Gifts on Reels) — this target is for completion rate, not a payout rule.
+                      Instagram Reels has no minimum length for its own monetization (Gifts on Reels) — this target is purely for completion rate.
                     </p>
                   )}
                 </div>

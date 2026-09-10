@@ -1,14 +1,16 @@
 # Wanderlust Content Engine
 
-A small dashboard for Wine Wilderness Wanderlust: enter an idea and location, get back a description and hashtag set written in Leah's own voice, checked against currently trending TikTok tags when available.
+A small dashboard for Wine Wilderness Wanderlust: enter an idea and location, get back a TikTok package and an Instagram package — description, hashtags, video length, filming notes, cover text — each genuinely tailored to that platform's own algorithm, not the same output with a swapped hashtag suffix.
 
 The research and design plan behind this (algorithm rules, caption-formula breakdown, case studies from her real posts) lives in `wanderlust-content-engine.html` in this same folder — publish/open that separately, it's a static reference doc, not part of the app.
 
 ## What it does
 
-1. You enter an idea, location, and (optionally) a story beat, a business to tag, and a format.
-2. Claude (Sonnet) writes a description and picks 5 hashtags, following the exact formula pulled from 15 of Leah's real posts (see `lib/voiceProfile.js`) — and actively runs one live web search for currently-trending TikTok hashtags on that topic before finalizing, using only what genuinely fits.
+1. You enter an idea, location, an optional story beat, a target video length (~30s or ~60s, same target on both platforms), and any free-text notes (a trending hashtag/sound you spotted, an idea, anything).
+2. The app fires two independent requests in parallel — one for TikTok, one for Instagram. Each one has Claude (Sonnet) write a description and pick 5 hashtags following the formula pulled from 15 of Leah's real posts (see `lib/voiceProfile.js`), tailored to that specific platform's ranking signals (TikTok: completion rate + comments/saves; Instagram: DM shares first), and actively runs its own live web search for currently-trending hashtags/sounds on that topic before finalizing — folding in your free-text notes too when you give any — using only what genuinely fits.
 3. You copy the description and tags into TikTok/Instagram yourself. Nothing posts automatically.
+
+The tool decides on its own whether a topic reads better as flowing narrative or an itinerary-style bullet list, and only tags a business/venue handle if you mentioned one in your notes — neither needs its own form field.
 
 ## Local setup
 
