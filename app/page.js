@@ -52,26 +52,45 @@ export default function Dashboard() {
     setForm((f) => ({ ...f, [field]: value }));
   }
 
+  async function generateOne(platformName) {
+    const res = await fetch("/api/generate", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ...form, platform: platformName }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Something went wrong.");
+    return data;
+  }
+
   async function onSubmit(e) {
     e.preventDefault();
     setLoading(true);
     setError("");
     setResult(null);
-    try {
-      const res = await fetch("/api/generate", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(form),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Something went wrong.");
-      setResult(data);
-      setActiveTab("tiktok");
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
+    setActiveTab("tiktok");
+
+    // Two independent, parallel requests - each platform's generation is
+    // faster and more reliable on its own than one combined call (a
+    // combined version routinely hit Vercel's function timeout in testing).
+    const [tiktokOutcome, instagramOutcome] = await Promise.allSettled([
+      generateOne("tiktok"),
+      generateOne("instagram"),
+    ]);
+
+    const platforms = {};
+    const errors = {};
+    if (tiktokOutcome.status === "fulfilled") platforms.tiktok = tiktokOutcome.value;
+    else errors.tiktok = tiktokOutcome.reason?.message || "Failed to generate.";
+    if (instagramOutcome.status === "fulfilled") platforms.instagram = instagramOutcome.value;
+    else errors.instagram = instagramOutcome.reason?.message || "Failed to generate.";
+
+    if (!platforms.tiktok && !platforms.instagram) {
+      setError(errors.tiktok || errors.instagram || "Both platforms failed to generate.");
+    } else {
+      setResult({ platforms, errors });
     }
+    setLoading(false);
   }
 
   function copy(text, label) {
@@ -194,26 +213,7 @@ export default function Dashboard() {
         <div className="result card">
           <div className="result-head">
             <h3 style={{ fontSize: 16 }}>Result</h3>
-            <span className={`badge ${result.trend_source === "estimated" ? "estimated" : "live"}`}>
-              {TREND_LABELS[result.trend_source] || "AI-estimated tags"}
-            </span>
           </div>
-
-          {result.hook_strategy && (
-            <div className="strategy-box">
-              <span className="badge live" style={{ marginBottom: 6, display: "inline-block" }}>
-                {formatPattern(result.pattern_used)}
-              </span>
-              <p>{result.hook_strategy}</p>
-            </div>
-          )}
-
-          {result.cross_post_warning && (
-            <div className="warning-box">
-              <span className="warning-title">Cross-posting both platforms?</span>
-              <p>{result.cross_post_warning}</p>
-            </div>
-          )}
 
           <div className="tabs">
             {["tiktok", "instagram"].map((p) => (
@@ -224,12 +224,39 @@ export default function Dashboard() {
                 onClick={() => setActiveTab(p)}
               >
                 {PLATFORM_LABELS[p]}
+                {result.errors?.[p] && !result.platforms?.[p] && " ⚠"}
               </button>
             ))}
           </div>
 
+          {!platform && result.errors?.[activeTab] && (
+            <div className="error-banner">
+              {PLATFORM_LABELS[activeTab]} generation failed: {result.errors[activeTab]}
+            </div>
+          )}
+
           {platform && (
             <>
+              <span className={`badge ${platform.trend_source === "estimated" ? "estimated" : "live"}`} style={{ marginBottom: 14, display: "inline-block" }}>
+                {TREND_LABELS[platform.trend_source] || "AI-estimated tags"}
+              </span>
+
+              {platform.hook_strategy && (
+                <div className="strategy-box">
+                  <span className="badge live" style={{ marginBottom: 6, display: "inline-block" }}>
+                    {formatPattern(platform.pattern_used)}
+                  </span>
+                  <p>{platform.hook_strategy}</p>
+                </div>
+              )}
+
+              {platform.cross_post_warning && (
+                <div className="warning-box">
+                  <span className="warning-title">Cross-posting both platforms?</span>
+                  <p>{platform.cross_post_warning}</p>
+                </div>
+              )}
+
               <div className="description-box">{platform.description}</div>
               <button className="btn-ghost" onClick={() => copy(platform.description, "description")} style={{ marginBottom: 20 }}>
                 {copied === "description" ? "Copied" : "Copy description"}
@@ -268,7 +295,7 @@ export default function Dashboard() {
                   )}
                   {activeTab === "tiktok" && (
                     <p className="hint" style={{ marginTop: 8 }}>
-                      {result.goal === "reach"
+                      {platform.goal === "reach"
                         ? "Goal was reach/growth — no length floor applied on TikTok. Anything under 60s won't earn from Creator Rewards though."
                         : "Goal was TikTok monetization — floored at 60s, since Creator Rewards pays $0 on anything shorter regardless of performance."}
                     </p>

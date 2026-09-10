@@ -14,7 +14,7 @@ export async function POST(req) {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
-  const { idea, location, storyBeat, businessTag, format, trendNotes, goal } = body;
+  const { idea, location, storyBeat, businessTag, format, trendNotes, goal, platform } = body;
 
   if (!idea || !location) {
     return NextResponse.json(
@@ -23,7 +23,8 @@ export async function POST(req) {
     );
   }
 
-  const trendResult = await getTrendingHashtags(`${idea} ${location}`);
+  const resolvedPlatform = platform === "instagram" ? "instagram" : "tiktok";
+  const trendResult = await getTrendingHashtags(`${idea} ${location} ${resolvedPlatform}`);
   const resolvedGoal = goal === "reach" ? "reach" : "monetize";
 
   try {
@@ -36,6 +37,7 @@ export async function POST(req) {
       trendNotes,
       liveTrends: trendResult.hashtags,
       goal: resolvedGoal,
+      platform: resolvedPlatform,
     });
 
     // Apify (pre-fetched) takes priority if it actually returned something;
