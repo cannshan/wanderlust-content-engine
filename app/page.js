@@ -44,7 +44,16 @@ export default function Dashboard() {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ ...form, platform: platformName }),
     });
-    const data = await res.json();
+    const raw = await res.text();
+    let data;
+    try {
+      data = JSON.parse(raw);
+    } catch {
+      // A non-JSON body means the platform (Vercel) killed the request
+      // before our own code could respond - most likely the function
+      // timeout, not an application error.
+      throw new Error("Request timed out or failed before completing. Try again.");
+    }
     if (!res.ok) throw new Error(data.error || "Something went wrong.");
     return data;
   }
