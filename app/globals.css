@@ -91,7 +91,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   margin-bottom: 28px;
 }
 
-.topbar h1 { font-size: 22px; }
+.topbar h1 { font-size: 28px; }
 
 .topbar .eyebrow {
   font-family: 'IBM Plex Mono', monospace;
