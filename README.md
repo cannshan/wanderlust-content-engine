@@ -83,9 +83,10 @@ The easiest path is [Vercel](https://vercel.com) (built by the makers of Next.js
 ## Files
 
 - `app/page.js` — the dashboard form + result UI.
-- `app/api/generate/route.js` — ties the trend lookup and Claude call together.
-- `lib/voiceProfile.js` — Leah's decoded caption formula and 15 real sample captions used to ground generated copy.
+- `app/api/generate/route.js` — ties the trend lookup and Claude call together, per platform.
+- `app/api/menu-check/`, `app/api/location-search/`, `app/api/styling/` — the pre-fetch endpoints (restaurant menu, location-tag popularity, wardrobe tips) that run once per "Generate" click and get passed into every platform's request, instead of each platform repeating the same live search.
+- `lib/voiceProfile.js` — Leah's decoded caption formula, 15 real sample captions, and the per-platform algorithm/location-tag rules used to ground generated copy.
 - `lib/trends.js` — the Apify integration, degrades gracefully if unconfigured.
-- `lib/claude.js` — the Anthropic API call.
+- `lib/claude.js` — all the Anthropic API calls: the main per-platform generation, the hashtag step, and the optional voiceover/music/styling extras.
 - `lib/supabase.js` + `app/api/ideas/` — the optional "Saved ideas" sidebar, degrades gracefully if unconfigured.
-- `middleware.js` + `lib/auth.js` + `app/login/page.js` — simple shared-password gate for hosting this online.
+- `proxy.js` (Next.js 16's replacement for `middleware.js`) + `lib/auth.js` + `app/login/page.js` — simple shared-password gate for hosting this online.
