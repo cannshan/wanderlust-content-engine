@@ -162,7 +162,7 @@ export default function Dashboard() {
           <label htmlFor="notes">Anything to factor in (optional)</label>
           <input
             id="notes"
-            placeholder="A trending hashtag, sound, or idea you spotted — anything"
+            placeholder="A trending hashtag, idea, or anything that is worth mentioning"
             value={form.notes}
             onChange={(e) => update("notes", e.target.value)}
           />
@@ -297,7 +297,6 @@ export default function Dashboard() {
       )}
 
       <p className="footer-note">
-        Trend data comes from Apify (see README) when configured, otherwise Claude estimates tags from proven patterns.
         Voice modeled on 15 of Leah's real posts.
       </p>
     </div>
