@@ -60,8 +60,17 @@ create table saved_ideas (
   notes text,
   length_seconds int not null,
   platforms text[] not null,
-  results jsonb not null
+  results jsonb not null,
+  restaurant_name text,
+  menu_link text
 );
+```
+
+If you set this table up before the restaurant checkbox existed, run this once instead to add the two new columns:
+
+```sql
+alter table saved_ideas add column if not exists restaurant_name text;
+alter table saved_ideas add column if not exists menu_link text;
 ```
 
 3. In **Project Settings → API**, copy the **Project URL** and the **`service_role`** key (not `anon` — this app only ever talks to Supabase from the server, same as the Anthropic key).
@@ -70,6 +79,8 @@ create table saved_ideas (
 Without these two variables, generation still works exactly the same — the sidebar just stays empty and "Save this idea" silently does nothing.
 
 One thing worth knowing: free Supabase projects pause after 7 days of inactivity. If nobody's used the tool in a week, saving/loading ideas will fail until someone reopens the project in the Supabase dashboard (one click to resume) — everything else in the app is unaffected.
+
+A saved restaurant idea keeps the restaurant name and menu link (so reloading it re-checks the box with the same source) but never the uploaded menu photo/PDF itself — that's only ever used inline for the one request that reads it, never written anywhere.
 
 ## Deploying so it works on her phone
 

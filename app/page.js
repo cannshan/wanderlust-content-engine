@@ -135,6 +135,14 @@ export default function Dashboard() {
       instagram: saved.platforms.includes("instagram"),
       youtube: saved.platforms.includes("youtube"),
     });
+    // The menu link comes back too, but never a file - that was never
+    // saved in the first place (see the comment on the restaurant_name/
+    // menu_link insert in app/api/ideas/route.js).
+    setIsRestaurant(!!saved.restaurant_name);
+    setRestaurantName(saved.restaurant_name || "");
+    setMenuLink(saved.menu_link || "");
+    setMenuFile(null);
+    setMenuFileError("");
     setResult({
       platforms: platformResults,
       errors: {},
@@ -147,6 +155,8 @@ export default function Dashboard() {
         storyBeat: saved.story_beat || "",
         notes: saved.notes || "",
         lengthSeconds: saved.length_seconds,
+        restaurantName: saved.restaurant_name || "",
+        menuLink: saved.menu_link || "",
       },
     });
     setActiveTab(saved.platforms[0]);
@@ -226,8 +236,14 @@ export default function Dashboard() {
 
     // Captured now, not read from `form` later - the form stays editable
     // while a generation is in flight, and Save needs to persist what was
-    // actually generated, not whatever the fields currently hold.
-    const formSnapshot = { ...form };
+    // actually generated, not whatever the fields currently hold. The menu
+    // link rides along the same way (see saveCurrentResult) - the uploaded
+    // file itself deliberately doesn't, nothing to snapshot there.
+    const formSnapshot = {
+      ...form,
+      restaurantName: isRestaurant ? restaurantName.trim() : "",
+      menuLink: isRestaurant ? menuLink.trim() : "",
+    };
 
     setLoading(true);
     setError("");

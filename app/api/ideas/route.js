@@ -41,7 +41,7 @@ export async function POST(req) {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
-  const { idea, location, storyBeat, notes, lengthSeconds, platforms, results } = body;
+  const { idea, location, storyBeat, notes, lengthSeconds, platforms, results, restaurantName, menuLink } = body;
 
   if (!idea || !location || !lengthSeconds || !platforms?.length || !results) {
     return NextResponse.json(
@@ -60,6 +60,15 @@ export async function POST(req) {
       length_seconds: lengthSeconds,
       platforms,
       results,
+      // The menu link is just a URL string, so it's cheap to keep - lets a
+      // reloaded saved idea re-check the restaurant box with the same
+      // source instead of starting from scratch. The uploaded menu
+      // photo/PDF itself is deliberately NOT persisted anywhere (see
+      // analyzeRestaurant() in lib/claude.js) - only its base64 rides
+      // along in that one request, so there'd be nothing to restore even
+      // if we wanted to.
+      restaurant_name: restaurantName || null,
+      menu_link: menuLink || null,
     })
     .select()
     .single();
