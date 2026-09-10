@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getTrendingHashtags } from "../../../lib/trends";
-import { generatePost } from "../../../lib/claude";
+import { generatePost, checkRestaurantMenu } from "../../../lib/claude";
 
 // generatePost() now retries up to 3x internally on a malformed/incomplete
 // model response, so a single request can involve up to 3 full generation
@@ -27,9 +27,15 @@ export async function POST(req) {
 
   const resolvedPlatform = ["instagram", "youtube"].includes(platform) ? platform : "tiktok";
   const resolvedLength = lengthSeconds === 30 ? 30 : 60;
-  const trendResult = await getTrendingHashtags(
-    `${idea} ${location} ${resolvedPlatform} ${notes || ""}`.trim()
-  );
+
+  // Both are independent pre-fetches (neither depends on the other's
+  // result), run in parallel to avoid adding sequential latency. Like the
+  // trend fetch, the menu check degrades to null/empty on its own rather
+  // than failing the request - see checkRestaurantMenu() for why.
+  const [trendResult, menuCheck] = await Promise.all([
+    getTrendingHashtags(`${idea} ${location} ${resolvedPlatform} ${notes || ""}`.trim()),
+    checkRestaurantMenu(idea, location, storyBeat, notes),
+  ]);
 
   try {
     const { usedWebSearch, ...result } = await generatePost({
@@ -38,6 +44,7 @@ export async function POST(req) {
       storyBeat,
       notes,
       liveTrends: trendResult.hashtags,
+      menuCheck,
       lengthSeconds: resolvedLength,
       platform: resolvedPlatform,
     });
