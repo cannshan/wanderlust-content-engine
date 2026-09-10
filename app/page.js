@@ -2,12 +2,6 @@
 
 import { useState } from "react";
 
-const TREND_LABELS = {
-  apify: "Live trend data (Apify)",
-  web_search: "Checked via live web search",
-  estimated: "AI-estimated tags",
-};
-
 const PATTERN_LABELS = {
   "animal-content": "Lever: animal content",
   "pop-culture-tie-in": "Lever: pop-culture tie-in",
@@ -202,23 +196,12 @@ export default function Dashboard() {
 
           {platform && (
             <>
-              <span className={`badge ${platform.trend_source === "estimated" ? "estimated" : "live"}`} style={{ marginBottom: 14, display: "inline-block" }}>
-                {TREND_LABELS[platform.trend_source] || "AI-estimated tags"}
-              </span>
-
               {platform.hook_strategy && (
                 <div className="strategy-box">
                   <span className="badge live" style={{ marginBottom: 6, display: "inline-block" }}>
                     {formatPattern(platform.pattern_used)}
                   </span>
                   <p>{platform.hook_strategy}</p>
-                </div>
-              )}
-
-              {platform.cross_post_warning && (
-                <div className="warning-box">
-                  <span className="warning-title">Cross-posting both platforms?</span>
-                  <p>{platform.cross_post_warning}</p>
                 </div>
               )}
 
