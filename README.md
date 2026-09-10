@@ -43,6 +43,34 @@ The tool this app actually uses instead is **Claude's built-in web search** (`li
 
 If neither finds anything useful for a given topic, the badge shows "AI-estimated tags" — still following the proven broad/niche/community formula, just not grounded in this week's live data.
 
+## Saving ideas (optional)
+
+The "Saved ideas" sidebar lets you generate a batch of posts ahead of time and come back to grab the finished copy later, without re-generating (and re-paying for) anything. It needs a small Supabase project — free tier is plenty (saved ideas are just text, a few KB each; the free 500MB database holds tens of thousands of them).
+
+1. Create a project at [supabase.com](https://supabase.com).
+2. In the project's **SQL Editor**, run:
+
+```sql
+create table saved_ideas (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  idea text not null,
+  location text not null,
+  story_beat text,
+  notes text,
+  length_seconds int not null,
+  platforms text[] not null,
+  results jsonb not null
+);
+```
+
+3. In **Project Settings → API**, copy the **Project URL** and the **`service_role`** key (not `anon` — this app only ever talks to Supabase from the server, same as the Anthropic key).
+4. Add `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` to `.env.local` (and to Vercel's environment variables once deployed).
+
+Without these two variables, generation still works exactly the same — the sidebar just stays empty and "Save this idea" silently does nothing.
+
+One thing worth knowing: free Supabase projects pause after 7 days of inactivity. If nobody's used the tool in a week, saving/loading ideas will fail until someone reopens the project in the Supabase dashboard (one click to resume) — everything else in the app is unaffected.
+
 ## Deploying so it works on her phone
 
 The easiest path is [Vercel](https://vercel.com) (built by the makers of Next.js, generous free tier, HTTPS by default):
@@ -59,4 +87,5 @@ The easiest path is [Vercel](https://vercel.com) (built by the makers of Next.js
 - `lib/voiceProfile.js` — Leah's decoded caption formula and 15 real sample captions used to ground generated copy.
 - `lib/trends.js` — the Apify integration, degrades gracefully if unconfigured.
 - `lib/claude.js` — the Anthropic API call.
+- `lib/supabase.js` + `app/api/ideas/` — the optional "Saved ideas" sidebar, degrades gracefully if unconfigured.
 - `middleware.js` + `lib/auth.js` + `app/login/page.js` — simple shared-password gate for hosting this online.

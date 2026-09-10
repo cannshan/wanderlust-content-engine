@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const PATTERN_LABELS = {
   "animal-content": "Lever: animal content",
@@ -41,6 +41,91 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState("");
   const [activeTab, setActiveTab] = useState("tiktok");
+  const [savedIdeas, setSavedIdeas] = useState([]);
+  const [savedIdeasLoading, setSavedIdeasLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    loadSavedIdeas();
+  }, []);
+
+  async function loadSavedIdeas() {
+    setSavedIdeasLoading(true);
+    try {
+      const res = await fetch("/api/ideas");
+      if (res.ok) {
+        const data = await res.json();
+        setSavedIdeas(data.ideas || []);
+      }
+    } catch {
+      // Sidebar just stays empty/stale - saving/generating still works.
+    }
+    setSavedIdeasLoading(false);
+  }
+
+  async function saveCurrentResult() {
+    if (!result || saving) return;
+    setSaving(true);
+    try {
+      const res = await fetch("/api/ideas", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          ...result.formSnapshot,
+          platforms: result.attempted,
+          results: result.platforms,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSavedIdeas((list) => [data.savedIdea, ...list]);
+        setResult((r) => ({ ...r, savedId: data.savedIdea.id }));
+      }
+    } catch {
+      // Leaves the Save button active so they can just try again.
+    }
+    setSaving(false);
+  }
+
+  function loadSavedIdea(saved) {
+    setForm({
+      idea: saved.idea,
+      location: saved.location,
+      storyBeat: saved.story_beat || "",
+      notes: saved.notes || "",
+      lengthSeconds: saved.length_seconds,
+    });
+    setSelectedPlatforms({
+      tiktok: saved.platforms.includes("tiktok"),
+      instagram: saved.platforms.includes("instagram"),
+      youtube: saved.platforms.includes("youtube"),
+    });
+    setResult({
+      platforms: saved.results,
+      errors: {},
+      attempted: saved.platforms,
+      savedId: saved.id,
+      formSnapshot: {
+        idea: saved.idea,
+        location: saved.location,
+        storyBeat: saved.story_beat || "",
+        notes: saved.notes || "",
+        lengthSeconds: saved.length_seconds,
+      },
+    });
+    setActiveTab(saved.platforms[0]);
+    setError("");
+  }
+
+  async function deleteSavedIdea(id) {
+    setSavedIdeas((list) => list.filter((s) => s.id !== id));
+    try {
+      await fetch(`/api/ideas/${id}`, { method: "DELETE" });
+    } catch {
+      // Already removed from the visible list; a failed delete just means
+      // it'll reappear next time the sidebar reloads, not silently lost.
+    }
+  }
 
   function update(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
@@ -75,6 +160,11 @@ export default function Dashboard() {
   async function onSubmit(e) {
     e.preventDefault();
     if (platformsToGenerate.length === 0) return;
+
+    // Captured now, not read from `form` later - the form stays editable
+    // while a generation is in flight, and Save needs to persist what was
+    // actually generated, not whatever the fields currently hold.
+    const formSnapshot = { ...form };
 
     setLoading(true);
     setError("");
@@ -143,7 +233,7 @@ export default function Dashboard() {
             : "Failed to generate.")
       );
     } else {
-      setResult({ platforms, errors, attempted: platformsToGenerate });
+      setResult({ platforms, errors, attempted: platformsToGenerate, formSnapshot, savedId: null });
     }
     setLoading(false);
   }
@@ -164,6 +254,8 @@ export default function Dashboard() {
         </div>
       </div>
 
+      <div className="layout">
+      <div className="main">
       <form onSubmit={onSubmit} className="card">
         <div className="field">
           <label htmlFor="idea">Idea</label>
@@ -261,6 +353,9 @@ export default function Dashboard() {
         <div className="result card">
           <div className="result-head">
             <h3 style={{ fontSize: 16 }}>Result</h3>
+            <button className="btn-ghost" onClick={saveCurrentResult} disabled={saving || !!result.savedId}>
+              {result.savedId ? "Saved" : saving ? "Saving…" : "Save this idea"}
+            </button>
           </div>
 
           <div className="tabs">
@@ -388,6 +483,39 @@ export default function Dashboard() {
           )}
         </div>
       )}
+      </div>
+
+      <aside className="sidebar">
+        <h3 style={{ fontSize: 14, marginBottom: 12 }}>Saved ideas</h3>
+        {savedIdeasLoading && <p className="hint">Loading…</p>}
+        {!savedIdeasLoading && savedIdeas.length === 0 && (
+          <p className="hint">Nothing saved yet. Generate something and hit "Save this idea" to plan ahead for the week.</p>
+        )}
+        <div className="saved-list">
+          {savedIdeas.map((s) => (
+            <div key={s.id} className={`saved-item ${result?.savedId === s.id ? "active" : ""}`}>
+              <button type="button" className="saved-item-main" onClick={() => loadSavedIdea(s)}>
+                <div className="saved-item-idea">{s.idea}</div>
+                <div className="saved-item-meta">{s.location}</div>
+                <div className="saved-item-chips">
+                  {s.platforms.map((p) => (
+                    <span className="saved-chip" key={p}>{PLATFORM_LABELS[p]}</span>
+                  ))}
+                </div>
+              </button>
+              <button
+                type="button"
+                className="saved-item-delete"
+                onClick={() => deleteSavedIdea(s.id)}
+                aria-label="Delete saved idea"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      </aside>
+      </div>
     </div>
   );
 }
