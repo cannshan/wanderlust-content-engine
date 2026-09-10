@@ -21,13 +21,23 @@ function formatTimestamp(iso) {
   return d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 }
 
-// Sorted by views (highest first) rather than recency - the point of this
-// view is "how did each post do", so the best performer should be the
-// first thing visible, not buried in a chronological list.
+// Sorted (and the bar sized) by whichever metric this platform's posts
+// actually have - views if any post has one, else likes, else comments.
+// Instagram's link-preview metadata never includes a view count (only
+// likes/comments), so sizing every bar off "views" there would leave
+// every single row at zero width - the chart needs a real signal to
+// compare posts by, not a metric this platform just doesn't expose.
+const METRIC_PRIORITY = [
+  { key: "views", label: "views" },
+  { key: "likes", label: "likes" },
+  { key: "comments", label: "comments" },
+];
+
 function AnalyticsChart({ posts }) {
   if (!posts || posts.length === 0) return null;
-  const maxViews = Math.max(1, ...posts.map((p) => p.views || 0));
-  const sorted = [...posts].sort((a, b) => (b.views ?? -1) - (a.views ?? -1));
+  const metric = METRIC_PRIORITY.find((m) => posts.some((p) => typeof p[m.key] === "number")) || METRIC_PRIORITY[0];
+  const max = Math.max(1, ...posts.map((p) => p[metric.key] || 0));
+  const sorted = [...posts].sort((a, b) => (b[metric.key] ?? -1) - (a[metric.key] ?? -1));
 
   return (
     <div className="chart-list">
@@ -45,7 +55,7 @@ function AnalyticsChart({ posts }) {
           <div className="chart-bar-track">
             <div
               className="chart-bar-fill"
-              style={{ width: `${post.views ? Math.max(2, (post.views / maxViews) * 100) : 0}%` }}
+              style={{ width: `${post[metric.key] ? Math.max(2, (post[metric.key] / max) * 100) : 0}%` }}
             />
           </div>
           <div className="chart-row-stats">
