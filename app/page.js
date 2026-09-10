@@ -17,6 +17,13 @@ const PLATFORM_LABELS = {
 
 const PLATFORM_ORDER = ["tiktok", "instagram", "youtube"];
 
+const CATEGORY_OPTIONS = [
+  { key: "foodie", label: "Foodie" },
+  { key: "hiking", label: "Hiking" },
+  { key: "speakeasies", label: "Speakeasies / bars" },
+  { key: "museums", label: "Museums" },
+];
+
 // Raw file size cap for an uploaded menu photo/PDF - base64 encoding
 // inflates size by ~33%, so 4MB raw becomes ~5.3MB in the request body.
 // Kept safely under Vercel's serverless request body limit.
@@ -73,6 +80,10 @@ export default function Dashboard() {
   const [savedIdeas, setSavedIdeas] = useState([]);
   const [savedIdeasLoading, setSavedIdeasLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [nearbyCategories, setNearbyCategories] = useState(["all"]);
+  const [nearbyLoading, setNearbyLoading] = useState(false);
+  const [nearbyResult, setNearbyResult] = useState(null);
+  const [nearbyError, setNearbyError] = useState("");
 
   useEffect(() => {
     loadSavedIdeas();
@@ -143,6 +154,8 @@ export default function Dashboard() {
     setMenuLink(saved.menu_link || "");
     setMenuFile(null);
     setMenuFileError("");
+    setNearbyResult(null);
+    setNearbyError("");
     setResult({
       platforms: platformResults,
       errors: {},
@@ -187,6 +200,45 @@ export default function Dashboard() {
 
   function toggleExtra(key) {
     setExtras((e) => ({ ...e, [key]: !e[key] }));
+  }
+
+  // "All" and the specific categories are mutually exclusive - picking a
+  // specific one drops "all", and clearing every specific one falls back
+  // to "all" rather than leaving nothing selected (an empty selection
+  // would be ambiguous with "search nothing").
+  function toggleNearbyCategory(key) {
+    setNearbyCategories((current) => {
+      if (key === "all") return ["all"];
+      const withoutAll = current.filter((c) => c !== "all");
+      const next = withoutAll.includes(key)
+        ? withoutAll.filter((c) => c !== key)
+        : [...withoutAll, key];
+      return next.length === 0 ? ["all"] : next;
+    });
+  }
+
+  async function findNearbyIdeas() {
+    if (!result?.formSnapshot || nearbyLoading) return;
+    setNearbyLoading(true);
+    setNearbyError("");
+    try {
+      const res = await fetch("/api/nearby-ideas", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          idea: result.formSnapshot.idea,
+          location: result.formSnapshot.location,
+          storyBeat: result.formSnapshot.storyBeat,
+          categories: nearbyCategories,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Couldn't find nearby ideas.");
+      setNearbyResult(data.nearbyIdeas);
+    } catch (err) {
+      setNearbyError(err.message || "Couldn't find nearby ideas.");
+    }
+    setNearbyLoading(false);
   }
 
   function handleMenuFileChange(e) {
@@ -249,6 +301,10 @@ export default function Dashboard() {
     setError("");
     setResult(null);
     setActiveTab(platformsToGenerate[0]);
+    // A fresh generation means a new location - last run's nearby-ideas
+    // search no longer applies to it.
+    setNearbyResult(null);
+    setNearbyError("");
 
     // Neither the restaurant check nor the location-tag search varies by
     // platform (a menu and a place's real-world popularity don't change
@@ -690,6 +746,111 @@ export default function Dashboard() {
               )}
             </>
           )}
+
+          <div
+            className="field"
+            style={{ marginTop: 28, paddingTop: 24, borderTop: "1px solid var(--border)" }}
+          >
+            <label>Nearby filming ideas (same trip, ~10 miles)</label>
+            <p className="hint" style={{ marginBottom: 10 }}>
+              Find other real places worth filming near {result.formSnapshot.location} so this can
+              be a multi-post day instead of a single stop.
+            </p>
+            <div className="platform-toggle" style={{ marginBottom: 10 }}>
+              <button
+                type="button"
+                className={`goal-option ${nearbyCategories.includes("all") ? "active" : ""}`}
+                onClick={() => toggleNearbyCategory("all")}
+                aria-pressed={nearbyCategories.includes("all")}
+              >
+                <span className="goal-title">All categories</span>
+              </button>
+              {CATEGORY_OPTIONS.map((c) => (
+                <button
+                  key={c.key}
+                  type="button"
+                  className={`goal-option ${nearbyCategories.includes(c.key) ? "active" : ""}`}
+                  onClick={() => toggleNearbyCategory(c.key)}
+                  aria-pressed={nearbyCategories.includes(c.key)}
+                >
+                  <span className="goal-title">{c.label}</span>
+                </button>
+              ))}
+            </div>
+            <button type="button" className="btn-ghost" onClick={findNearbyIdeas} disabled={nearbyLoading}>
+              {nearbyLoading ? "Searching…" : nearbyResult ? "Search again" : "Find nearby ideas"}
+            </button>
+
+            {nearbyError && (
+              <div className="error-banner" style={{ marginTop: 12 }}>
+                {nearbyError}
+              </div>
+            )}
+
+            {nearbyResult && (
+              <div style={{ marginTop: 16 }}>
+                <div style={{ marginBottom: 20 }}>
+                  <p className="hint" style={{ marginBottom: 8, fontWeight: 600 }}>
+                    🔥 Already popular / proven potential
+                  </p>
+                  {nearbyResult.viral.length === 0 && (
+                    <p className="hint">
+                      Nothing with real proof of popularity turned up nearby for this category — try
+                      "All categories" or check back later.
+                    </p>
+                  )}
+                  <ul className="shotlist">
+                    {nearbyResult.viral.map((place, i) => (
+                      <li key={i}>
+                        <strong>{place.name}</strong>
+                        {place.category ? ` — ${place.category}` : ""}
+                        {place.distance ? ` (${place.distance})` : ""}
+                        <br />
+                        {place.why}
+                        {place.angle && (
+                          <>
+                            <br />
+                            <em>Angle: {place.angle}</em>
+                          </>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div>
+                  <p className="hint" style={{ marginBottom: 8, fontWeight: 600 }}>
+                    💎 Hidden gems / overlooked
+                  </p>
+                  {nearbyResult.hidden.length === 0 && (
+                    <p className="hint">Nothing overlooked genuinely stood out nearby for this category right now.</p>
+                  )}
+                  <ul className="shotlist">
+                    {nearbyResult.hidden.map((place, i) => (
+                      <li key={i}>
+                        <strong>{place.name}</strong>
+                        {place.category ? ` — ${place.category}` : ""}
+                        {place.distance ? ` (${place.distance})` : ""}
+                        <br />
+                        {place.why}
+                        {place.angle && (
+                          <>
+                            <br />
+                            <em>Angle: {place.angle}</em>
+                          </>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <p className="hint" style={{ marginTop: 8 }}>
+                  Distances are estimates pulled from search results, not GPS-verified — sanity-check
+                  drive time before building the day around one.
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       )}
       </div>

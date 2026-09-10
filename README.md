@@ -12,6 +12,15 @@ The research and design plan behind this (algorithm rules, caption-formula break
 
 The tool decides on its own whether a topic reads better as flowing narrative or an itinerary-style bullet list, and only tags a business/venue handle if you mentioned one in your notes — neither needs its own form field.
 
+## Nearby filming ideas
+
+Once a result exists, a "Find nearby ideas" section appears below it. Pick a category (foodie, hiking, speakeasies/bars, museums, or "All categories") and it does two separate live searches for real places within roughly a 10-mile drive of the same location — worth filming the same day as the primary idea. Results split into two lists:
+
+- **🔥 Already popular** — places with real evidence of existing social buzz or reputation.
+- **💎 Hidden gems** — places that are new, under-the-radar, or rarely covered, with real evidence for that too.
+
+Same integrity rule as the hashtags/location-tag/restaurant features: nothing gets labeled "proven" or "hidden gem" without genuine search evidence behind it, and an empty list is an honest result if a search turns up nothing that qualifies — never padded with filler. Distances are whatever a search result happens to state (a drive time, a "X miles from downtown" mention) — there's no maps/geocoding API in this app, so treat "10 miles" as an estimate to sanity-check, not a guarantee. This only runs when you click the button, not on every Generate — it costs several searches per click.
+
 ## Local setup
 
 ```bash
@@ -96,6 +105,7 @@ The easiest path is [Vercel](https://vercel.com) (built by the makers of Next.js
 - `app/page.js` — the dashboard form + result UI.
 - `app/api/generate/route.js` — ties the trend lookup and Claude call together, per platform.
 - `app/api/restaurant-check/`, `app/api/location-search/`, `app/api/styling/` — the pre-fetch endpoints (restaurant menu + research, location-tag popularity, wardrobe tips) that run once per "Generate" click and get passed into every platform's request, instead of each platform repeating the same live read/search. The restaurant one only fires when the "Restaurant / bar" checkbox is on and a name is given - it reads the menu you provide directly (a link and/or an uploaded photo/PDF), it no longer guesses at whether a post is about a restaurant.
+- `app/api/nearby-ideas/` — on-demand only (a button, not part of "Generate"), finds other real places worth filming near the same location - see "Nearby filming ideas" above.
 - `lib/voiceProfile.js` — Leah's decoded caption formula, 15 real sample captions, and the per-platform algorithm/location-tag rules used to ground generated copy.
 - `lib/trends.js` — the Apify integration, degrades gracefully if unconfigured.
 - `lib/claude.js` — all the Anthropic API calls: the main per-platform generation, the hashtag step, and the optional voiceover/music/styling extras.
