@@ -166,9 +166,6 @@ export default function Dashboard() {
             value={form.notes}
             onChange={(e) => update("notes", e.target.value)}
           />
-          <p className="hint">
-            We search for current trends automatically too — this is for something you found yourself that's worth weighing in.
-          </p>
         </div>
 
         {error && <div className="error-banner">{error}</div>}
@@ -295,10 +292,6 @@ export default function Dashboard() {
           )}
         </div>
       )}
-
-      <p className="footer-note">
-        Voice modeled on 15 of Leah's real posts.
-      </p>
     </div>
   );
 }
