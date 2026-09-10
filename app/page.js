@@ -361,6 +361,16 @@ export default function Dashboard() {
                   <div className="cover-suggestion">"{platform.cover_text}"</div>
                 </div>
               )}
+
+              {platform.location_tag && (
+                <div className="field" style={{ marginTop: 20 }}>
+                  <label>Suggested location tag</label>
+                  <div className="cover-suggestion">📍 {platform.location_tag}</div>
+                  {platform.location_tag_why && (
+                    <p className="rationale" style={{ marginTop: 10 }}>{platform.location_tag_why}</p>
+                  )}
+                </div>
+              )}
             </>
           )}
         </div>
