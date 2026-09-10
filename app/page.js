@@ -119,6 +119,10 @@ export default function Dashboard() {
 
   async function deleteSavedIdea(id) {
     setSavedIdeas((list) => list.filter((s) => s.id !== id));
+    // If the deleted idea is the one currently on screen, the Save button
+    // needs to un-stick from "Saved" - otherwise it stays disabled for a
+    // result that no longer actually exists in the saved list.
+    setResult((r) => (r?.savedId === id ? { ...r, savedId: null } : r));
     try {
       await fetch(`/api/ideas/${id}`, { method: "DELETE" });
     } catch {
