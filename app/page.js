@@ -36,6 +36,11 @@ export default function Dashboard() {
     instagram: true,
     youtube: true,
   });
+  const [extras, setExtras] = useState({
+    voiceover: false,
+    music: false,
+    styling: false,
+  });
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -73,7 +78,11 @@ export default function Dashboard() {
         body: JSON.stringify({
           ...result.formSnapshot,
           platforms: result.attempted,
-          results: result.platforms,
+          // The styling tip is platform-agnostic (no per-platform tab of
+          // its own), so it rides along inside the results blob under a
+          // reserved key rather than needing its own saved_ideas column -
+          // "_styling_tip" can never collide with a real platform key.
+          results: { ...result.platforms, _styling_tip: result.stylingTip ?? null },
         }),
       });
       if (res.ok) {
@@ -88,6 +97,8 @@ export default function Dashboard() {
   }
 
   function loadSavedIdea(saved) {
+    const { _styling_tip: stylingTip, ...platformResults } = saved.results || {};
+
     setForm({
       idea: saved.idea,
       location: saved.location,
@@ -101,10 +112,11 @@ export default function Dashboard() {
       youtube: saved.platforms.includes("youtube"),
     });
     setResult({
-      platforms: saved.results,
+      platforms: platformResults,
       errors: {},
       attempted: saved.platforms,
       savedId: saved.id,
+      stylingTip: stylingTip ?? null,
       formSnapshot: {
         idea: saved.idea,
         location: saved.location,
@@ -139,13 +151,24 @@ export default function Dashboard() {
     setSelectedPlatforms((s) => ({ ...s, [p]: !s[p] }));
   }
 
+  function toggleExtra(key) {
+    setExtras((e) => ({ ...e, [key]: !e[key] }));
+  }
+
   const platformsToGenerate = PLATFORM_ORDER.filter((p) => selectedPlatforms[p]);
 
   async function generateOne(platformName, menuCheck, locationContext) {
     const res = await fetch("/api/generate", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ ...form, platform: platformName, menuCheck, locationContext }),
+      body: JSON.stringify({
+        ...form,
+        platform: platformName,
+        menuCheck,
+        locationContext,
+        includeVoiceover: extras.voiceover,
+        includeMusic: extras.music,
+      }),
     });
     const raw = await res.text();
     let data;
@@ -197,7 +220,10 @@ export default function Dashboard() {
       }
     }
 
-    const [menuData, locationData] = await Promise.all([
+    // Styling is opt-in and, like the two above, platform-agnostic - only
+    // fetched at all when the toggle is on, so the common case (extras off)
+    // adds no extra request here.
+    const [menuData, locationData, stylingData] = await Promise.all([
       fetchContext("/api/menu-check", {
         idea: form.idea,
         location: form.location,
@@ -209,9 +235,17 @@ export default function Dashboard() {
         location: form.location,
         storyBeat: form.storyBeat,
       }),
+      extras.styling
+        ? fetchContext("/api/styling", {
+            idea: form.idea,
+            location: form.location,
+            storyBeat: form.storyBeat,
+          })
+        : Promise.resolve(null),
     ]);
     const menuCheck = menuData?.menuCheck ?? null;
     const locationContext = locationData?.locationContext ?? null;
+    const stylingTip = stylingData?.stylingTip ?? null;
 
     // Independent, parallel requests, one per selected platform - each
     // platform's generation is faster and more reliable on its own than
@@ -237,7 +271,7 @@ export default function Dashboard() {
             : "Failed to generate.")
       );
     } else {
-      setResult({ platforms, errors, attempted: platformsToGenerate, formSnapshot, savedId: null });
+      setResult({ platforms, errors, attempted: platformsToGenerate, formSnapshot, savedId: null, stylingTip });
     }
     setLoading(false);
   }
@@ -315,6 +349,36 @@ export default function Dashboard() {
         </div>
 
         <div className="field">
+          <label>Filming extras (optional)</label>
+          <div className="platform-toggle">
+            <button
+              type="button"
+              className={`goal-option ${extras.voiceover ? "active" : ""}`}
+              onClick={() => toggleExtra("voiceover")}
+              aria-pressed={extras.voiceover}
+            >
+              <span className="goal-title">Voiceover script</span>
+            </button>
+            <button
+              type="button"
+              className={`goal-option ${extras.music ? "active" : ""}`}
+              onClick={() => toggleExtra("music")}
+              aria-pressed={extras.music}
+            >
+              <span className="goal-title">Music suggestion</span>
+            </button>
+            <button
+              type="button"
+              className={`goal-option ${extras.styling ? "active" : ""}`}
+              onClick={() => toggleExtra("styling")}
+              aria-pressed={extras.styling}
+            >
+              <span className="goal-title">Styling tips</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="field">
           <label>Video length (same target across platforms)</label>
           <div className="goal-toggle">
             <button
@@ -361,6 +425,13 @@ export default function Dashboard() {
               {result.savedId ? "Saved" : saving ? "Saving…" : "Save this idea"}
             </button>
           </div>
+
+          {result.stylingTip && (
+            <div className="field" style={{ marginBottom: 20 }}>
+              <label>Styling tip (same for every platform)</label>
+              <p className="rationale">{result.stylingTip}</p>
+            </div>
+          )}
 
           <div className="tabs">
             {(result.attempted || PLATFORM_ORDER).map((p) => (
@@ -481,6 +552,23 @@ export default function Dashboard() {
                   {platform.location_tag_why && (
                     <p className="rationale" style={{ marginTop: 10 }}>{platform.location_tag_why}</p>
                   )}
+                </div>
+              )}
+
+              {platform.voiceover_script && (
+                <div className="field" style={{ marginTop: 20 }}>
+                  <label>Voiceover script</label>
+                  <div className="description-box">{platform.voiceover_script}</div>
+                  <button className="btn-ghost" onClick={() => copy(platform.voiceover_script, "voiceover")}>
+                    {copied === "voiceover" ? "Copied" : "Copy voiceover script"}
+                  </button>
+                </div>
+              )}
+
+              {platform.music_suggestion && (
+                <div className="field" style={{ marginTop: 20 }}>
+                  <label>Music suggestion</label>
+                  <p className="rationale">{platform.music_suggestion}</p>
                 </div>
               )}
             </>

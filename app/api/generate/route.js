@@ -25,6 +25,8 @@ export async function POST(req) {
     platform,
     menuCheck: precomputedMenuCheck,
     locationContext: precomputedLocationContext,
+    includeVoiceover,
+    includeMusic,
   } = body;
 
   if (!idea || !location) {
@@ -76,6 +78,8 @@ export async function POST(req) {
       locationContext,
       lengthSeconds: resolvedLength,
       platform: resolvedPlatform,
+      includeVoiceover,
+      includeMusic,
     });
 
     // Apify (pre-fetched) takes priority if it actually returned something;
