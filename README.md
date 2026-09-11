@@ -14,12 +14,35 @@ The tool decides on its own whether a topic reads better as flowing narrative or
 
 ## Nearby filming ideas
 
-Once a result exists, a "Find nearby ideas" section appears below it. Pick a category (foodie, hiking, speakeasies/bars, museums, or "All categories") and it does two separate live searches for real places within roughly a 10-mile drive of the same location — worth filming the same day as the primary idea. Results split into two lists:
+Once a result exists, a "Find nearby ideas" section appears below it. Pick a category (foodie, restaurants, hiking, speakeasies/bars, museums, or "All categories") and it does two separate live searches for real places within roughly a 10-mile drive of the same location — worth filming the same day as the primary idea. Results split into two lists:
 
 - **🔥 Already popular** — places with real evidence of existing social buzz or reputation.
 - **💎 Hidden gems** — places that are new, under-the-radar, or rarely covered, with real evidence for that too.
 
 Same integrity rule as the hashtags/location-tag/restaurant features: nothing gets labeled "proven" or "hidden gem" without genuine search evidence behind it, and an empty list is an honest result if a search turns up nothing that qualifies — never padded with filler. Distances are whatever a search result happens to state (a drive time, a "X miles from downtown" mention) — there's no maps/geocoding API in this app, so treat "10 miles" as an estimate to sanity-check, not a guarantee. This only runs when you click the button, not on every Generate — it costs several searches per click.
+
+"All categories" gets a bigger search/output budget than a single category and is explicitly told to spread its searches across different types (food, outdoors, nightlife, culture) instead of defaulting to whichever it reaches for first — this used to come back noticeably thinner than picking one specific category (e.g. "foodie") did on its own; it should now be comparable.
+
+## Discovery tab
+
+A standalone tab, not tied to a primary idea already chosen. Type in any location — a town, a region, or a whole state (e.g. "Maine," or "Boothbay Harbor, Maine") — pick a category, and it runs three separate live searches for real things to do there:
+
+- **🔥 Popular** — well-known draws with real evidence of tourism traffic or being a well-known must-visit.
+- **✨ Interesting / unique** — a genuinely distinctive experience that isn't necessarily top-tourist-list material.
+- **💎 Hidden gems** — new, under-the-radar, or rarely-covered places.
+
+Same integrity rule as everywhere else: a place only gets listed with real search evidence behind both its category fit and which bucket it lands in, and an empty section is an honest result, not something to pad. If the location given is broad (a whole state, say), results are spread across different towns within it rather than clustering on one spot — each place lists its own area/neighborhood instead of a distance, since there's no single fixed point to measure "nearby" from the way the in-result nearby-ideas search has. This is what originally turned up things like Neat, a speakeasy in Boothbay Harbor, Maine.
+
+## Reel Voiceover tab
+
+Upload a reel you've already filmed and get back a voiceover script written from what's actually in the footage — not a generic script for the idea, one that follows the real order of events on screen.
+
+The video file itself is never uploaded anywhere. Entirely in your browser, it's sampled into a handful of still frames spread evenly across the clip (`lib/videoFrames.js`, via a hidden `<video>` + `<canvas>`), and only those small JPEGs — along with the video's real length — are sent to Claude. Claude reviews the frames in chronological order and calls a dedicated tool with two things:
+
+- **What it saw** — a plain-language, beat-by-beat rundown of the footage, shown so you can sanity-check the voiceover actually matches what you filmed.
+- **The voiceover script** — spoken language timed to the video's real length (~2.5 words/second is the rough pacing guide), following the actual sequence of what's shown. It only uses the optional idea/location/notes fields for names and facts it can't see on camera (a restaurant name, a booking link) — never to invent a scene that isn't actually in the footage.
+
+Pick a platform (TikTok/Instagram/YouTube) to shape the tone/pacing the same way the rest of the app's voice profile does. This works best on genuine short-form footage (under a few minutes) — very long videos sample the same fixed number of frames, so each one covers proportionally less.
 
 ## Local setup
 
@@ -107,8 +130,11 @@ The easiest path is [Vercel](https://vercel.com) (built by the makers of Next.js
 - `app/api/generate/route.js` — ties the trend lookup and Claude call together, per platform.
 - `app/api/restaurant-check/`, `app/api/location-search/`, `app/api/styling/` — the pre-fetch endpoints (restaurant menu + research, location-tag popularity, wardrobe tips) that run once per "Generate" click and get passed into every platform's request, instead of each platform repeating the same live read/search. The restaurant one only fires when the "Restaurant / bar" checkbox is on and a name is given - it reads the menu you provide directly (a link and/or an uploaded photo/PDF), it no longer guesses at whether a post is about a restaurant.
 - `app/api/nearby-ideas/` — on-demand only (a button, not part of "Generate"), finds other real places worth filming near the same location - see "Nearby filming ideas" above.
+- `app/components/DiscoveryTab.js` + `app/api/discovery/` — the standalone Discovery tab - see "Discovery tab" above.
+- `app/components/ReelVoiceoverTab.js` + `app/api/reel-voiceover/` + `lib/videoFrames.js` — the Reel Voiceover tab - see "Reel Voiceover tab" above.
+- `lib/constants.js` — shared platform/category constants used across all three tabs.
 - `lib/voiceProfile.js` — Leah's decoded caption formula, 15 real sample captions, and the per-platform algorithm/location-tag rules used to ground generated copy.
 - `lib/trends.js` — the Apify integration, degrades gracefully if unconfigured.
-- `lib/claude.js` — all the Anthropic API calls: the main per-platform generation, the hashtag step, and the optional voiceover/music/styling extras.
+- `lib/claude.js` — all the Anthropic API calls: the main per-platform generation, the hashtag step, the nearby-ideas/Discovery searches, the reel-voiceover analysis, and the optional voiceover/music/styling extras.
 - `lib/supabase.js` + `app/api/ideas/` — the optional "Saved ideas" sidebar, degrades gracefully if unconfigured.
 - `proxy.js` (Next.js 16's replacement for `middleware.js`) + `lib/auth.js` + `app/login/page.js` — simple shared-password gate for hosting this online.

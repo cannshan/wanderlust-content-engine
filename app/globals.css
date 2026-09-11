@@ -394,6 +394,19 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   margin-bottom: 20px;
 }
 
+.top-tabs {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 28px;
+}
+
+.top-tabs .tab-btn {
+  padding: 10px 16px;
+  font-size: 15px;
+}
+
 .tab-btn {
   background: transparent;
   border: none;

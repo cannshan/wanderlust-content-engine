@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { PLATFORM_LABELS, PLATFORM_ORDER, CATEGORY_OPTIONS } from "../../lib/constants";
 
 const PATTERN_LABELS = {
   "animal-content": "Lever: animal content",
@@ -8,21 +9,6 @@ const PATTERN_LABELS = {
   "insider-access": "Lever: insider access",
   standard: "No specific lever — standard post",
 };
-
-const PLATFORM_LABELS = {
-  tiktok: "TikTok",
-  instagram: "Instagram",
-  youtube: "YouTube",
-};
-
-const PLATFORM_ORDER = ["tiktok", "instagram", "youtube"];
-
-const CATEGORY_OPTIONS = [
-  { key: "foodie", label: "Foodie" },
-  { key: "hiking", label: "Hiking" },
-  { key: "speakeasies", label: "Speakeasies / bars" },
-  { key: "museums", label: "Museums" },
-];
 
 // Raw file size cap for an uploaded menu photo/PDF - base64 encoding
 // inflates size by ~33%, so 4MB raw becomes ~5.3MB in the request body.
