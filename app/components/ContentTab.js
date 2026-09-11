@@ -11,6 +11,11 @@ import { CategoryFilterRow, CategorizePanel } from "./CategoryUI";
 // Kept safely under Vercel's serverless request body limit.
 const MAX_MENU_FILE_BYTES = 4 * 1024 * 1024;
 
+// A place can have separate food/drink/dessert menus, or a seasonal one
+// alongside the regular one - 5 is generous room for that without turning
+// the form into an open-ended list.
+const MAX_MENU_LINKS = 5;
+
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -47,7 +52,7 @@ export default function ContentTab() {
   });
   const [isRestaurant, setIsRestaurant] = useState(false);
   const [restaurantName, setRestaurantName] = useState("");
-  const [menuLink, setMenuLink] = useState("");
+  const [menuLinks, setMenuLinks] = useState([""]);
   const [menuFile, setMenuFile] = useState(null);
   const [menuFileError, setMenuFileError] = useState("");
   const [voiceoverVideoFile, setVoiceoverVideoFile] = useState(null);
@@ -149,12 +154,14 @@ export default function ContentTab() {
       instagram: saved.platforms.includes("instagram"),
       youtube: saved.platforms.includes("youtube"),
     });
-    // The menu link comes back too, but never a file - that was never
+    // The menu link(s) come back too, but never a file - that was never
     // saved in the first place (see the comment on the restaurant_name/
-    // menu_link insert in app/api/ideas/route.js).
+    // menu_link insert in app/api/ideas/route.js). menu_links (the array
+    // column) is the current source; menu_link (singular) is the fallback
+    // for ideas saved before multiple links were supported.
     setIsRestaurant(!!saved.restaurant_name);
     setRestaurantName(saved.restaurant_name || "");
-    setMenuLink(saved.menu_link || "");
+    setMenuLinks(saved.menu_links?.length ? saved.menu_links : saved.menu_link ? [saved.menu_link] : [""]);
     setMenuFile(null);
     setMenuFileError("");
     // Same as the menu file above - the uploaded reel itself was never
@@ -180,7 +187,7 @@ export default function ContentTab() {
         notes: saved.notes || "",
         lengthSeconds: saved.length_seconds,
         restaurantName: saved.restaurant_name || "",
-        menuLink: saved.menu_link || "",
+        menuLinks: saved.menu_links?.length ? saved.menu_links : saved.menu_link ? [saved.menu_link] : [],
       },
     });
     setActiveTab(saved.platforms[0]);
@@ -264,6 +271,23 @@ export default function ContentTab() {
     setMenuFile(file);
   }
 
+  function updateMenuLink(index, value) {
+    setMenuLinks((links) => links.map((l, i) => (i === index ? value : l)));
+  }
+
+  function addMenuLink() {
+    setMenuLinks((links) => (links.length >= MAX_MENU_LINKS ? links : [...links, ""]));
+  }
+
+  // Always leaves at least one (empty) field rather than an empty array -
+  // there should always be a link input visible to type into.
+  function removeMenuLink(index) {
+    setMenuLinks((links) => {
+      const next = links.filter((_, i) => i !== index);
+      return next.length > 0 ? next : [""];
+    });
+  }
+
   function handleVoiceoverVideoChange(e) {
     const file = e.target.files?.[0] || null;
     if (voiceoverVideoUrl) URL.revokeObjectURL(voiceoverVideoUrl);
@@ -320,12 +344,13 @@ export default function ContentTab() {
     // Captured now, not read from `form` later - the form stays editable
     // while a generation is in flight, and Save needs to persist what was
     // actually generated, not whatever the fields currently hold. The menu
-    // link rides along the same way (see saveCurrentResult) - the uploaded
+    // links ride along the same way (see saveCurrentResult) - the uploaded
     // file itself deliberately doesn't, nothing to snapshot there.
+    const trimmedMenuLinks = menuLinks.map((l) => l.trim()).filter(Boolean);
     const formSnapshot = {
       ...form,
       restaurantName: isRestaurant ? restaurantName.trim() : "",
-      menuLink: isRestaurant ? menuLink.trim() : "",
+      menuLinks: isRestaurant ? trimmedMenuLinks : [],
     };
 
     setLoading(true);
@@ -405,7 +430,7 @@ export default function ContentTab() {
             location: form.location,
             idea: form.idea,
             storyBeat: form.storyBeat,
-            menuLink: menuLink.trim() || null,
+            menuLinks: trimmedMenuLinks,
             menuFileBase64,
             menuFileMediaType: menuFile?.type || null,
           })
@@ -622,13 +647,36 @@ export default function ContentTab() {
             </div>
 
             <div className="field">
-              <label htmlFor="menuLink">Menu link (optional)</label>
-              <input
-                id="menuLink"
-                placeholder="https://theirsite.com/menu"
-                value={menuLink}
-                onChange={(e) => setMenuLink(e.target.value)}
-              />
+              <label htmlFor="menuLink0">Menu link{menuLinks.length > 1 ? "s" : ""} (optional)</label>
+              {menuLinks.map((link, i) => (
+                <div key={i} style={{ display: "flex", gap: 6, marginBottom: i < menuLinks.length - 1 ? 6 : 0 }}>
+                  <input
+                    id={i === 0 ? "menuLink0" : undefined}
+                    placeholder="https://theirsite.com/menu"
+                    value={link}
+                    onChange={(e) => updateMenuLink(i, e.target.value)}
+                  />
+                  {menuLinks.length > 1 && (
+                    <button
+                      type="button"
+                      className="btn-ghost"
+                      style={{ flexShrink: 0 }}
+                      onClick={() => removeMenuLink(i)}
+                      aria-label="Remove this menu link"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              ))}
+              {menuLinks.length < MAX_MENU_LINKS && (
+                <button type="button" className="btn-ghost" style={{ marginTop: 8 }} onClick={addMenuLink}>
+                  + Add another menu link
+                </button>
+              )}
+              <p className="hint" style={{ marginTop: 6 }}>
+                Separate menus (food, drinks, dessert, seasonal) — up to {MAX_MENU_LINKS}.
+              </p>
             </div>
 
             <div className="field">

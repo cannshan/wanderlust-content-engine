@@ -25,7 +25,7 @@ export async function POST(req) {
     platform,
     restaurantContext: precomputedRestaurantContext,
     restaurantName,
-    menuLink,
+    menuLinks,
     menuFileBase64,
     menuFileMediaType,
     locationContext: precomputedLocationContext,
@@ -61,7 +61,7 @@ export async function POST(req) {
     precomputedRestaurantContext !== undefined
       ? Promise.resolve(precomputedRestaurantContext)
       : restaurantName
-      ? analyzeRestaurant({ restaurantName, location, idea, storyBeat, menuLink, menuFileBase64, menuFileMediaType })
+      ? analyzeRestaurant({ restaurantName, location, idea, storyBeat, menuLinks, menuFileBase64, menuFileMediaType })
       : Promise.resolve(null),
     precomputedLocationContext !== undefined
       ? Promise.resolve(precomputedLocationContext)

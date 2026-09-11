@@ -41,7 +41,7 @@ export async function POST(req) {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
-  const { idea, location, storyBeat, notes, lengthSeconds, platforms, results, restaurantName, menuLink } = body;
+  const { idea, location, storyBeat, notes, lengthSeconds, platforms, results, restaurantName, menuLinks } = body;
 
   if (!idea || !location || !lengthSeconds || !platforms?.length || !results) {
     return NextResponse.json(
@@ -49,6 +49,8 @@ export async function POST(req) {
       { status: 400 }
     );
   }
+
+  const links = Array.isArray(menuLinks) ? menuLinks.filter(Boolean).slice(0, 5) : [];
 
   const { data, error } = await supabase
     .from("saved_ideas")
@@ -60,15 +62,18 @@ export async function POST(req) {
       length_seconds: lengthSeconds,
       platforms,
       results,
-      // The menu link is just a URL string, so it's cheap to keep - lets a
+      // Menu links are just URL strings, so they're cheap to keep - lets a
       // reloaded saved idea re-check the restaurant box with the same
-      // source instead of starting from scratch. The uploaded menu
+      // sources instead of starting from scratch. The uploaded menu
       // photo/PDF itself is deliberately NOT persisted anywhere (see
       // analyzeRestaurant() in lib/claude.js) - only its base64 rides
       // along in that one request, so there'd be nothing to restore even
-      // if we wanted to.
+      // if we wanted to. menu_link (singular) is kept in sync with the
+      // first link for any older code path still reading it - menu_links
+      // is the real, current column.
       restaurant_name: restaurantName || null,
-      menu_link: menuLink || null,
+      menu_link: links[0] || null,
+      menu_links: links.length > 0 ? links : null,
     })
     .select()
     .single();

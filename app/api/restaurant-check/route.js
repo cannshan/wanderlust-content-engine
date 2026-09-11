@@ -22,7 +22,7 @@ export async function POST(req) {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
-  const { restaurantName, location, idea, storyBeat, menuLink, menuFileBase64, menuFileMediaType } = body;
+  const { restaurantName, location, idea, storyBeat, menuLinks, menuFileBase64, menuFileMediaType } = body;
 
   if (!restaurantName) {
     return NextResponse.json({ error: "restaurantName is required." }, { status: 400 });
@@ -33,7 +33,7 @@ export async function POST(req) {
     location,
     idea,
     storyBeat,
-    menuLink,
+    menuLinks,
     menuFileBase64,
     menuFileMediaType,
   });

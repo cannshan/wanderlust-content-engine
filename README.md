@@ -105,6 +105,7 @@ create table saved_ideas (
   results jsonb not null,
   restaurant_name text,
   menu_link text,
+  menu_links text[],
   category text
 );
 ```
@@ -114,6 +115,12 @@ If you set this table up before the restaurant checkbox existed, run this once i
 ```sql
 alter table saved_ideas add column if not exists restaurant_name text;
 alter table saved_ideas add column if not exists menu_link text;
+```
+
+If you set it up before multiple menu links were supported, run this once too:
+
+```sql
+alter table saved_ideas add column if not exists menu_links text[];
 ```
 
 If you set it up before categories existed (see "Categorizing saved ideas" below), run this once too:
@@ -129,7 +136,7 @@ Without these two variables, generation still works exactly the same — the sid
 
 One thing worth knowing: free Supabase projects pause after 7 days of inactivity. If nobody's used the tool in a week, saving/loading ideas will fail until someone reopens the project in the Supabase dashboard (one click to resume) — everything else in the app is unaffected.
 
-A saved restaurant idea keeps the restaurant name and menu link (so reloading it re-checks the box with the same source) but never the uploaded menu photo/PDF itself — that's only ever used inline for the one request that reads it, never written anywhere.
+A saved restaurant idea keeps the restaurant name and menu link(s) (so reloading it re-checks the box with the same sources) but never the uploaded menu photo/PDF itself — that's only ever used inline for the one request that reads it, never written anywhere.
 
 ### Categorizing saved ideas
 
