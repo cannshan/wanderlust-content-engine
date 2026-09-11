@@ -1,14 +1,25 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { extractVideoFrames } from "../../lib/videoFrames";
+import { extractVideoFrames, MAX_FRAMES } from "../../lib/videoFrames";
 import { assembleReel } from "../../lib/assembleReel";
 import { PLATFORM_LABELS, PLATFORM_ORDER, MAX_VIDEO_FILE_BYTES } from "../../lib/constants";
 
-// A reel is short-form by nature - 8 raw takes is generous room for a
-// single reel's worth of footage without letting one upload balloon into
-// something that takes forever to trim/re-encode in-browser.
-const MAX_CLIPS = 8;
+const MAX_CLIPS = 20;
+
+// Frame sampling per clip scales DOWN as clip count goes up, so the total
+// image payload sent to Claude for the edit plan stays roughly constant
+// (and safely under Vercel's request body limit) no matter how many clips
+// are uploaded - sending up to MAX_FRAMES per clip unscaled would mean up
+// to MAX_CLIPS * MAX_FRAMES images in one request at the cap, which is far
+// more than needed and risks the request itself failing outright, not
+// just running expensive. Smaller/more-compressed frames than the
+// single-video mode too, for the same reason - editorial "does this
+// moment belong in the cut" judgment doesn't need full detail across many
+// samples the way a single close read of one video does.
+const ASSEMBLE_TOTAL_FRAME_BUDGET = 80;
+const ASSEMBLE_FRAME_WIDTH = 360;
+const ASSEMBLE_JPEG_QUALITY = 0.5;
 
 function formatBytes(bytes) {
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)}KB`;
@@ -161,9 +172,18 @@ export default function ReelVoiceoverTab() {
     setAssembleProgress({ phase: "frames", done: 0, total: clips.length });
 
     try {
+      const perClipMaxFrames = Math.min(
+        MAX_FRAMES,
+        Math.max(3, Math.floor(ASSEMBLE_TOTAL_FRAME_BUDGET / clips.length))
+      );
       const clipData = [];
       for (let i = 0; i < clips.length; i++) {
-        const { frames, durationSeconds } = await extractVideoFrames(clips[i]);
+        const { frames, durationSeconds } = await extractVideoFrames(clips[i], undefined, {
+          maxFrames: perClipMaxFrames,
+          minFrames: Math.min(perClipMaxFrames, 3),
+          frameWidth: ASSEMBLE_FRAME_WIDTH,
+          jpegQuality: ASSEMBLE_JPEG_QUALITY,
+        });
         clipData.push({ frames, durationSeconds });
         setAssembleProgress({ phase: "frames", done: i + 1, total: clips.length });
       }
@@ -264,8 +284,8 @@ export default function ReelVoiceoverTab() {
               <p className="hint" style={{ marginTop: 6 }}>
                 Everything stays in your browser — Claude decides which parts of which clips make the cut and in
                 what order, then the video is trimmed and stitched together locally, never uploaded anywhere.
-                Processing time depends on your device and how much footage you give it - it can take a few
-                minutes for a full reel's worth.
+                Up to {MAX_CLIPS} clips. Processing time depends on your device and how much footage you give it —
+                with a lot of clips (or long ones), this can take several minutes.
               </p>
               {clipsError && <p className="hint" style={{ marginTop: 6, color: "var(--bad)" }}>{clipsError}</p>}
 
