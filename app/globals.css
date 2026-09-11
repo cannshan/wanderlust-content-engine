@@ -610,6 +610,16 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   margin: 6px 0;
 }
 
+.place-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.place-info { flex: 1; min-width: 0; }
+
+.place-save-btn { flex-shrink: 0; }
+
 .cover-suggestion {
   font-family: 'Work Sans', sans-serif;
   font-weight: 600;
