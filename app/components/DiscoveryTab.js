@@ -110,7 +110,7 @@ function PlaceList({
                         type="button"
                         className="food-item-save-btn"
                         disabled={itemSaved}
-                        onClick={() => onSaveFoodItem(place, item)}
+                        onClick={() => onSaveFoodItem(place, item, bucket)}
                       >
                         {itemSaved ? "Saved" : "Save"}
                       </button>
@@ -363,9 +363,20 @@ export default function DiscoveryTab() {
     }
   }
 
-  // place is only used for its name here - the item itself already has
-  // everything else (name/price/source/imageUrl) from the suggestion.
-  async function saveFoodItem(place, item) {
+  // Saving a dish/drink shouldn't strand it from the restaurant it's
+  // actually at - if that place isn't already saved, save it too (via the
+  // exact same savePlace() a direct "Save" click on the place row would
+  // trigger, so it also picks up any other food items already generated
+  // for it, not just this one). savedPlaceKeys is checked first so
+  // re-saving a second item from an already-saved place doesn't create a
+  // duplicate place row. place is otherwise only used for its name here -
+  // the item itself already has everything else (name/price/source/
+  // imageUrl) from the suggestion.
+  async function saveFoodItem(place, item, bucket) {
+    const placeKey = `${resultLocation}::${place.name}`;
+    if (!savedPlaceKeys.has(placeKey)) {
+      await savePlace(place, bucket);
+    }
     try {
       const res = await fetch("/api/food-items", {
         method: "POST",
