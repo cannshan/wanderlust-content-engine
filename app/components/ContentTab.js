@@ -673,17 +673,13 @@ export default function ContentTab() {
 
         {error && <div className="error-banner">{error}</div>}
 
-        <div className="sticky-generate-bar">
-          <div className="sticky-generate-bar-inner">
-            <button className="btn-primary" disabled={loading || platformsToGenerate.length === 0}>
-              {videoProgress
-                ? `Watching your reel… (${videoProgress.done}/${videoProgress.total || "?"})`
-                : loading
-                ? "Writing…"
-                : "Generate Content"}
-            </button>
-          </div>
-        </div>
+        <button className="btn-primary" disabled={loading || platformsToGenerate.length === 0}>
+          {videoProgress
+            ? `Watching your reel… (${videoProgress.done}/${videoProgress.total || "?"})`
+            : loading
+            ? "Writing…"
+            : "Generate Content"}
+        </button>
       </form>
 
       {result && (
