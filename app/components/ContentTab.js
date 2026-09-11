@@ -75,6 +75,9 @@ export default function ContentTab() {
   const [nearbyLoading, setNearbyLoading] = useState(false);
   const [nearbyResult, setNearbyResult] = useState(null);
   const [nearbyError, setNearbyError] = useState("");
+  const [categorizingId, setCategorizingId] = useState(null);
+  const [newCategoryDraft, setNewCategoryDraft] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState(null);
 
   useEffect(() => {
     loadSavedIdeas();
@@ -196,6 +199,39 @@ export default function ContentTab() {
       // Already removed from the visible list; a failed delete just means
       // it'll reappear next time the sidebar reloads, not silently lost.
     }
+  }
+
+  function toggleCategorize(id) {
+    setCategorizingId((current) => (current === id ? null : id));
+    setNewCategoryDraft("");
+  }
+
+  // category: null clears it. There's no categories table - a category
+  // exists only because some saved idea currently has that string, so
+  // "create" and "assign" are the same action (see app/api/ideas/[id]/
+  // route.js). Optimistic update: the picker closes and the chip updates
+  // immediately, since this is low-stakes enough not to need a loading
+  // state - if the PATCH fails, the next sidebar reload shows the real
+  // state rather than silently drifting forever.
+  async function applyCategory(id, category) {
+    setSavedIdeas((list) => list.map((s) => (s.id === id ? { ...s, category } : s)));
+    setCategorizingId(null);
+    setNewCategoryDraft("");
+    try {
+      await fetch(`/api/ideas/${id}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ category }),
+      });
+    } catch {
+      // Degrades the same way deleteSavedIdea's own catch does.
+    }
+  }
+
+  function submitNewCategory(id) {
+    const name = newCategoryDraft.trim();
+    if (!name) return;
+    applyCategory(id, name);
   }
 
   function update(field, value) {
@@ -485,6 +521,13 @@ export default function ContentTab() {
   }
 
   const platform = result?.platforms?.[activeTab];
+
+  // Derived, not stored - a category "exists" exactly when some saved
+  // idea currently carries that string (see the PATCH handler's comment).
+  const allCategories = Array.from(new Set(savedIdeas.map((s) => s.category).filter(Boolean))).sort((a, b) =>
+    a.localeCompare(b)
+  );
+  const filteredSavedIdeas = categoryFilter ? savedIdeas.filter((s) => s.category === categoryFilter) : savedIdeas;
 
   return (
     <div className="layout">
@@ -972,30 +1015,114 @@ export default function ContentTab() {
 
       <aside className="sidebar">
         <h3 style={{ fontSize: 14, marginBottom: 12 }}>Saved ideas</h3>
+
+        {allCategories.length > 0 && (
+          <div className="category-filter-row">
+            <button
+              type="button"
+              className={`category-filter-btn ${!categoryFilter ? "active" : ""}`}
+              onClick={() => setCategoryFilter(null)}
+            >
+              All
+            </button>
+            {allCategories.map((c) => (
+              <button
+                key={c}
+                type="button"
+                className={`category-filter-btn ${categoryFilter === c ? "active" : ""}`}
+                onClick={() => setCategoryFilter(c)}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+        )}
+
         {savedIdeasLoading && <p className="hint">Loading…</p>}
         {!savedIdeasLoading && savedIdeas.length === 0 && (
           <p className="hint">Nothing saved yet. Generate something and hit "Save this idea" to plan ahead for the week.</p>
         )}
+        {!savedIdeasLoading && savedIdeas.length > 0 && filteredSavedIdeas.length === 0 && (
+          <p className="hint">Nothing saved under "{categoryFilter}" yet.</p>
+        )}
         <div className="saved-list">
-          {savedIdeas.map((s) => (
+          {filteredSavedIdeas.map((s) => (
             <div key={s.id} className={`saved-item ${result?.savedId === s.id ? "active" : ""}`}>
-              <button type="button" className="saved-item-main" onClick={() => loadSavedIdea(s)}>
-                <div className="saved-item-idea">{s.idea}</div>
-                <div className="saved-item-meta">{s.location}</div>
-                <div className="saved-item-chips">
-                  {s.platforms.map((p) => (
-                    <span className="saved-chip" key={p}>{PLATFORM_LABELS[p]}</span>
-                  ))}
+              <div className="saved-item-row">
+                <button type="button" className="saved-item-main" onClick={() => loadSavedIdea(s)}>
+                  <div className="saved-item-idea">{s.idea}</div>
+                  <div className="saved-item-meta">{s.location}</div>
+                  <div className="saved-item-chips">
+                    {s.category && <span className="saved-chip category-chip">{s.category}</span>}
+                    {s.platforms.map((p) => (
+                      <span className="saved-chip" key={p}>{PLATFORM_LABELS[p]}</span>
+                    ))}
+                  </div>
+                </button>
+                <div className="saved-item-actions">
+                  <button
+                    type="button"
+                    className="saved-item-categorize"
+                    onClick={() => toggleCategorize(s.id)}
+                  >
+                    Categorize
+                  </button>
+                  <button
+                    type="button"
+                    className="saved-item-delete"
+                    onClick={() => deleteSavedIdea(s.id)}
+                    aria-label="Delete saved idea"
+                  >
+                    ×
+                  </button>
                 </div>
-              </button>
-              <button
-                type="button"
-                className="saved-item-delete"
-                onClick={() => deleteSavedIdea(s.id)}
-                aria-label="Delete saved idea"
-              >
-                ×
-              </button>
+              </div>
+
+              {categorizingId === s.id && (
+                <div className="category-picker">
+                  {allCategories.length > 0 && (
+                    <div className="category-picker-options">
+                      {allCategories.map((c) => (
+                        <button
+                          key={c}
+                          type="button"
+                          className={`category-chip-btn ${s.category === c ? "active" : ""}`}
+                          onClick={() => applyCategory(s.id, c)}
+                        >
+                          {c}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <div className="category-picker-new">
+                    <input
+                      autoFocus
+                      value={newCategoryDraft}
+                      onChange={(e) => setNewCategoryDraft(e.target.value)}
+                      placeholder="New category name"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          submitNewCategory(s.id);
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="btn-ghost"
+                      onClick={() => submitNewCategory(s.id)}
+                      disabled={!newCategoryDraft.trim()}
+                    >
+                      Add
+                    </button>
+                  </div>
+                  {s.category && (
+                    <button type="button" className="category-clear" onClick={() => applyCategory(s.id, null)}>
+                      Clear category
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           ))}
         </div>

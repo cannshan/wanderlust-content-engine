@@ -104,7 +104,8 @@ create table saved_ideas (
   platforms text[] not null,
   results jsonb not null,
   restaurant_name text,
-  menu_link text
+  menu_link text,
+  category text
 );
 ```
 
@@ -115,6 +116,12 @@ alter table saved_ideas add column if not exists restaurant_name text;
 alter table saved_ideas add column if not exists menu_link text;
 ```
 
+If you set it up before categories existed (see "Categorizing saved ideas" below), run this once too:
+
+```sql
+alter table saved_ideas add column if not exists category text;
+```
+
 3. In **Project Settings → API**, copy the **Project URL** and the **`service_role`** key (not `anon` — this app only ever talks to Supabase from the server, same as the Anthropic key).
 4. Add `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` to `.env.local` (and to Vercel's environment variables once deployed).
 
@@ -123,6 +130,10 @@ Without these two variables, generation still works exactly the same — the sid
 One thing worth knowing: free Supabase projects pause after 7 days of inactivity. If nobody's used the tool in a week, saving/loading ideas will fail until someone reopens the project in the Supabase dashboard (one click to resume) — everything else in the app is unaffected.
 
 A saved restaurant idea keeps the restaurant name and menu link (so reloading it re-checks the box with the same source) but never the uploaded menu photo/PDF itself — that's only ever used inline for the one request that reads it, never written anywhere.
+
+### Categorizing saved ideas
+
+Each saved idea can be tagged with one free-text category (a season, a client, a trip, whatever grouping is useful) via the "Categorize" button on its card in the sidebar. There's no separate list of categories to manage — a category exists simply because at least one saved idea currently uses that name, the same way labels work in most tagging tools. Picking "Categorize" shows every category already in use as a quick pick, plus a field to type a new one; picking "Clear category" removes it from that idea without affecting the category name itself (it just stops showing up anywhere once nothing uses it anymore). A filter row above the saved-ideas list lets you narrow it down to just one category at a time.
 
 ## Deploying so it works on her phone
 
