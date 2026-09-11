@@ -6,13 +6,6 @@ import { extractVideoFrames } from "../../lib/videoFrames";
 import { useCategorizedItems } from "../../lib/useCategorizedItems";
 import { CategoryFilterRow, CategorizePanel } from "./CategoryUI";
 
-const PATTERN_LABELS = {
-  "animal-content": "Lever: animal content",
-  "pop-culture-tie-in": "Lever: pop-culture tie-in",
-  "insider-access": "Lever: insider access",
-  standard: "No specific lever — standard post",
-};
-
 // Raw file size cap for an uploaded menu photo/PDF - base64 encoding
 // inflates size by ~33%, so 4MB raw becomes ~5.3MB in the request body.
 // Kept safely under Vercel's serverless request body limit.
@@ -30,10 +23,6 @@ function fileToBase64(file) {
     reader.onerror = () => reject(reader.error);
     reader.readAsDataURL(file);
   });
-}
-
-function formatPattern(pattern) {
-  return PATTERN_LABELS[pattern] || "Why this should work";
 }
 
 const initialForm = {
@@ -749,15 +738,6 @@ export default function ContentTab() {
 
           {platform && (
             <>
-              {platform.hook_strategy && (
-                <div className="strategy-box">
-                  <span className="badge live" style={{ marginBottom: 6, display: "inline-block" }}>
-                    {formatPattern(platform.pattern_used)}
-                  </span>
-                  <p>{platform.hook_strategy}</p>
-                </div>
-              )}
-
               {platform.title && (
                 <div className="field">
                   <label>Title</label>
