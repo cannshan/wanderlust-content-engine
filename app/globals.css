@@ -659,6 +659,58 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   border-radius: 4px;
 }
 
+/* Deliberately not .rationale (13px, muted --ink-soft) - a food/activity
+   pick is the actual answer to the button someone clicked, not a
+   secondary explanation of something else, so it gets a real card:
+   bold full-ink name, an accent-colored price, an image when one was
+   found - closer in weight to .style-link-card than to muted body text. */
+.food-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.food-item-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 12px;
+  background: var(--bg-raised);
+}
+
+.food-item-card img {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.food-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.food-item-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.food-item-price {
+  font-weight: 500;
+  color: var(--wine);
+}
+
+.food-item-source {
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+
 .cover-suggestion {
   font-family: 'Work Sans', sans-serif;
   font-weight: 600;

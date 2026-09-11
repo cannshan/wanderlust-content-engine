@@ -41,7 +41,7 @@ export async function POST(req) {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
-  const { name, placeCategory, area, why, angle, bucket, searchLocation, foodSuggestion, styleSuggestion, styleLinks } = body;
+  const { name, placeCategory, area, why, angle, bucket, searchLocation, foodItems, styleSuggestion, styleLinks } = body;
 
   if (!name || !bucket || !searchLocation) {
     return NextResponse.json({ error: "name, bucket, and searchLocation are all required." }, { status: 400 });
@@ -62,7 +62,7 @@ export async function POST(req) {
       // was saved - null if the user never clicked those buttons for it.
       // Not retroactively fetched here; only carries along what already
       // existed in the browser.
-      food_suggestion: foodSuggestion || null,
+      food_suggestion: foodItems?.length ? foodItems : null,
       style_suggestion: styleSuggestion || null,
       style_links: styleLinks?.length ? styleLinks : null,
     })

@@ -72,7 +72,30 @@ function PlaceList({ places, emptyHint, bucket, resultLocation, savedKeys, onSav
               <p className="hint" style={{ color: "var(--bad)", marginTop: 6 }}>{sug.error}</p>
             )}
 
-            {sug.food && <p className="rationale" style={{ marginTop: 8 }}>{sug.food}</p>}
+            {sug.foodItems?.length > 0 && (
+              <div className="food-items">
+                {sug.foodItems.map((item, fi) => (
+                  <div key={fi} className="food-item-card">
+                    {item.imageUrl && (
+                      <img
+                        src={item.imageUrl}
+                        alt={item.name}
+                        onError={(e) => {
+                          e.currentTarget.style.display = "none";
+                        }}
+                      />
+                    )}
+                    <div className="food-item-info">
+                      <span className="food-item-name">
+                        {item.name}
+                        {item.price && <span className="food-item-price"> · {item.price}</span>}
+                      </span>
+                      <span className="food-item-source">{item.source}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {sug.style && (
               <div style={{ marginTop: 8 }}>
@@ -230,7 +253,7 @@ export default function DiscoveryTab() {
           angle: place.angle || null,
           bucket,
           searchLocation: resultLocation,
-          foodSuggestion: sug.food || null,
+          foodItems: sug.foodItems?.length ? sug.foodItems : null,
           styleSuggestion: sug.style || null,
           styleLinks: sug.styleLinks?.length ? sug.styleLinks : null,
         }),
@@ -270,7 +293,7 @@ export default function DiscoveryTab() {
           [key]: {
             loadingMode: null,
             error: null,
-            food: data.suggestion.foodSuggestion ?? prev.food ?? null,
+            foodItems: data.suggestion.foodItems?.length ? data.suggestion.foodItems : prev.foodItems || [],
             style: data.suggestion.styleSuggestion ?? prev.style ?? null,
             styleLinks: data.suggestion.styleLinks?.length ? data.suggestion.styleLinks : prev.styleLinks || [],
           },
