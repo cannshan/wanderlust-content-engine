@@ -54,6 +54,35 @@ The actual cutting and stitching happens entirely in the browser too, via [`ffmp
 
 This is deliberately a different, cheaper capability than AI-generating brand-new video: Claude has no video-generation model at all (nor does any part of the Anthropic API) - this only ever *edits footage that was actually filmed*, choosing what to keep and in what order, never inventing a shot that doesn't exist in the uploads.
 
+## Profile tab
+
+Two editable lists that feed directly into `buildSystemPrompt()` in `lib/voiceProfile.js` - the same system prompt every Content tab generation (TikTok/Instagram/YouTube) and Reel Voiceover call uses:
+
+- **Custom instructions** - free-text rules Leah types in herself: a phrasing habit to avoid ("no double hyphens (--) or em dashes - that reads as AI-written"), a fact the app should always get right, an example food/place it should know about, or anything else it should adhere to. No categories or tiers, just a flat list - meant to stay simple to add to, not another taxonomy to manage. These are injected last in the system prompt, framed as overriding the general voice/virality guidance above them if the two ever conflict, since a rule Leah stated herself should win over general-purpose guidance.
+- **Voice examples (sample captions)** - the 15 real captions that used to be hardcoded directly in `lib/voiceProfile.js` (`DEFAULT_SAMPLE_CAPTIONS`) now live here instead, editable and addable to. Each one carries platform, optional stats, a tier (`baseline` or `outlier`), an optional "why it outperformed" note (only meaningful for outliers), and the caption text itself - same fields `buildSystemPrompt()` always used, just editable now instead of requiring a code change to add a new one.
+
+Both read through Supabase with the same degrade-gracefully rule as everywhere else in this app: if Supabase isn't configured, or the tables below don't exist yet, or a table is genuinely empty, generation doesn't break - custom instructions default to none, and sample captions fall back to the original hardcoded 15 rather than the prompt ever going out with zero voice examples to work from.
+
+Requires two more tables:
+
+```sql
+create table profile_instructions (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  text text not null
+);
+
+create table profile_captions (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  platform text not null,
+  stats text,
+  tier text not null default 'baseline',
+  why text,
+  caption text not null
+);
+```
+
 ## Local setup
 
 ```bash

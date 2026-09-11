@@ -4,11 +4,13 @@ import { useState } from "react";
 import ContentTab from "./components/ContentTab";
 import DiscoveryTab from "./components/DiscoveryTab";
 import ReelVoiceoverTab from "./components/ReelVoiceoverTab";
+import ProfileTab from "./components/ProfileTab";
 
 const TABS = [
   { key: "content", label: "Content" },
   { key: "discovery", label: "Discovery" },
   { key: "reel-voiceover", label: "Reel Voiceover" },
+  { key: "profile", label: "Profile" },
 ];
 
 export default function Shell() {
@@ -38,6 +40,7 @@ export default function Shell() {
       {activeTab === "content" && <ContentTab />}
       {activeTab === "discovery" && <DiscoveryTab />}
       {activeTab === "reel-voiceover" && <ReelVoiceoverTab />}
+      {activeTab === "profile" && <ProfileTab />}
     </div>
   );
 }
