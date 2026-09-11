@@ -4,10 +4,11 @@ import { suggestForPlace } from "../../../lib/claude";
 // Ad-hoc only - fires when a user clicks one of the three per-place
 // buttons in DiscoveryTab (Clothes to Wear / Foodie-Explore Advice /
 // Suggest Both), never automatically for every place in a result.
-// 180 -> 240: findStyleLinks (lib/claude.js) can now run up to 2 retry
-// search rounds on top of the initial call when it hasn't found 3 verified
-// clothing images yet, so worst case is a few sequential Claude calls
-// chained together, not just one.
+// Kept at 240 even though findStyleLinks (lib/claude.js) no longer makes
+// a second Claude call to retry - it now sifts through up to 12 candidates
+// from the one search, which is more fetch/classify work than before, so
+// the margin stays generous rather than being tuned back down without
+// live data on the new worst case.
 export const maxDuration = 240;
 
 export async function POST(req) {
