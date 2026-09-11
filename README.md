@@ -44,6 +44,16 @@ The video file itself is never uploaded anywhere. Entirely in your browser, it's
 
 Pick a platform (TikTok/Instagram/YouTube) to shape the tone/pacing the same way the rest of the app's voice profile does. This works best on genuine short-form footage (under a few minutes) — very long videos sample the same fixed number of frames, so each one covers proportionally less.
 
+**Already filmed it? Same thing works right from the Content tab.** Turn on the "Voiceover script" extra there and an optional "upload the reel" field appears — if you give it a video, the voiceover script in the result (same script shown on every platform's tab, plus a "what Claude saw" summary above the tabs) is grounded in that actual footage instead of narrating the finished caption. Skip the upload and it falls back to the original caption-narrated voiceover exactly like before; the same silent-fallback also kicks in if the frame extraction or the video analysis itself fails for any reason.
+
+### Raw clips - assemble a reel for me
+
+The Reel Voiceover tab has a second mode for footage that hasn't been edited yet: upload several separate clips/takes (instead of one already-finished reel) and Claude acts as the editor - deciding which parts of which clips actually belong in the cut, in what order, then writing the voiceover for that assembled sequence. There's no on-screen editor or preview/adjust step - what comes back is the finished video, ready to download; if the cut isn't right, the move is to add/remove a clip and run it again, not to tweak the existing result.
+
+The actual cutting and stitching happens entirely in the browser too, via [`ffmpeg.wasm`](https://ffmpegwasm.netlify.app/) (`lib/assembleReel.js`) - raw clips never get uploaded anywhere, same as everywhere else video touches this app. Each selected segment gets trimmed and re-encoded to a consistent 1080×1920 canvas (so takes with different resolutions/codecs still concatenate cleanly), then stream-copy-concatenated into the final file. This is real client-side video encoding with no hardware acceleration, so processing time depends heavily on the device and how much footage is involved - budget a few minutes for a full reel's worth on a normal laptop, possibly longer on an older device or phone.
+
+This is deliberately a different, cheaper capability than AI-generating brand-new video: Claude has no video-generation model at all (nor does any part of the Anthropic API) - this only ever *edits footage that was actually filmed*, choosing what to keep and in what order, never inventing a shot that doesn't exist in the uploads.
+
 ## Local setup
 
 ```bash
@@ -131,10 +141,11 @@ The easiest path is [Vercel](https://vercel.com) (built by the makers of Next.js
 - `app/api/restaurant-check/`, `app/api/location-search/`, `app/api/styling/` — the pre-fetch endpoints (restaurant menu + research, location-tag popularity, wardrobe tips) that run once per "Generate" click and get passed into every platform's request, instead of each platform repeating the same live read/search. The restaurant one only fires when the "Restaurant / bar" checkbox is on and a name is given - it reads the menu you provide directly (a link and/or an uploaded photo/PDF), it no longer guesses at whether a post is about a restaurant.
 - `app/api/nearby-ideas/` — on-demand only (a button, not part of "Generate"), finds other real places worth filming near the same location - see "Nearby filming ideas" above.
 - `app/components/DiscoveryTab.js` + `app/api/discovery/` — the standalone Discovery tab - see "Discovery tab" above.
-- `app/components/ReelVoiceoverTab.js` + `app/api/reel-voiceover/` + `lib/videoFrames.js` — the Reel Voiceover tab - see "Reel Voiceover tab" above.
+- `app/components/ReelVoiceoverTab.js` + `app/api/reel-voiceover/` + `lib/videoFrames.js` — the Reel Voiceover tab's "already edited" mode - see "Reel Voiceover tab" above.
+- `app/api/reel-edit-plan/` + `lib/assembleReel.js` — the "raw clips - assemble for me" mode - see "Raw clips" above.
 - `lib/constants.js` — shared platform/category constants used across all three tabs.
 - `lib/voiceProfile.js` — Leah's decoded caption formula, 15 real sample captions, and the per-platform algorithm/location-tag rules used to ground generated copy.
 - `lib/trends.js` — the Apify integration, degrades gracefully if unconfigured.
-- `lib/claude.js` — all the Anthropic API calls: the main per-platform generation, the hashtag step, the nearby-ideas/Discovery searches, the reel-voiceover analysis, and the optional voiceover/music/styling extras.
+- `lib/claude.js` — all the Anthropic API calls: the main per-platform generation, the hashtag step, the nearby-ideas/Discovery searches, the reel-voiceover/reel-edit-plan analysis, and the optional voiceover/music/styling extras.
 - `lib/supabase.js` + `app/api/ideas/` — the optional "Saved ideas" sidebar, degrades gracefully if unconfigured.
 - `proxy.js` (Next.js 16's replacement for `middleware.js`) + `lib/auth.js` + `app/login/page.js` — simple shared-password gate for hosting this online.

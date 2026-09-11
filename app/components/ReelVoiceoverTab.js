@@ -2,28 +2,59 @@
 
 import { useState, useRef } from "react";
 import { extractVideoFrames } from "../../lib/videoFrames";
-import { PLATFORM_LABELS, PLATFORM_ORDER } from "../../lib/constants";
+import { assembleReel } from "../../lib/assembleReel";
+import { PLATFORM_LABELS, PLATFORM_ORDER, MAX_VIDEO_FILE_BYTES } from "../../lib/constants";
 
-// Raw file size cap on the upload itself - the file never leaves the
-// browser (only extracted frames are sent, see lib/videoFrames.js), so
-// this is purely a guard against a huge file being slow/heavy for the
-// browser to decode and seek through, not a request-size concern.
-const MAX_VIDEO_FILE_BYTES = 300 * 1024 * 1024;
+// A reel is short-form by nature - 8 raw takes is generous room for a
+// single reel's worth of footage without letting one upload balloon into
+// something that takes forever to trim/re-encode in-browser.
+const MAX_CLIPS = 8;
+
+function formatBytes(bytes) {
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)}KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+}
+
+function assembleButtonLabel(progress, loading) {
+  if (progress) {
+    if (progress.phase === "frames") return `Watching clip ${progress.done}/${progress.total}…`;
+    if (progress.phase === "plan") return "Planning the edit…";
+    if (progress.phase === "trimming") return `Trimming clip ${progress.done}/${progress.total}…`;
+    if (progress.phase === "combining") return "Assembling final reel…";
+  }
+  if (loading) return "Working…";
+  return "Assemble reel + write voiceover";
+}
 
 export default function ReelVoiceoverTab() {
-  const [videoFile, setVideoFile] = useState(null);
-  const [videoUrl, setVideoUrl] = useState("");
-  const [fileError, setFileError] = useState("");
+  const [mode, setMode] = useState("single"); // "single" | "assemble"
+
+  // Shared across both modes.
   const [idea, setIdea] = useState("");
   const [location, setLocation] = useState("");
   const [notes, setNotes] = useState("");
   const [platform, setPlatform] = useState("tiktok");
+
+  // "Already edited - just write a voiceover" mode.
+  const [videoFile, setVideoFile] = useState(null);
+  const [videoUrl, setVideoUrl] = useState("");
+  const [fileError, setFileError] = useState("");
   const [progress, setProgress] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState(null);
   const [copied, setCopied] = useState(false);
   const objectUrlRef = useRef("");
+
+  // "Raw clips - assemble for me" mode.
+  const [clips, setClips] = useState([]);
+  const [clipsError, setClipsError] = useState("");
+  const [assembleProgress, setAssembleProgress] = useState(null);
+  const [assembleLoading, setAssembleLoading] = useState(false);
+  const [assembleError, setAssembleError] = useState("");
+  const [assembleResult, setAssembleResult] = useState(null);
+  const [assembleCopied, setAssembleCopied] = useState(false);
+  const assembleVideoUrlRef = useRef("");
 
   function handleFileChange(e) {
     const file = e.target.files?.[0] || null;
@@ -91,23 +122,170 @@ export default function ReelVoiceoverTab() {
     setTimeout(() => setCopied(false), 1500);
   }
 
+  function handleClipsChange(e) {
+    const incoming = Array.from(e.target.files || []);
+    e.target.value = ""; // lets the same file be re-picked later if removed
+    if (incoming.length === 0) return;
+
+    const oversized = incoming.some((f) => f.size > MAX_VIDEO_FILE_BYTES);
+    const accepted = incoming.filter((f) => f.size <= MAX_VIDEO_FILE_BYTES);
+    const wouldExceed = clips.length + accepted.length > MAX_CLIPS;
+
+    setClips((current) => {
+      const room = MAX_CLIPS - current.length;
+      return room > 0 ? [...current, ...accepted.slice(0, room)] : current;
+    });
+
+    if (oversized && wouldExceed) {
+      setClipsError(`Some of those were skipped - clips must be under 300MB each, and only ${MAX_CLIPS} clips fit per reel.`);
+    } else if (oversized) {
+      setClipsError("One or more of those files were too big - please use clips under 300MB each.");
+    } else if (wouldExceed) {
+      setClipsError(`Only ${MAX_CLIPS} clips fit per reel - the extra ones were skipped.`);
+    } else {
+      setClipsError("");
+    }
+  }
+
+  function removeClip(index) {
+    setClips((current) => current.filter((_, i) => i !== index));
+  }
+
+  async function onAssembleSubmit(e) {
+    e.preventDefault();
+    if (clips.length === 0 || assembleLoading) return;
+
+    setAssembleLoading(true);
+    setAssembleError("");
+    setAssembleResult(null);
+    setAssembleProgress({ phase: "frames", done: 0, total: clips.length });
+
+    try {
+      const clipData = [];
+      for (let i = 0; i < clips.length; i++) {
+        const { frames, durationSeconds } = await extractVideoFrames(clips[i]);
+        clipData.push({ frames, durationSeconds });
+        setAssembleProgress({ phase: "frames", done: i + 1, total: clips.length });
+      }
+
+      setAssembleProgress({ phase: "plan", done: 0, total: 1 });
+      const planRes = await fetch("/api/reel-edit-plan", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          clips: clipData,
+          idea: idea.trim(),
+          location: location.trim(),
+          notes: notes.trim(),
+          platform,
+        }),
+      });
+      const planData = await planRes.json();
+      if (!planRes.ok) throw new Error(planData.error || "Couldn't put together an edit from these clips.");
+
+      setAssembleProgress({ phase: "trimming", done: 0, total: planData.editPlan.length });
+      const videoBlob = await assembleReel(clips, planData.editPlan, (phase, done, total) =>
+        setAssembleProgress({ phase, done, total })
+      );
+
+      if (assembleVideoUrlRef.current) URL.revokeObjectURL(assembleVideoUrlRef.current);
+      const videoUrl = URL.createObjectURL(videoBlob);
+      assembleVideoUrlRef.current = videoUrl;
+
+      setAssembleResult({
+        sceneSummary: planData.sceneSummary,
+        voiceoverScript: planData.voiceoverScript,
+        totalDurationSeconds: planData.totalDurationSeconds,
+        videoUrl,
+      });
+    } catch (err) {
+      setAssembleError(err.message || "Couldn't put together an edit from these clips.");
+    }
+    setAssembleProgress(null);
+    setAssembleLoading(false);
+  }
+
+  function copyAssembleScript(text) {
+    navigator.clipboard.writeText(text);
+    setAssembleCopied(true);
+    setTimeout(() => setAssembleCopied(false), 1500);
+  }
+
   return (
     <div className="layout">
       <div className="main">
-        <form onSubmit={onSubmit} className="card">
+        <form onSubmit={mode === "single" ? onSubmit : onAssembleSubmit} className="card">
           <div className="field">
-            <label htmlFor="reelFile">Upload the reel</label>
-            <input id="reelFile" type="file" accept="video/*" onChange={handleFileChange} />
-            <p className="hint" style={{ marginTop: 6 }}>
-              Processed entirely in your browser — the video file itself is never uploaded, only a handful of
-              still frames pulled from it.
-            </p>
-            {fileError && <p className="hint" style={{ marginTop: 6, color: "var(--bad)" }}>{fileError}</p>}
+            <label>Footage</label>
+            <div className="goal-toggle">
+              <button
+                type="button"
+                className={`goal-option ${mode === "single" ? "active" : ""}`}
+                onClick={() => setMode("single")}
+              >
+                <span className="goal-title">Already edited</span>
+                <span className="goal-sub">Just write a voiceover for a finished reel</span>
+              </button>
+              <button
+                type="button"
+                className={`goal-option ${mode === "assemble" ? "active" : ""}`}
+                onClick={() => setMode("assemble")}
+              >
+                <span className="goal-title">Raw clips</span>
+                <span className="goal-sub">Put the reel together from my takes, then write a voiceover</span>
+              </button>
+            </div>
           </div>
 
-          {videoUrl && (
+          {mode === "single" && (
+            <>
+              <div className="field">
+                <label htmlFor="reelFile">Upload the reel</label>
+                <input id="reelFile" type="file" accept="video/*" onChange={handleFileChange} />
+                <p className="hint" style={{ marginTop: 6 }}>
+                  Processed entirely in your browser — the video file itself is never uploaded, only a handful of
+                  still frames pulled from it.
+                </p>
+                {fileError && <p className="hint" style={{ marginTop: 6, color: "var(--bad)" }}>{fileError}</p>}
+              </div>
+
+              {videoUrl && (
+                <div className="field">
+                  <video src={videoUrl} controls style={{ width: "100%", borderRadius: 8, maxHeight: 400 }} />
+                </div>
+              )}
+            </>
+          )}
+
+          {mode === "assemble" && (
             <div className="field">
-              <video src={videoUrl} controls style={{ width: "100%", borderRadius: 8, maxHeight: 400 }} />
+              <label htmlFor="reelClips">Upload your clips/takes</label>
+              <input id="reelClips" type="file" accept="video/*" multiple onChange={handleClipsChange} />
+              <p className="hint" style={{ marginTop: 6 }}>
+                Everything stays in your browser — Claude decides which parts of which clips make the cut and in
+                what order, then the video is trimmed and stitched together locally, never uploaded anywhere.
+                Processing time depends on your device and how much footage you give it - it can take a few
+                minutes for a full reel's worth.
+              </p>
+              {clipsError && <p className="hint" style={{ marginTop: 6, color: "var(--bad)" }}>{clipsError}</p>}
+
+              {clips.length > 0 && (
+                <ul className="shotlist" style={{ marginTop: 10 }}>
+                  {clips.map((f, i) => (
+                    <li key={`${f.name}-${i}`} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                      <span>{f.name} <span className="hint">({formatBytes(f.size)})</span></span>
+                      <button
+                        type="button"
+                        className="saved-item-delete"
+                        onClick={() => removeClip(i)}
+                        aria-label={`Remove ${f.name}`}
+                      >
+                        ×
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           )}
 
@@ -162,18 +340,25 @@ export default function ReelVoiceoverTab() {
             </div>
           </div>
 
-          {error && <div className="error-banner">{error}</div>}
+          {mode === "single" && error && <div className="error-banner">{error}</div>}
+          {mode === "assemble" && assembleError && <div className="error-banner">{assembleError}</div>}
 
-          <button className="btn-primary" disabled={!videoFile || loading}>
-            {progress
-              ? `Watching your reel… (${progress.done}/${progress.total || "?"})`
-              : loading
-              ? "Writing voiceover…"
-              : "Write voiceover from this reel"}
-          </button>
+          {mode === "single" ? (
+            <button className="btn-primary" disabled={!videoFile || loading}>
+              {progress
+                ? `Watching your reel… (${progress.done}/${progress.total || "?"})`
+                : loading
+                ? "Writing voiceover…"
+                : "Write voiceover from this reel"}
+            </button>
+          ) : (
+            <button className="btn-primary" disabled={clips.length === 0 || assembleLoading}>
+              {assembleButtonLabel(assembleProgress, assembleLoading)}
+            </button>
+          )}
         </form>
 
-        {result && (
+        {mode === "single" && result && (
           <div className="result card">
             <div className="result-head">
               <h3 style={{ fontSize: 16 }}>Result</h3>
@@ -198,6 +383,45 @@ export default function ReelVoiceoverTab() {
               <div className="description-box">{result.voiceoverScript}</div>
               <button className="btn-ghost" onClick={() => copy(result.voiceoverScript)}>
                 {copied ? "Copied" : "Copy voiceover script"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {mode === "assemble" && assembleResult && (
+          <div className="result card">
+            <div className="result-head">
+              <h3 style={{ fontSize: 16 }}>Result</h3>
+            </div>
+
+            <div className="field" style={{ marginBottom: 20 }}>
+              <label>Assembled reel (~{Math.round(assembleResult.totalDurationSeconds)}s)</label>
+              <video src={assembleResult.videoUrl} controls style={{ width: "100%", borderRadius: 8, maxHeight: 400 }} />
+              <a className="btn-ghost" href={assembleResult.videoUrl} download="reel.mp4" style={{ display: "inline-block", marginTop: 10, textDecoration: "none" }}>
+                Download video
+              </a>
+              <p className="hint" style={{ marginTop: 8 }}>
+                Not right? There's no in-place editor here — just tweak the clips above (remove one, add another)
+                and assemble again.
+              </p>
+            </div>
+
+            {assembleResult.sceneSummary?.length > 0 && (
+              <div className="field" style={{ marginBottom: 20 }}>
+                <label>What Claude used, and why</label>
+                <ul className="shotlist">
+                  {assembleResult.sceneSummary.map((line, i) => (
+                    <li key={i}>{line}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <div className="field">
+              <label>Voiceover script</label>
+              <div className="description-box">{assembleResult.voiceoverScript}</div>
+              <button className="btn-ghost" onClick={() => copyAssembleScript(assembleResult.voiceoverScript)}>
+                {assembleCopied ? "Copied" : "Copy voiceover script"}
               </button>
             </div>
           </div>
