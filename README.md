@@ -21,40 +21,6 @@ Once a result exists, a "Find nearby ideas" section appears below it. Pick a cat
 
 Same integrity rule as the hashtags/location-tag/restaurant features: nothing gets labeled "proven" or "hidden gem" without genuine search evidence behind it, and an empty list is an honest result if a search turns up nothing that qualifies — never padded with filler. Distances are whatever a search result happens to state (a drive time, a "X miles from downtown" mention) — there's no maps/geocoding API in this app, so treat "10 miles" as an estimate to sanity-check, not a guarantee. This only runs when you click the button, not on every Generate — it costs several searches per click.
 
-## Dashboard tab
-
-A second top-level tab, separate from the content form, showing how the last ~20 posts on each platform actually performed (views/likes/comments/shares), sorted by views so the best performer is immediately visible. This is **not** the official platform APIs — no OAuth, no developer app — it reads the same public metadata a platform serves to any link-preview crawler, same trick that sourced the 15 real captions in `lib/voiceProfile.js`.
-
-The three platforms don't behave the same way, and the tab reflects that:
-
-- **YouTube** — fully automatic. Both the last-20 list and view counts are embedded server-side in the channel's Shorts page, readable by a plain fetch, so the "Refresh" button genuinely re-fetches live every time. Likes/comments aren't available this way (YouTube only exposes those to a logged-in view) — views only.
-- **Instagram & TikTok** — a specific post's exact stats *are* readable by a plain fetch once you have its URL, but the post *list* on the profile page is loaded by client-side JavaScript after the page loads — invisible to a plain server fetch no matter what (this app's server can't run a browser), but visible to any real browser session, logged in or not. So there's no live button for these two — instead, ask Claude to browse the profile, pull the current list + stats, and write it to storage; the tab just displays whatever was last written, with a "last updated" timestamp. Not self-serve for Leah, but genuinely accurate when refreshed.
-
-### Setup
-
-Uses the same Supabase project as Saved Ideas — run this once in the SQL Editor:
-
-```sql
-create table post_stats (
-  id uuid primary key default gen_random_uuid(),
-  platform text not null,
-  post_url text not null,
-  title text,
-  thumbnail text,
-  views integer,
-  likes integer,
-  comments integer,
-  shares integer,
-  posted_at text,
-  fetched_at timestamptz not null default now(),
-  fetched_order int not null default 0
-);
-
-create index post_stats_platform_idx on post_stats (platform);
-```
-
-Without `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` set (same variables Saved Ideas uses), the Dashboard's YouTube tab still works — Instagram and TikTok just show a "storage isn't configured" message instead of stats.
-
 ## Local setup
 
 ```bash
@@ -136,15 +102,11 @@ The easiest path is [Vercel](https://vercel.com) (built by the makers of Next.js
 
 ## Files
 
-- `app/page.js` — a thin shell: just the Content/Dashboard tab switcher, rendering one of the two components below.
-- `app/components/ContentTab.js` — the actual content form + result UI (everything `app/page.js` used to be, before the Dashboard tab existed).
-- `app/components/DashboardTab.js` — the analytics view - see "Dashboard tab" above.
+- `app/page.js` — the top-level shell, renders `ContentTab`.
+- `app/components/ContentTab.js` — the content form + result UI.
 - `app/api/generate/route.js` — ties the trend lookup and Claude call together, per platform.
 - `app/api/restaurant-check/`, `app/api/location-search/`, `app/api/styling/` — the pre-fetch endpoints (restaurant menu + research, location-tag popularity, wardrobe tips) that run once per "Generate" click and get passed into every platform's request, instead of each platform repeating the same live read/search. The restaurant one only fires when the "Restaurant / bar" checkbox is on and a name is given - it reads the menu you provide directly (a link and/or an uploaded photo/PDF), it no longer guesses at whether a post is about a restaurant.
 - `app/api/nearby-ideas/` — on-demand only (a button, not part of "Generate"), finds other real places worth filming near the same location - see "Nearby filming ideas" above.
-- `app/api/analytics/youtube/` — live YouTube fetch for the Dashboard's Refresh button.
-- `app/api/analytics/stats/`, `app/api/analytics/write-stats/` — read and write the stored Instagram/TikTok snapshot in Supabase - see "Dashboard tab" above.
-- `lib/analytics.js` — the scraping logic behind the Dashboard tab (YouTube list+views, Instagram/TikTok per-post stats).
 - `lib/voiceProfile.js` — Leah's decoded caption formula, 15 real sample captions, and the per-platform algorithm/location-tag rules used to ground generated copy.
 - `lib/trends.js` — the Apify integration, degrades gracefully if unconfigured.
 - `lib/claude.js` — all the Anthropic API calls: the main per-platform generation, the hashtag step, and the optional voiceover/music/styling extras.
