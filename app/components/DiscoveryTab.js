@@ -5,7 +5,7 @@ import { CATEGORY_OPTIONS } from "../../lib/constants";
 import { useCategorizedItems } from "../../lib/useCategorizedItems";
 import { CategoryFilterRow, CategorizePanel } from "./CategoryUI";
 
-function PlaceList({ places, emptyHint, bucket, resultLocation, savedKeys, onSave }) {
+function PlaceList({ places, emptyHint, bucket, resultLocation, savedKeys, onSave, suggestions, onSuggest }) {
   if (places.length === 0) {
     return <p className="hint">{emptyHint}</p>;
   }
@@ -14,6 +14,7 @@ function PlaceList({ places, emptyHint, bucket, resultLocation, savedKeys, onSav
       {places.map((place, i) => {
         const key = `${resultLocation}::${place.name}`;
         const saved = savedKeys.has(key);
+        const sug = suggestions[key] || {};
         return (
           <li key={i}>
             <div className="place-row">
@@ -39,6 +40,69 @@ function PlaceList({ places, emptyHint, bucket, resultLocation, savedKeys, onSav
                 {saved ? "Saved" : "Save"}
               </button>
             </div>
+
+            <div className="place-suggest-row">
+              <button
+                type="button"
+                className="btn-ghost"
+                disabled={!!sug.loadingMode}
+                onClick={() => onSuggest(place, "food")}
+              >
+                {sug.loadingMode === "food" ? "Looking…" : "Foodie/Explore Advice"}
+              </button>
+              <button
+                type="button"
+                className="btn-ghost"
+                disabled={!!sug.loadingMode}
+                onClick={() => onSuggest(place, "style")}
+              >
+                {sug.loadingMode === "style" ? "Looking…" : "Clothes to Wear"}
+              </button>
+              <button
+                type="button"
+                className="btn-ghost"
+                disabled={!!sug.loadingMode}
+                onClick={() => onSuggest(place, "both")}
+              >
+                {sug.loadingMode === "both" ? "Looking…" : "Suggest Both"}
+              </button>
+            </div>
+
+            {sug.error && (
+              <p className="hint" style={{ color: "var(--bad)", marginTop: 6 }}>{sug.error}</p>
+            )}
+
+            {sug.food && <p className="rationale" style={{ marginTop: 8 }}>{sug.food}</p>}
+
+            {sug.style && (
+              <div style={{ marginTop: 8 }}>
+                <p className="rationale">{sug.style}</p>
+                {sug.styleLinks?.length > 0 && (
+                  <div className="style-links">
+                    {sug.styleLinks.map((link, li) => (
+                      <a
+                        key={li}
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="style-link-card"
+                      >
+                        {link.imageUrl && (
+                          <img
+                            src={link.imageUrl}
+                            alt={link.label}
+                            onError={(e) => {
+                              e.currentTarget.style.display = "none";
+                            }}
+                          />
+                        )}
+                        <span>{link.label}</span>
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </li>
         );
       })}
@@ -65,6 +129,12 @@ export default function DiscoveryTab() {
   const [savedSearchesLoading, setSavedSearchesLoading] = useState(true);
   const [savingSearch, setSavingSearch] = useState(false);
   const [currentSavedSearchId, setCurrentSavedSearchId] = useState(null);
+  // Keyed the same way as savedPlaceKeys (`${resultLocation}::${place.name}`)
+  // - per-place, ad-hoc results from the Foodie/Explore Advice, Clothes to
+  // Wear, and Suggest Both buttons. Nothing here runs automatically; each
+  // entry only exists because that specific button was clicked for that
+  // specific place.
+  const [placeSuggestions, setPlaceSuggestions] = useState({});
 
   const placesHook = useCategorizedItems(savedPlaces, setSavedPlaces, "/api/places");
   const searchesHook = useCategorizedItems(savedSearches, setSavedSearches, "/api/discovery-searches");
@@ -144,6 +214,10 @@ export default function DiscoveryTab() {
   }
 
   async function savePlace(place, bucket) {
+    // Whichever ad-hoc suggestions already exist for this place ride along
+    // into the saved record - see the comment on food_suggestion in
+    // app/api/places/route.js. Nothing is generated here; only carried.
+    const sug = placeSuggestions[`${resultLocation}::${place.name}`] || {};
     try {
       const res = await fetch("/api/places", {
         method: "POST",
@@ -156,6 +230,9 @@ export default function DiscoveryTab() {
           angle: place.angle || null,
           bucket,
           searchLocation: resultLocation,
+          foodSuggestion: sug.food || null,
+          styleSuggestion: sug.style || null,
+          styleLinks: sug.styleLinks?.length ? sug.styleLinks : null,
         }),
       });
       if (res.ok) {
@@ -164,6 +241,46 @@ export default function DiscoveryTab() {
       }
     } catch {
       // Leaves the Save button active so they can just try again.
+    }
+  }
+
+  // mode: "food" | "style" | "both". Fires only on click, never
+  // automatically - see the comment on placeSuggestions above.
+  async function fetchPlaceSuggestion(place, mode) {
+    const key = `${resultLocation}::${place.name}`;
+    setPlaceSuggestions((s) => ({ ...s, [key]: { ...(s[key] || {}), loadingMode: mode, error: null } }));
+    try {
+      const res = await fetch("/api/place-suggestion", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          name: place.name,
+          placeCategory: place.category || null,
+          area: place.area || null,
+          searchLocation: resultLocation,
+          mode,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Couldn't get a suggestion for this place.");
+      setPlaceSuggestions((s) => {
+        const prev = s[key] || {};
+        return {
+          ...s,
+          [key]: {
+            loadingMode: null,
+            error: null,
+            food: data.suggestion.foodSuggestion ?? prev.food ?? null,
+            style: data.suggestion.styleSuggestion ?? prev.style ?? null,
+            styleLinks: data.suggestion.styleLinks?.length ? data.suggestion.styleLinks : prev.styleLinks || [],
+          },
+        };
+      });
+    } catch (err) {
+      setPlaceSuggestions((s) => ({
+        ...s,
+        [key]: { ...(s[key] || {}), loadingMode: null, error: err.message || "Couldn't get a suggestion for this place." },
+      }));
     }
   }
 
@@ -288,6 +405,8 @@ export default function DiscoveryTab() {
                 resultLocation={resultLocation}
                 savedKeys={savedPlaceKeys}
                 onSave={savePlace}
+                suggestions={placeSuggestions}
+                onSuggest={fetchPlaceSuggestion}
               />
             </div>
 
@@ -302,6 +421,8 @@ export default function DiscoveryTab() {
                 resultLocation={resultLocation}
                 savedKeys={savedPlaceKeys}
                 onSave={savePlace}
+                suggestions={placeSuggestions}
+                onSuggest={fetchPlaceSuggestion}
               />
             </div>
 
@@ -316,6 +437,8 @@ export default function DiscoveryTab() {
                 resultLocation={resultLocation}
                 savedKeys={savedPlaceKeys}
                 onSave={savePlace}
+                suggestions={placeSuggestions}
+                onSuggest={fetchPlaceSuggestion}
               />
             </div>
 

@@ -620,6 +620,45 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 
 .place-save-btn { flex-shrink: 0; }
 
+.place-suggest-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.style-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.style-link-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 96px;
+  text-decoration: none;
+  color: var(--ink-soft);
+  font-size: 11px;
+  text-align: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px;
+  background: var(--bg-raised);
+}
+
+.style-link-card:hover { border-color: var(--wine); color: var(--wine); }
+
+.style-link-card img {
+  width: 100%;
+  height: 76px;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
 .cover-suggestion {
   font-family: 'Work Sans', sans-serif;
   font-weight: 600;

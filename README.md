@@ -162,7 +162,10 @@ create table saved_places (
   angle text,
   bucket text not null,
   search_location text not null,
-  category text
+  category text,
+  food_suggestion text,
+  style_suggestion text,
+  style_links jsonb
 );
 
 create table saved_searches (
@@ -176,6 +179,24 @@ create table saved_searches (
 ```
 
 Without these, the Discovery tab's search still works exactly the same — the two saved lists just stay empty and their Save buttons silently do nothing, same degrade-gracefully rule as everywhere else Supabase is optional in this app.
+
+If you set `saved_places` up before per-place suggestions existed (see below), run this once too:
+
+```sql
+alter table saved_places add column if not exists food_suggestion text;
+alter table saved_places add column if not exists style_suggestion text;
+alter table saved_places add column if not exists style_links jsonb;
+```
+
+### Per-place suggestions (Clothes to Wear / Foodie-Explore Advice)
+
+Every place in a Discovery result gets three small buttons, all ad-hoc (nothing runs until clicked, so a 21-place result doesn't cost 21x):
+
+- **Foodie/Explore Advice** — for a food/drink venue, searches for its current menu and recommends one specific real dish (and a cocktail, if it has a program), always stating plainly how current the source is: from what looks like their real current menu, flagged if the menu looks a year or more old, or explicit that no actual menu was found and the pick is based on reviews/social mentions instead. For a non-food place, recommends one specific real thing to do/see there instead.
+- **Clothes to Wear** — a styling suggestion tailored to that specific place's setting/season, same reasoning as the Content tab's styling tips but grounded in a live search for real, specific clothing/accessory links (not a generic store search page - a real product's own URL) and/or real outfit-inspiration photos. Real thumbnail images are attempted but not reliable: in testing, Claude consistently found genuine, specific product links - even fetching the actual product page - but rarely came back with a usable direct image URL from it, which looks like a limitation of what the underlying fetch tool exposes rather than something a prompt tweak fixes. So in practice, expect real links reliably and an occasional real thumbnail - never a fake/placeholder image either way, since one is only shown when a genuine direct image URL was found.
+- **Suggest Both** — one combined request for both of the above, cheaper than clicking each separately since it shares one search budget and one generation pass instead of two.
+
+Whichever of these had already been generated for a place at the moment it gets saved rides along into `saved_places` (the three columns above) - nothing is fetched retroactively for places saved before this existed.
 
 ## Deploying so it works on her phone
 
@@ -195,6 +216,7 @@ The easiest path is [Vercel](https://vercel.com) (built by the makers of Next.js
 - `app/api/nearby-ideas/` — on-demand only (a button, not part of "Generate"), finds other real places worth filming near the same location - see "Nearby filming ideas" above.
 - `app/components/DiscoveryTab.js` + `app/api/discovery/` — the standalone Discovery tab - see "Discovery tab" above.
 - `app/api/places/` + `app/api/discovery-searches/` — the Discovery tab's two saved lists - see "Saving places and searches from the Discovery tab" above.
+- `app/api/place-suggestion/` — the per-place Clothes to Wear / Foodie-Explore Advice / Suggest Both buttons - see "Per-place suggestions" above.
 - `app/components/ReelVoiceoverTab.js` + `app/api/reel-voiceover/` + `lib/videoFrames.js` — the Reel Voiceover tab's "already edited" mode - see "Reel Voiceover tab" above.
 - `app/api/reel-edit-plan/` + `lib/assembleReel.js` — the "raw clips - assemble for me" mode - see "Raw clips" above.
 - `lib/useCategorizedItems.js` + `app/components/CategoryUI.js` — the shared categorize/filter behavior behind all three saved lists (saved ideas, saved places, saved searches).
