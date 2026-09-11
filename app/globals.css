@@ -661,44 +661,51 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 
 /* Deliberately not .rationale (13px, muted --ink-soft) - a food/activity
    pick is the actual answer to the button someone clicked, not a
-   secondary explanation of something else, so it gets a real card:
-   bold full-ink name, an accent-colored price, an image when one was
-   found - closer in weight to .style-link-card than to muted body text. */
+   secondary explanation of something else, so it gets a real card: bold
+   full-ink name, an accent-colored price, an image when one was found.
+   A vertical stack of compact rows, not wrapped wide cards - reads
+   cleanly at any width and keeps each row short now that it also carries
+   a Save button. */
 .food-items {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  flex-direction: column;
+  gap: 5px;
   margin-top: 8px;
 }
 
 .food-item-card {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 8px 12px;
+  border-radius: 7px;
+  padding: 5px 8px;
   background: var(--bg-raised);
 }
 
 .food-item-card img {
-  width: 48px;
-  height: 48px;
+  width: 32px;
+  height: 32px;
   object-fit: cover;
-  border-radius: 6px;
+  border-radius: 5px;
   flex-shrink: 0;
 }
 
 .food-item-info {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
 }
 
 .food-item-name {
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .food-item-price {
@@ -707,9 +714,28 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 }
 
 .food-item-source {
-  font-size: 11px;
+  font-size: 10.5px;
   color: var(--ink-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
+
+.food-item-save-btn {
+  flex-shrink: 0;
+  margin-left: auto;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10.5px;
+  color: var(--ink-soft);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 100px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.food-item-save-btn:hover:not(:disabled) { border-color: var(--wine); color: var(--wine); }
+.food-item-save-btn:disabled { color: var(--ink-faint); cursor: default; }
 
 .cover-suggestion {
   font-family: 'Work Sans', sans-serif;

@@ -142,16 +142,29 @@ A saved restaurant idea keeps the restaurant name and menu link(s) (so reloading
 
 Each saved idea can be tagged with one free-text category (a season, a client, a trip, whatever grouping is useful) via the "Categorize" button on its card in the sidebar. There's no separate list of categories to manage — a category exists simply because at least one saved idea currently uses that name, the same way labels work in most tagging tools. Picking "Categorize" shows every category already in use as a quick pick, plus a field to type a new one; picking "Clear category" removes it from that idea without affecting the category name itself (it just stops showing up anywhere once nothing uses it anymore). A filter row above the saved-ideas list lets you narrow it down to just one category at a time.
 
-### Saving places and searches from the Discovery tab
+### Saving items, places, and searches from the Discovery tab
 
-The Discovery tab has its own two saved lists in its sidebar, both with the same categorize/filter behavior described above:
+The Discovery tab has three saved lists in its sidebar (in this order: Saved items, Saved places, Saved searches), all with the same categorize/filter behavior described above:
 
+- **Saved items** — a "Save" button on every individual dish/drink/cocktail card from a Foodie/Explore Advice result saves just that one item (name, price, source tag, and image if it has one) - already-saved items show "Saved" instead, keyed on place + item name so the same dish can't get double-saved but two different dishes at the same place both can be. This is the most granular of the three lists - for building a running "dishes/drinks to try" list independent of which specific place trip they end up on.
 - **Saved places** — a "Save" button next to every individual place in a Discovery result (Popular/Interesting/Hidden) saves just that one spot - the place already saved from a given search shows "Saved" instead, so hitting it twice doesn't create a duplicate. This is for building a running life-list of specific places worth visiting/filming, browsable and taggable one at a time, across searches.
 - **Saved searches** — "Save this search" (next to the result heading) saves the *entire* result - every place across all three buckets for that location/category combination - as one entry, so it can be reopened later without re-running (and re-paying for) the search. Clicking a saved search in the sidebar loads the whole thing back into view.
 
-Requires two more tables (same migration pattern as `saved_ideas` above):
+Requires three more tables (same migration pattern as `saved_ideas` above):
 
 ```sql
+create table saved_food_items (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  name text not null,
+  price text,
+  source text,
+  image_url text,
+  place_name text,
+  search_location text not null,
+  category text
+);
+
 create table saved_places (
   id uuid primary key default gen_random_uuid(),
   created_at timestamptz not null default now(),
@@ -178,7 +191,7 @@ create table saved_searches (
 );
 ```
 
-Without these, the Discovery tab's search still works exactly the same — the two saved lists just stay empty and their Save buttons silently do nothing, same degrade-gracefully rule as everywhere else Supabase is optional in this app.
+Without these, the Discovery tab's search still works exactly the same — the three saved lists just stay empty and their Save buttons silently do nothing, same degrade-gracefully rule as everywhere else Supabase is optional in this app.
 
 If you set `saved_places` up before per-place suggestions existed (see below), run this once too:
 

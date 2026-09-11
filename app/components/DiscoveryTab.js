@@ -5,7 +5,18 @@ import { CATEGORY_OPTIONS } from "../../lib/constants";
 import { useCategorizedItems } from "../../lib/useCategorizedItems";
 import { CategoryFilterRow, CategorizePanel } from "./CategoryUI";
 
-function PlaceList({ places, emptyHint, bucket, resultLocation, savedKeys, onSave, suggestions, onSuggest }) {
+function PlaceList({
+  places,
+  emptyHint,
+  bucket,
+  resultLocation,
+  savedKeys,
+  onSave,
+  suggestions,
+  onSuggest,
+  savedFoodItemKeys,
+  onSaveFoodItem,
+}) {
   if (places.length === 0) {
     return <p className="hint">{emptyHint}</p>;
   }
@@ -74,26 +85,38 @@ function PlaceList({ places, emptyHint, bucket, resultLocation, savedKeys, onSav
 
             {sug.foodItems?.length > 0 && (
               <div className="food-items">
-                {sug.foodItems.map((item, fi) => (
-                  <div key={fi} className="food-item-card">
-                    {item.imageUrl && (
-                      <img
-                        src={item.imageUrl}
-                        alt={item.name}
-                        onError={(e) => {
-                          e.currentTarget.style.display = "none";
-                        }}
-                      />
-                    )}
-                    <div className="food-item-info">
-                      <span className="food-item-name">
-                        {item.name}
-                        {item.price && <span className="food-item-price"> · {item.price}</span>}
-                      </span>
-                      <span className="food-item-source">{item.source}</span>
+                {sug.foodItems.map((item, fi) => {
+                  const itemKey = `${resultLocation}::${place.name}::${item.name}`;
+                  const itemSaved = savedFoodItemKeys.has(itemKey);
+                  return (
+                    <div key={fi} className="food-item-card">
+                      {item.imageUrl && (
+                        <img
+                          src={item.imageUrl}
+                          alt={item.name}
+                          onError={(e) => {
+                            e.currentTarget.style.display = "none";
+                          }}
+                        />
+                      )}
+                      <div className="food-item-info">
+                        <span className="food-item-name">
+                          {item.name}
+                          {item.price && <span className="food-item-price"> · {item.price}</span>}
+                        </span>
+                        <span className="food-item-source">{item.source}</span>
+                      </div>
+                      <button
+                        type="button"
+                        className="food-item-save-btn"
+                        disabled={itemSaved}
+                        onClick={() => onSaveFoodItem(place, item)}
+                      >
+                        {itemSaved ? "Saved" : "Save"}
+                      </button>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 
@@ -148,6 +171,8 @@ export default function DiscoveryTab() {
 
   const [savedPlaces, setSavedPlaces] = useState([]);
   const [savedPlacesLoading, setSavedPlacesLoading] = useState(true);
+  const [savedFoodItems, setSavedFoodItems] = useState([]);
+  const [savedFoodItemsLoading, setSavedFoodItemsLoading] = useState(true);
   const [savedSearches, setSavedSearches] = useState([]);
   const [savedSearchesLoading, setSavedSearchesLoading] = useState(true);
   const [savingSearch, setSavingSearch] = useState(false);
@@ -160,15 +185,22 @@ export default function DiscoveryTab() {
   const [placeSuggestions, setPlaceSuggestions] = useState({});
 
   const placesHook = useCategorizedItems(savedPlaces, setSavedPlaces, "/api/places");
+  const foodItemsHook = useCategorizedItems(savedFoodItems, setSavedFoodItems, "/api/food-items");
   const searchesHook = useCategorizedItems(savedSearches, setSavedSearches, "/api/discovery-searches");
 
   // Same location+name combo used when saving, so a place already saved
   // from this exact search shows "Saved" (disabled) instead of a second
   // "Save" that would just create a duplicate row.
   const savedPlaceKeys = new Set(savedPlaces.map((p) => `${p.search_location}::${p.name}`));
+  // Same idea, one level more specific - place AND dish name, since two
+  // different dishes at the same place are both legitimately saveable.
+  const savedFoodItemKeys = new Set(
+    savedFoodItems.map((i) => `${i.search_location}::${i.place_name}::${i.name}`)
+  );
 
   useEffect(() => {
     loadSavedPlaces();
+    loadSavedFoodItems();
     loadSavedSearches();
   }, []);
 
@@ -184,6 +216,20 @@ export default function DiscoveryTab() {
       // List just stays empty/stale - searching still works.
     }
     setSavedPlacesLoading(false);
+  }
+
+  async function loadSavedFoodItems() {
+    setSavedFoodItemsLoading(true);
+    try {
+      const res = await fetch("/api/food-items");
+      if (res.ok) {
+        const data = await res.json();
+        setSavedFoodItems(data.items || []);
+      }
+    } catch {
+      // List just stays empty/stale - searching still works.
+    }
+    setSavedFoodItemsLoading(false);
   }
 
   async function loadSavedSearches() {
@@ -317,6 +363,40 @@ export default function DiscoveryTab() {
     }
   }
 
+  // place is only used for its name here - the item itself already has
+  // everything else (name/price/source/imageUrl) from the suggestion.
+  async function saveFoodItem(place, item) {
+    try {
+      const res = await fetch("/api/food-items", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          name: item.name,
+          price: item.price || null,
+          source: item.source || null,
+          imageUrl: item.imageUrl || null,
+          placeName: place.name,
+          searchLocation: resultLocation,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSavedFoodItems((list) => [data.savedItem, ...list]);
+      }
+    } catch {
+      // Leaves the Save button active so they can just try again.
+    }
+  }
+
+  async function deleteSavedFoodItem(id) {
+    setSavedFoodItems((list) => list.filter((i) => i.id !== id));
+    try {
+      await fetch(`/api/food-items/${id}`, { method: "DELETE" });
+    } catch {
+      // Same degrade-gracefully rule as deleteSavedPlace above.
+    }
+  }
+
   async function saveCurrentSearch() {
     if (!result || savingSearch) return;
     setSavingSearch(true);
@@ -430,6 +510,8 @@ export default function DiscoveryTab() {
                 onSave={savePlace}
                 suggestions={placeSuggestions}
                 onSuggest={fetchPlaceSuggestion}
+                savedFoodItemKeys={savedFoodItemKeys}
+                onSaveFoodItem={saveFoodItem}
               />
             </div>
 
@@ -446,6 +528,8 @@ export default function DiscoveryTab() {
                 onSave={savePlace}
                 suggestions={placeSuggestions}
                 onSuggest={fetchPlaceSuggestion}
+                savedFoodItemKeys={savedFoodItemKeys}
+                onSaveFoodItem={saveFoodItem}
               />
             </div>
 
@@ -462,6 +546,8 @@ export default function DiscoveryTab() {
                 onSave={savePlace}
                 suggestions={placeSuggestions}
                 onSuggest={fetchPlaceSuggestion}
+                savedFoodItemKeys={savedFoodItemKeys}
+                onSaveFoodItem={saveFoodItem}
               />
             </div>
 
@@ -474,7 +560,68 @@ export default function DiscoveryTab() {
       </div>
 
       <aside className="sidebar">
-        <h3 style={{ fontSize: 14, marginBottom: 12 }}>Saved places</h3>
+        <h3 style={{ fontSize: 14, marginBottom: 12 }}>Saved items</h3>
+        <CategoryFilterRow
+          allCategories={foodItemsHook.allCategories}
+          categoryFilter={foodItemsHook.categoryFilter}
+          onFilter={foodItemsHook.setCategoryFilter}
+        />
+        {savedFoodItemsLoading && <p className="hint">Loading…</p>}
+        {!savedFoodItemsLoading && savedFoodItems.length === 0 && (
+          <p className="hint">Nothing saved yet — hit "Save" on a dish or drink above.</p>
+        )}
+        {!savedFoodItemsLoading && savedFoodItems.length > 0 && foodItemsHook.filteredItems.length === 0 && (
+          <p className="hint">Nothing saved under "{foodItemsHook.categoryFilter}" yet.</p>
+        )}
+        <div className="saved-list">
+          {foodItemsHook.filteredItems.map((i) => (
+            <div key={i.id} className="saved-item">
+              <div className="saved-item-row">
+                <div className="saved-item-main" style={{ cursor: "default" }}>
+                  <div className="saved-item-idea">
+                    {i.name}
+                    {i.price && <span style={{ color: "var(--wine)" }}> · {i.price}</span>}
+                  </div>
+                  <div className="saved-item-meta">{i.place_name || i.search_location}</div>
+                  {i.category && (
+                    <div className="saved-item-chips">
+                      <span className="saved-chip category-chip">{i.category}</span>
+                    </div>
+                  )}
+                </div>
+                <div className="saved-item-actions">
+                  <button
+                    type="button"
+                    className="saved-item-categorize"
+                    onClick={() => foodItemsHook.toggleCategorize(i.id)}
+                  >
+                    Categorize
+                  </button>
+                  <button
+                    type="button"
+                    className="saved-item-delete"
+                    onClick={() => deleteSavedFoodItem(i.id)}
+                    aria-label="Delete saved item"
+                  >
+                    ×
+                  </button>
+                </div>
+              </div>
+              {foodItemsHook.categorizingId === i.id && (
+                <CategorizePanel
+                  item={i}
+                  allCategories={foodItemsHook.allCategories}
+                  newCategoryDraft={foodItemsHook.newCategoryDraft}
+                  onDraftChange={foodItemsHook.setNewCategoryDraft}
+                  onApply={foodItemsHook.applyCategory}
+                  onSubmitNew={foodItemsHook.submitNewCategory}
+                />
+              )}
+            </div>
+          ))}
+        </div>
+
+        <h3 style={{ fontSize: 14, margin: "20px 0 12px" }}>Saved places</h3>
         <CategoryFilterRow
           allCategories={placesHook.allCategories}
           categoryFilter={placesHook.categoryFilter}
