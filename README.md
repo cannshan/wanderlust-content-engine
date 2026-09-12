@@ -7,7 +7,7 @@ The research and design plan behind this (algorithm rules, caption-formula break
 ## What it does
 
 1. You enter an idea, location, an optional story beat, a target video length (~30s or ~60s, same target on both platforms), and any free-text notes (a trending hashtag/sound you spotted, an idea, anything).
-2. The app fires two independent requests in parallel — one for TikTok, one for Instagram. Each one has Claude (Sonnet) write a description and pick 5 hashtags following the formula pulled from 15 of Leah's real posts (see `lib/voiceProfile.js`), tailored to that specific platform's ranking signals (TikTok: completion rate + comments/saves; Instagram: DM shares first), and actively runs its own live web search for currently-trending hashtags/sounds on that topic before finalizing — folding in your free-text notes too when you give any — using only what genuinely fits.
+2. The app fires two independent requests in parallel — one for TikTok, one for Instagram. Each one has Claude (Sonnet) write a description and pick 5 hashtags following the formula pulled from 14 of Leah's real posts (see `lib/voiceProfile.js`), tailored to that specific platform's ranking signals (TikTok: completion rate + comments/saves; Instagram: DM shares first), and actively runs its own live web search for currently-trending hashtags/sounds on that topic before finalizing — folding in your free-text notes too when you give any — using only what genuinely fits.
 3. You copy the description and tags into TikTok/Instagram yourself. Nothing posts automatically.
 
 The tool decides on its own whether a topic reads better as flowing narrative or an itinerary-style bullet list, and only tags a business/venue handle if you mentioned one in your notes — neither needs its own form field.
@@ -59,7 +59,7 @@ This is deliberately a different, cheaper capability than AI-generating brand-ne
 Two editable lists that feed directly into `buildSystemPrompt()` in `lib/voiceProfile.js` - the same system prompt every Content tab generation (TikTok/Instagram/YouTube) and Reel Voiceover call uses:
 
 - **Custom instructions** - free-text rules Leah types in herself: a phrasing habit to avoid ("no double hyphens (--) or em dashes - that reads as AI-written"), a fact the app should always get right, an example food/place it should know about, or anything else it should adhere to. No categories or tiers, just a flat list - meant to stay simple to add to, not another taxonomy to manage. These are injected last in the system prompt, framed as overriding the general voice/virality guidance above them if the two ever conflict, since a rule Leah stated herself should win over general-purpose guidance.
-- **Voice examples (sample captions)** - the 15 real captions that used to be hardcoded directly in `lib/voiceProfile.js` (`DEFAULT_SAMPLE_CAPTIONS`) now live here instead, editable and addable to. Each one carries platform, optional stats, a tier (`baseline` or `outlier`), an optional "why it outperformed" note (only meaningful for outliers), and the caption text itself - same fields `buildSystemPrompt()` always used, just editable now instead of requiring a code change to add a new one.
+- **Voice examples (sample captions)** - the 14 real captions that used to be hardcoded directly in `lib/voiceProfile.js` (`DEFAULT_SAMPLE_CAPTIONS`) now live here instead, editable and addable to. Each one carries platform, optional stats, a tier (`baseline` or `outlier`), an optional "why it outperformed" note (only meaningful for outliers), and the caption text itself - same fields `buildSystemPrompt()` always used, just editable now instead of requiring a code change to add a new one.
 
 Both read through Supabase with the same degrade-gracefully rule as everywhere else in this app: if Supabase isn't configured, or the tables below don't exist yet, or a table is genuinely empty, generation doesn't break - custom instructions default to none, and sample captions fall back to the original hardcoded 15 rather than the prompt ever going out with zero voice examples to work from.
 
@@ -281,7 +281,7 @@ The easiest path is [Vercel](https://vercel.com) (built by the makers of Next.js
 - `app/api/reel-edit-plan/` + `lib/assembleReel.js` — the "raw clips - assemble for me" mode - see "Raw clips" above.
 - `lib/useCategorizedItems.js` + `app/components/CategoryUI.js` — the shared categorize/filter behavior behind all three saved lists (saved ideas, saved places, saved searches).
 - `lib/constants.js` — shared platform/category constants used across all three tabs.
-- `lib/voiceProfile.js` — Leah's decoded caption formula, 15 real sample captions, and the per-platform algorithm/location-tag rules used to ground generated copy.
+- `lib/voiceProfile.js` — Leah's decoded caption formula, 14 real sample captions, and the per-platform algorithm/location-tag rules used to ground generated copy.
 - `lib/trends.js` — the Apify integration, degrades gracefully if unconfigured.
 - `lib/claude.js` — all the Anthropic API calls: the main per-platform generation, the hashtag step, the nearby-ideas/Discovery searches, the reel-voiceover/reel-edit-plan analysis, and the optional voiceover/music/styling extras.
 - `lib/supabase.js` + `app/api/ideas/` — the optional "Saved ideas" sidebar, degrades gracefully if unconfigured.
