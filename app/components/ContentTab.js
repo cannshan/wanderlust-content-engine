@@ -1030,7 +1030,6 @@ export default function ContentTab() {
               <div className="saved-item-row">
                 <button type="button" className="saved-item-main" onClick={() => loadSavedIdea(s)}>
                   <div className="saved-item-idea">{s.idea}</div>
-                  <div className="saved-item-meta">{s.location}</div>
                   <div className="saved-item-chips">
                     {s.category && <span className="saved-chip category-chip">{s.category}</span>}
                     {s.platforms.map((p) => (

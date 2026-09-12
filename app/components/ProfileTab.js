@@ -192,11 +192,7 @@ export default function ProfileTab() {
 
         <div className="card" style={{ marginTop: 20 }}>
           <h3 style={{ marginTop: 0 }}>Voice examples (sample captions)</h3>
-          <p className="hint">
-            Real captions the app studies to sound like Leah and repeat what's actually worked - the same 14 that used to be
-            hardcoded in the app's code now live here, editable. Add more of hers over time to keep this current; if this list is
-            ever empty, the app falls back to its original built-in 14 rather than losing its voice entirely.
-          </p>
+          <p className="hint">Real captions the app studies to sound like Leah and repeat what's actually worked. Add, edit, or remove them any time.</p>
           {captionsLoading && <p className="hint">Loading…</p>}
           {!captionsLoading && captions.length === 0 && (
             <p className="hint">Nothing added yet - the app is using its built-in defaults until you add some here.</p>

@@ -4,18 +4,20 @@ import { useState, useEffect } from "react";
 import { CATEGORY_OPTIONS } from "../../lib/constants";
 import { useCategorizedItems } from "../../lib/useCategorizedItems";
 import { CategoryFilterRow, CategorizePanel } from "./CategoryUI";
+import { AddToPlanningPicker } from "./PlanningPicker";
 
 function PlaceList({
   places,
   emptyHint,
   bucket,
   resultLocation,
-  savedKeys,
-  onSave,
-  suggestions,
-  onSuggest,
-  savedFoodItemKeys,
-  onSaveFoodItem,
+  planningKeys,
+  planningCategories,
+  pickerKey,
+  onTogglePicker,
+  newCategoryDraft,
+  onDraftChange,
+  onAddToPlanning,
 }) {
   if (places.length === 0) {
     return <p className="hint">{emptyHint}</p>;
@@ -24,8 +26,7 @@ function PlaceList({
     <ul className="shotlist">
       {places.map((place, i) => {
         const key = `${resultLocation}::${place.name}`;
-        const saved = savedKeys.has(key);
-        const sug = suggestions[key] || {};
+        const inPlanning = planningKeys.has(key);
         return (
           <li key={i}>
             <div className="place-row">
@@ -35,119 +36,25 @@ function PlaceList({
                 {place.area ? ` (${place.area})` : ""}
                 <br />
                 {place.why}
-                {place.angle && (
-                  <>
-                    <br />
-                    <em>Angle: {place.angle}</em>
-                  </>
-                )}
               </div>
               <button
                 type="button"
                 className="btn-ghost place-save-btn"
-                disabled={saved}
-                onClick={() => onSave(place, bucket)}
+                disabled={inPlanning}
+                onClick={() => onTogglePicker(key)}
               >
-                {saved ? "Saved" : "Save"}
+                {inPlanning ? "In Planning" : "Add to Planning"}
               </button>
             </div>
 
-            <div className="place-suggest-row">
-              <button
-                type="button"
-                className="btn-ghost"
-                disabled={!!sug.loadingMode}
-                onClick={() => onSuggest(place, "food")}
-              >
-                {sug.loadingMode === "food" ? "Looking…" : "Foodie/Explore Advice"}
-              </button>
-              <button
-                type="button"
-                className="btn-ghost"
-                disabled={!!sug.loadingMode}
-                onClick={() => onSuggest(place, "style")}
-              >
-                {sug.loadingMode === "style" ? "Looking…" : "Clothes to Wear"}
-              </button>
-              <button
-                type="button"
-                className="btn-ghost"
-                disabled={!!sug.loadingMode}
-                onClick={() => onSuggest(place, "both")}
-              >
-                {sug.loadingMode === "both" ? "Looking…" : "Suggest Both"}
-              </button>
-            </div>
-
-            {sug.error && (
-              <p className="hint" style={{ color: "var(--bad)", marginTop: 6 }}>{sug.error}</p>
-            )}
-
-            {sug.foodItems?.length > 0 && (
-              <div className="food-items">
-                {sug.foodItems.map((item, fi) => {
-                  const itemKey = `${resultLocation}::${place.name}::${item.name}`;
-                  const itemSaved = savedFoodItemKeys.has(itemKey);
-                  return (
-                    <div key={fi} className="food-item-card">
-                      {item.imageUrl && (
-                        <img
-                          src={item.imageUrl}
-                          alt={item.name}
-                          onError={(e) => {
-                            e.currentTarget.style.display = "none";
-                          }}
-                        />
-                      )}
-                      <div className="food-item-info">
-                        <span className="food-item-name">
-                          {item.name}
-                          {item.price && <span className="food-item-price"> · {item.price}</span>}
-                        </span>
-                        <span className="food-item-source">{item.source}</span>
-                      </div>
-                      <button
-                        type="button"
-                        className="food-item-save-btn"
-                        disabled={itemSaved}
-                        onClick={() => onSaveFoodItem(place, item)}
-                      >
-                        {itemSaved ? "Saved" : "Save"}
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {sug.style && (
-              <div style={{ marginTop: 8 }}>
-                <p className="rationale">{sug.style}</p>
-                {sug.styleLinks?.length > 0 && (
-                  <div className="style-links">
-                    {sug.styleLinks.map((link, li) => (
-                      <a
-                        key={li}
-                        href={link.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="style-link-card"
-                      >
-                        {link.imageUrl && (
-                          <img
-                            src={link.imageUrl}
-                            alt={link.label}
-                            onError={(e) => {
-                              e.currentTarget.style.display = "none";
-                            }}
-                          />
-                        )}
-                        <span>{link.label}</span>
-                      </a>
-                    ))}
-                  </div>
-                )}
-              </div>
+            {pickerKey === key && (
+              <AddToPlanningPicker
+                planningCategories={planningCategories}
+                draft={newCategoryDraft}
+                onDraftChange={onDraftChange}
+                onPick={(category) => onAddToPlanning(place, bucket, category)}
+                onCancel={() => onTogglePicker(null)}
+              />
             )}
           </li>
         );
@@ -163,74 +70,41 @@ export default function DiscoveryTab() {
   const [error, setError] = useState("");
   const [result, setResult] = useState(null);
   // Captured at search time, not read live from `location`/`categories` -
-  // those stay editable for the next search while a saved place/search
-  // still needs to record what was actually searched to produce it (same
+  // those stay editable for the next search while a saved search still
+  // needs to record what was actually searched to produce it (same
   // formSnapshot idea as ContentTab.js).
   const [resultLocation, setResultLocation] = useState("");
   const [resultCategories, setResultCategories] = useState(["all"]);
 
-  const [savedPlaces, setSavedPlaces] = useState([]);
-  const [savedPlacesLoading, setSavedPlacesLoading] = useState(true);
-  const [savedFoodItems, setSavedFoodItems] = useState([]);
-  const [savedFoodItemsLoading, setSavedFoodItemsLoading] = useState(true);
   const [savedSearches, setSavedSearches] = useState([]);
   const [savedSearchesLoading, setSavedSearchesLoading] = useState(true);
   const [savingSearch, setSavingSearch] = useState(false);
   const [currentSavedSearchId, setCurrentSavedSearchId] = useState(null);
-  // Keyed the same way as savedPlaceKeys (`${resultLocation}::${place.name}`)
-  // - per-place, ad-hoc results from the Foodie/Explore Advice, Clothes to
-  // Wear, and Suggest Both buttons. Nothing here runs automatically; each
-  // entry only exists because that specific button was clicked for that
-  // specific place.
-  const [placeSuggestions, setPlaceSuggestions] = useState({});
 
-  const placesHook = useCategorizedItems(savedPlaces, setSavedPlaces, "/api/places");
-  const foodItemsHook = useCategorizedItems(savedFoodItems, setSavedFoodItems, "/api/food-items");
+  const [planningItems, setPlanningItems] = useState([]);
+  // Which place's "Add to Planning" category picker is currently open -
+  // keyed the same way as planningKeys (`${resultLocation}::${place.name}`),
+  // one open at a time.
+  const [pickerKey, setPickerKey] = useState(null);
+  const [newCategoryDraft, setNewCategoryDraft] = useState("");
+
   const searchesHook = useCategorizedItems(savedSearches, setSavedSearches, "/api/discovery-searches");
 
-  // Same location+name combo used when saving, so a place already saved
-  // from this exact search shows "Saved" (disabled) instead of a second
-  // "Save" that would just create a duplicate row.
-  const savedPlaceKeys = new Set(savedPlaces.map((p) => `${p.search_location}::${p.name}`));
-  // Same idea, one level more specific - place AND dish name, since two
-  // different dishes at the same place are both legitimately saveable.
-  const savedFoodItemKeys = new Set(
-    savedFoodItems.map((i) => `${i.search_location}::${i.place_name}::${i.name}`)
+  // A place already sent to Planning from this exact search shows "In
+  // Planning" (disabled) instead of a second "Add to Planning" that would
+  // just create a duplicate row.
+  const planningKeys = new Set(planningItems.map((p) => `${p.search_location}::${p.name}`));
+  // Every category already in use across Planning items - offered as
+  // quick-pick chips in the Add to Planning picker, same "create it by
+  // using it" list any category filter row in this app builds.
+  const planningCategories = Array.from(new Set(planningItems.map((p) => p.category).filter(Boolean))).sort((a, b) =>
+    a.localeCompare(b)
   );
 
   useEffect(() => {
-    loadSavedPlaces();
-    loadSavedFoodItems();
     loadSavedSearches();
+    loadPlanningItems();
   }, []);
-
-  async function loadSavedPlaces() {
-    setSavedPlacesLoading(true);
-    try {
-      const res = await fetch("/api/places");
-      if (res.ok) {
-        const data = await res.json();
-        setSavedPlaces(data.places || []);
-      }
-    } catch {
-      // List just stays empty/stale - searching still works.
-    }
-    setSavedPlacesLoading(false);
-  }
-
-  async function loadSavedFoodItems() {
-    setSavedFoodItemsLoading(true);
-    try {
-      const res = await fetch("/api/food-items");
-      if (res.ok) {
-        const data = await res.json();
-        setSavedFoodItems(data.items || []);
-      }
-    } catch {
-      // List just stays empty/stale - searching still works.
-    }
-    setSavedFoodItemsLoading(false);
-  }
 
   async function loadSavedSearches() {
     setSavedSearchesLoading(true);
@@ -241,7 +115,7 @@ export default function DiscoveryTab() {
         setSavedSearches(data.searches || []);
       }
     } catch {
-      // Same as above.
+      // List just stays empty/stale - searching still works.
     }
     setSavedSearchesLoading(false);
   }
@@ -282,13 +156,28 @@ export default function DiscoveryTab() {
     setLoading(false);
   }
 
-  async function savePlace(place, bucket) {
-    // Whichever ad-hoc suggestions already exist for this place ride along
-    // into the saved record - see the comment on food_suggestion in
-    // app/api/places/route.js. Nothing is generated here; only carried.
-    const sug = placeSuggestions[`${resultLocation}::${place.name}`] || {};
+  async function loadPlanningItems() {
     try {
-      const res = await fetch("/api/places", {
+      const res = await fetch("/api/planning-items");
+      if (res.ok) {
+        const data = await res.json();
+        setPlanningItems(data.items || []);
+      }
+    } catch {
+      // List just stays empty/stale - "Add to Planning" still works, it'll
+      // just show as an active button instead of "In Planning" until the
+      // next reload.
+    }
+  }
+
+  function togglePicker(key) {
+    setPickerKey((current) => (current === key ? null : key));
+    setNewCategoryDraft("");
+  }
+
+  async function addToPlanning(place, bucket, category) {
+    try {
+      const res = await fetch("/api/planning-items", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -299,108 +188,18 @@ export default function DiscoveryTab() {
           angle: place.angle || null,
           bucket,
           searchLocation: resultLocation,
-          foodItems: sug.foodItems?.length ? sug.foodItems : null,
-          styleSuggestion: sug.style || null,
-          styleLinks: sug.styleLinks?.length ? sug.styleLinks : null,
+          category: category || null,
         }),
       });
       if (res.ok) {
         const data = await res.json();
-        setSavedPlaces((list) => [data.savedPlace, ...list]);
+        setPlanningItems((list) => [data.item, ...list]);
       }
     } catch {
-      // Leaves the Save button active so they can just try again.
+      // Leaves the button active so they can just try again.
     }
-  }
-
-  // mode: "food" | "style" | "both". Fires only on click, never
-  // automatically - see the comment on placeSuggestions above.
-  async function fetchPlaceSuggestion(place, mode) {
-    const key = `${resultLocation}::${place.name}`;
-    setPlaceSuggestions((s) => ({ ...s, [key]: { ...(s[key] || {}), loadingMode: mode, error: null } }));
-    try {
-      const res = await fetch("/api/place-suggestion", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          name: place.name,
-          placeCategory: place.category || null,
-          area: place.area || null,
-          searchLocation: resultLocation,
-          mode,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Couldn't get a suggestion for this place.");
-      setPlaceSuggestions((s) => {
-        const prev = s[key] || {};
-        return {
-          ...s,
-          [key]: {
-            loadingMode: null,
-            error: null,
-            foodItems: data.suggestion.foodItems?.length ? data.suggestion.foodItems : prev.foodItems || [],
-            style: data.suggestion.styleSuggestion ?? prev.style ?? null,
-            styleLinks: data.suggestion.styleLinks?.length ? data.suggestion.styleLinks : prev.styleLinks || [],
-          },
-        };
-      });
-    } catch (err) {
-      setPlaceSuggestions((s) => ({
-        ...s,
-        [key]: { ...(s[key] || {}), loadingMode: null, error: err.message || "Couldn't get a suggestion for this place." },
-      }));
-    }
-  }
-
-  async function deleteSavedPlace(id) {
-    setSavedPlaces((list) => list.filter((p) => p.id !== id));
-    try {
-      await fetch(`/api/places/${id}`, { method: "DELETE" });
-    } catch {
-      // Already removed from the visible list; a failed delete just means
-      // it'll reappear next time the sidebar reloads, not silently lost.
-    }
-  }
-
-  // Deliberately does NOT also save the place - saving an item is meant to
-  // stay a single card (the item's own card already names its restaurant
-  // right on it, via placeName below). A second, separate place card only
-  // appears if the user explicitly saves the place too via its own "Save"
-  // button - two distinct actions, two distinct cards, never implied by
-  // one click. place is only used for its name here - the item itself
-  // already has everything else (name/price/source/imageUrl) from the
-  // suggestion.
-  async function saveFoodItem(place, item) {
-    try {
-      const res = await fetch("/api/food-items", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          name: item.name,
-          price: item.price || null,
-          source: item.source || null,
-          imageUrl: item.imageUrl || null,
-          placeName: place.name,
-          searchLocation: resultLocation,
-        }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setSavedFoodItems((list) => [data.savedItem, ...list]);
-      }
-    } catch {
-      // Leaves the Save button active so they can just try again.
-    }
-  }
-
-  async function deleteSavedFoodItem(id) {
-    setSavedFoodItems((list) => list.filter((i) => i.id !== id));
-    try {
-      await fetch(`/api/food-items/${id}`, { method: "DELETE" });
-    } catch {
-      // Same degrade-gracefully rule as deleteSavedPlace above.
-    }
+    setPickerKey(null);
+    setNewCategoryDraft("");
   }
 
   async function saveCurrentSearch() {
@@ -439,7 +238,8 @@ export default function DiscoveryTab() {
     try {
       await fetch(`/api/discovery-searches/${id}`, { method: "DELETE" });
     } catch {
-      // Same as deleteSavedPlace's own catch.
+      // Already removed from view; a failed delete just means it
+      // reappears next reload.
     }
   }
 
@@ -456,10 +256,6 @@ export default function DiscoveryTab() {
               value={location}
               onChange={(e) => setLocation(e.target.value)}
             />
-            <p className="hint" style={{ marginTop: 6 }}>
-              A town, region, or a whole state — the broader the area, the more it'll spread results across
-              different towns within it.
-            </p>
           </div>
 
           <div className="field">
@@ -512,12 +308,13 @@ export default function DiscoveryTab() {
                 emptyHint="Nothing with real proof of popularity turned up for this category — try &quot;All categories&quot; or a broader location."
                 bucket="popular"
                 resultLocation={resultLocation}
-                savedKeys={savedPlaceKeys}
-                onSave={savePlace}
-                suggestions={placeSuggestions}
-                onSuggest={fetchPlaceSuggestion}
-                savedFoodItemKeys={savedFoodItemKeys}
-                onSaveFoodItem={saveFoodItem}
+                planningKeys={planningKeys}
+                planningCategories={planningCategories}
+                pickerKey={pickerKey}
+                onTogglePicker={togglePicker}
+                newCategoryDraft={newCategoryDraft}
+                onDraftChange={setNewCategoryDraft}
+                onAddToPlanning={addToPlanning}
               />
             </div>
 
@@ -530,12 +327,13 @@ export default function DiscoveryTab() {
                 emptyHint="Nothing genuinely stood out as a unique find for this category right now."
                 bucket="interesting"
                 resultLocation={resultLocation}
-                savedKeys={savedPlaceKeys}
-                onSave={savePlace}
-                suggestions={placeSuggestions}
-                onSuggest={fetchPlaceSuggestion}
-                savedFoodItemKeys={savedFoodItemKeys}
-                onSaveFoodItem={saveFoodItem}
+                planningKeys={planningKeys}
+                planningCategories={planningCategories}
+                pickerKey={pickerKey}
+                onTogglePicker={togglePicker}
+                newCategoryDraft={newCategoryDraft}
+                onDraftChange={setNewCategoryDraft}
+                onAddToPlanning={addToPlanning}
               />
             </div>
 
@@ -548,12 +346,13 @@ export default function DiscoveryTab() {
                 emptyHint="Nothing overlooked genuinely stood out for this category right now."
                 bucket="hidden"
                 resultLocation={resultLocation}
-                savedKeys={savedPlaceKeys}
-                onSave={savePlace}
-                suggestions={placeSuggestions}
-                onSuggest={fetchPlaceSuggestion}
-                savedFoodItemKeys={savedFoodItemKeys}
-                onSaveFoodItem={saveFoodItem}
+                planningKeys={planningKeys}
+                planningCategories={planningCategories}
+                pickerKey={pickerKey}
+                onTogglePicker={togglePicker}
+                newCategoryDraft={newCategoryDraft}
+                onDraftChange={setNewCategoryDraft}
+                onAddToPlanning={addToPlanning}
               />
             </div>
 
@@ -566,121 +365,7 @@ export default function DiscoveryTab() {
       </div>
 
       <aside className="sidebar">
-        <h3 style={{ fontSize: 14, marginBottom: 12 }}>Saved items</h3>
-        <CategoryFilterRow
-          allCategories={foodItemsHook.allCategories}
-          categoryFilter={foodItemsHook.categoryFilter}
-          onFilter={foodItemsHook.setCategoryFilter}
-        />
-        {savedFoodItemsLoading && <p className="hint">Loading…</p>}
-        {!savedFoodItemsLoading && savedFoodItems.length === 0 && (
-          <p className="hint">Nothing saved yet — hit "Save" on a dish or drink above.</p>
-        )}
-        {!savedFoodItemsLoading && savedFoodItems.length > 0 && foodItemsHook.filteredItems.length === 0 && (
-          <p className="hint">Nothing saved under "{foodItemsHook.categoryFilter}" yet.</p>
-        )}
-        <div className="saved-list">
-          {foodItemsHook.filteredItems.map((i) => (
-            <div key={i.id} className="saved-item">
-              <div className="saved-item-row">
-                <div className="saved-item-main" style={{ cursor: "default" }}>
-                  <div className="saved-item-idea">
-                    {i.name}
-                    {i.price && <span style={{ color: "var(--wine)" }}> · {i.price}</span>}
-                  </div>
-                  <div className="saved-item-meta">{i.place_name || i.search_location}</div>
-                  {i.category && (
-                    <div className="saved-item-chips">
-                      <span className="saved-chip category-chip">{i.category}</span>
-                    </div>
-                  )}
-                </div>
-                <div className="saved-item-actions">
-                  <button
-                    type="button"
-                    className="saved-item-categorize"
-                    onClick={() => foodItemsHook.toggleCategorize(i.id)}
-                  >
-                    Categorize
-                  </button>
-                  <button
-                    type="button"
-                    className="saved-item-delete"
-                    onClick={() => deleteSavedFoodItem(i.id)}
-                    aria-label="Delete saved item"
-                  >
-                    ×
-                  </button>
-                </div>
-              </div>
-              {foodItemsHook.categorizingId === i.id && (
-                <CategorizePanel
-                  item={i}
-                  allCategories={foodItemsHook.allCategories}
-                  newCategoryDraft={foodItemsHook.newCategoryDraft}
-                  onDraftChange={foodItemsHook.setNewCategoryDraft}
-                  onApply={foodItemsHook.applyCategory}
-                  onSubmitNew={foodItemsHook.submitNewCategory}
-                />
-              )}
-            </div>
-          ))}
-        </div>
-
-        <h3 style={{ fontSize: 14, margin: "20px 0 12px" }}>Saved places</h3>
-        <CategoryFilterRow
-          allCategories={placesHook.allCategories}
-          categoryFilter={placesHook.categoryFilter}
-          onFilter={placesHook.setCategoryFilter}
-        />
-        {savedPlacesLoading && <p className="hint">Loading…</p>}
-        {!savedPlacesLoading && savedPlaces.length === 0 && (
-          <p className="hint">Nothing saved yet — hit "Save" next to a place above.</p>
-        )}
-        {!savedPlacesLoading && savedPlaces.length > 0 && placesHook.filteredItems.length === 0 && (
-          <p className="hint">Nothing saved under "{placesHook.categoryFilter}" yet.</p>
-        )}
-        <div className="saved-list">
-          {placesHook.filteredItems.map((p) => (
-            <div key={p.id} className="saved-item">
-              <div className="saved-item-row">
-                <div className="saved-item-main" style={{ cursor: "default" }}>
-                  <div className="saved-item-idea">{p.name}</div>
-                  <div className="saved-item-meta">{p.area || p.search_location}</div>
-                  <div className="saved-item-chips">
-                    {p.category && <span className="saved-chip category-chip">{p.category}</span>}
-                    <span className="saved-chip">{p.bucket}</span>
-                  </div>
-                </div>
-                <div className="saved-item-actions">
-                  <button type="button" className="saved-item-categorize" onClick={() => placesHook.toggleCategorize(p.id)}>
-                    Categorize
-                  </button>
-                  <button
-                    type="button"
-                    className="saved-item-delete"
-                    onClick={() => deleteSavedPlace(p.id)}
-                    aria-label="Delete saved place"
-                  >
-                    ×
-                  </button>
-                </div>
-              </div>
-              {placesHook.categorizingId === p.id && (
-                <CategorizePanel
-                  item={p}
-                  allCategories={placesHook.allCategories}
-                  newCategoryDraft={placesHook.newCategoryDraft}
-                  onDraftChange={placesHook.setNewCategoryDraft}
-                  onApply={placesHook.applyCategory}
-                  onSubmitNew={placesHook.submitNewCategory}
-                />
-              )}
-            </div>
-          ))}
-        </div>
-
-        <h3 style={{ fontSize: 14, margin: "20px 0 12px" }}>Saved searches</h3>
+        <h3 style={{ fontSize: 14, marginBottom: 12 }}>Saved searches</h3>
         <CategoryFilterRow
           allCategories={searchesHook.allCategories}
           categoryFilter={searchesHook.categoryFilter}
