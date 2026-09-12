@@ -145,11 +145,7 @@ export default function ProfileTab() {
       <div className="main">
         <div className="card">
           <h3 style={{ marginTop: 0 }}>Custom instructions</h3>
-          <p className="hint">
-            Free-text rules the app follows on every generation - a phrasing habit to avoid (e.g. "no double hyphens (--) or em
-            dashes, that reads as AI-written"), a fact it should always get right, an example food/place it should know about, or
-            anything else it should adhere to. These apply on top of the voice examples below and win if the two ever conflict.
-          </p>
+          <p className="hint">Instructions the app follows on every generation.</p>
           {instructionsLoading && <p className="hint">Loading…</p>}
           {!instructionsLoading && instructions.length === 0 && <p className="hint">Nothing added yet.</p>}
           <div className="saved-list">
