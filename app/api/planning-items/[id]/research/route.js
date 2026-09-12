@@ -25,20 +25,41 @@ export async function POST(req, { params }) {
   }
 
   const { id } = await params;
-  const { name, placeCategory, area, searchLocation, focus } = body;
+  const { name, placeCategory, area, searchLocation, focus, menuLinks, menuFileBase64, menuFileMediaType } = body;
 
   if (!name) {
     return NextResponse.json({ error: "name is required." }, { status: 400 });
   }
 
-  const research = await researchPlanningItem({ name, placeCategory, area, searchLocation, focus });
+  const trimmedMenuLinks = (Array.isArray(menuLinks) ? menuLinks : [])
+    .map((l) => (typeof l === "string" ? l.trim() : ""))
+    .filter(Boolean);
+
+  const research = await researchPlanningItem({
+    name,
+    placeCategory,
+    area,
+    searchLocation,
+    focus,
+    menuLinks: trimmedMenuLinks,
+    menuFileBase64,
+    menuFileMediaType,
+  });
   if (!research) {
     return NextResponse.json({ error: "Couldn't put together research for this place. Try again." }, { status: 500 });
   }
 
   const { data, error } = await supabase
     .from("planning_items")
-    .update({ research, researched_at: new Date().toISOString() })
+    .update({
+      research,
+      researched_at: new Date().toISOString(),
+      // Menu links persist on the item (like a saved idea's own menu
+      // links) so they don't need retyping next time - the uploaded
+      // file itself never does, same "only ever used inline for the one
+      // request that reads it" rule as everywhere else in this app.
+      menu_links: trimmedMenuLinks.length ? trimmedMenuLinks : null,
+    })
     .eq("id", id)
     .select()
     .single();

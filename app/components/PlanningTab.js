@@ -17,6 +17,24 @@ function shortArea(area) {
   return (idx === -1 ? area : area.slice(0, idx)).trim();
 }
 
+// Same cap/helper as ContentTab's own restaurant-menu upload - kept
+// separate rather than shared, since it's a few lines and this app
+// doesn't otherwise share client-side helpers between tab components.
+const MAX_MENU_FILE_BYTES = 4 * 1024 * 1024;
+const MAX_MENU_LINKS = 5;
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = String(reader.result).split(",")[1] || "";
+      resolve(base64);
+    };
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function PlanningTab() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -63,6 +81,15 @@ export default function PlanningTab() {
   // mode: "style"), so it gets its own state rather than overloading
   // researchState with unrelated fields.
   const [styleState, setStyleState] = useState({});
+  // Per-item menu link drafts, keyed by item id - initialized from
+  // item.menu_links (persisted) the first time an item's inputs render,
+  // then live-edited here same as focusDrafts. The uploaded file itself
+  // is never persisted - only ever sent inline with the next research
+  // call, same "read once, never stored" rule as ContentTab's own menu
+  // upload.
+  const [menuLinksDrafts, setMenuLinksDrafts] = useState({});
+  const [menuFiles, setMenuFiles] = useState({});
+  const [menuFileErrors, setMenuFileErrors] = useState({});
 
   const categorizedHook = useCategorizedItems(items, setItems, "/api/planning-items");
   const selected = items.find((i) => i.id === selectedId) || null;
@@ -204,6 +231,9 @@ export default function PlanningTab() {
   // against that same-tick state update and likely read stale/empty.
   async function research(item, focusOverride) {
     const focus = focusOverride !== undefined ? focusOverride : focusDrafts[item.id] || "";
+    const menuLinks = getMenuLinks(item).map((l) => l.trim()).filter(Boolean);
+    const menuFile = menuFiles[item.id] || null;
+    const menuFileBase64 = menuFile ? await fileToBase64(menuFile) : null;
     setResearchState((s) => ({ ...s, [item.id]: { loading: true, error: null } }));
     try {
       const res = await fetch(`/api/planning-items/${item.id}/research`, {
@@ -215,6 +245,9 @@ export default function PlanningTab() {
           area: item.area,
           searchLocation: item.search_location,
           focus,
+          menuLinks,
+          menuFileBase64,
+          menuFileMediaType: menuFile?.type || null,
         }),
       });
       const data = await res.json();
@@ -260,6 +293,44 @@ export default function PlanningTab() {
         [item.id]: { ...(s[item.id] || {}), loading: false, error: err.message || "Couldn't put together a look for this place." },
       }));
     }
+  }
+
+  // item.menu_links (persisted) seeds the draft the first time it's
+  // needed; after that, whatever's actually been typed wins. Always at
+  // least one (empty) input, same as ContentTab's own version.
+  function getMenuLinks(item) {
+    if (menuLinksDrafts[item.id]) return menuLinksDrafts[item.id];
+    return item.menu_links?.length ? item.menu_links : [""];
+  }
+
+  function updateMenuLink(item, index, value) {
+    const current = getMenuLinks(item);
+    const next = current.map((l, i) => (i === index ? value : l));
+    setMenuLinksDrafts((d) => ({ ...d, [item.id]: next }));
+  }
+
+  function addMenuLink(item) {
+    const current = getMenuLinks(item);
+    if (current.length >= MAX_MENU_LINKS) return;
+    setMenuLinksDrafts((d) => ({ ...d, [item.id]: [...current, ""] }));
+  }
+
+  function removeMenuLink(item, index) {
+    const current = getMenuLinks(item);
+    const next = current.filter((_, i) => i !== index);
+    setMenuLinksDrafts((d) => ({ ...d, [item.id]: next.length > 0 ? next : [""] }));
+  }
+
+  function handleMenuFileChange(item, e) {
+    const file = e.target.files?.[0] || null;
+    if (file && file.size > MAX_MENU_FILE_BYTES) {
+      setMenuFileErrors((errs) => ({ ...errs, [item.id]: "That file's too big - please use something under 4MB (a phone photo of the menu is fine)." }));
+      setMenuFiles((f) => ({ ...f, [item.id]: null }));
+      e.target.value = "";
+      return;
+    }
+    setMenuFileErrors((errs) => ({ ...errs, [item.id]: null }));
+    setMenuFiles((f) => ({ ...f, [item.id]: file }));
   }
 
   async function deleteItem(id) {
@@ -317,6 +388,64 @@ export default function PlanningTab() {
             onChange={(e) => setFocusDrafts((d) => ({ ...d, [item.id]: e.target.value }))}
           />
         </div>
+
+        {(() => {
+          const menuLinks = getMenuLinks(item);
+          const menuFile = menuFiles[item.id] || null;
+          const menuFileError = menuFileErrors[item.id];
+          return (
+            <div className="field" style={{ marginBottom: 8 }}>
+              <label htmlFor={`menuLink0-${item.id}`}>
+                Menu link{menuLinks.length > 1 ? "s" : ""} (optional)
+              </label>
+              {menuLinks.map((link, i) => (
+                <div key={i} style={{ display: "flex", gap: 6, marginBottom: i < menuLinks.length - 1 ? 6 : 0 }}>
+                  <input
+                    id={i === 0 ? `menuLink0-${item.id}` : undefined}
+                    placeholder="https://theirsite.com/menu"
+                    value={link}
+                    onChange={(e) => updateMenuLink(item, i, e.target.value)}
+                  />
+                  {menuLinks.length > 1 && (
+                    <button
+                      type="button"
+                      className="btn-ghost"
+                      style={{ flexShrink: 0 }}
+                      onClick={() => removeMenuLink(item, i)}
+                      aria-label="Remove this menu link"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              ))}
+              {menuLinks.length < MAX_MENU_LINKS && (
+                <button type="button" className="btn-ghost" style={{ marginTop: 8 }} onClick={() => addMenuLink(item)}>
+                  + Add another menu link
+                </button>
+              )}
+              <p className="hint" style={{ marginTop: 6 }}>
+                Give the app a real menu to ground "Research this place" in, instead of just what search turns up.
+              </p>
+
+              <label htmlFor={`menuFile-${item.id}`} style={{ marginTop: 10, display: "block" }}>
+                Or upload a menu photo/PDF (optional)
+              </label>
+              <input
+                id={`menuFile-${item.id}`}
+                type="file"
+                accept="image/*,application/pdf"
+                onChange={(e) => handleMenuFileChange(item, e)}
+              />
+              {menuFile && <p className="hint" style={{ marginTop: 6 }}>{menuFile.name}</p>}
+              {menuFileError && (
+                <p className="hint" style={{ marginTop: 6, color: "var(--bad)" }}>
+                  {menuFileError}
+                </p>
+              )}
+            </div>
+          );
+        })()}
 
         <div className="place-suggest-row">
           <button type="button" className="btn-ghost" disabled={!!state.loading} onClick={() => research(item)}>
