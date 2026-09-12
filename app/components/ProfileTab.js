@@ -4,6 +4,16 @@ import { useState, useEffect } from "react";
 
 const initialCaptionForm = { platform: "", stats: "", tier: "baseline", why: "", caption: "" };
 
+// No stored title for a caption - just the hook line it already opens
+// with (this app's captions are always written hook-first, blank line,
+// then body), trimmed to a card-friendly length. Good enough as a "what
+// is this one about" label without needing a real title field/migration.
+function captionTitle(caption) {
+  if (!caption) return "";
+  const firstLine = caption.split("\n")[0].trim();
+  return firstLine.length > 70 ? firstLine.slice(0, 70).trim() + "…" : firstLine;
+}
+
 export default function ProfileTab() {
   const [instructions, setInstructions] = useState([]);
   const [instructionsLoading, setInstructionsLoading] = useState(true);
@@ -16,6 +26,10 @@ export default function ProfileTab() {
   const [captionForm, setCaptionForm] = useState(initialCaptionForm);
   const [savingCaption, setSavingCaption] = useState(false);
   const [editingCaptionId, setEditingCaptionId] = useState(null);
+  // Collapsed by default - one caption's full text open at a time, since
+  // 18+ full captions all expanded at once was the whole problem being
+  // fixed here.
+  const [expandedCaptionId, setExpandedCaptionId] = useState(null);
 
   useEffect(() => {
     loadInstructions();
@@ -198,36 +212,46 @@ export default function ProfileTab() {
             <p className="hint">Nothing added yet - the app is using its built-in defaults until you add some here.</p>
           )}
           <div className="saved-list">
-            {captions.map((c) => (
-              <div key={c.id} className="saved-item">
-                <div className="saved-item-row">
-                  <div className="saved-item-main" style={{ cursor: "default" }}>
-                    <div className="saved-item-idea">
-                      {c.platform}
-                      {c.stats ? ` · ${c.stats}` : ""}
-                    </div>
-                    <div className="saved-item-chips">
-                      <span className={`saved-chip ${c.tier === "outlier" ? "category-chip" : ""}`}>{c.tier}</span>
-                    </div>
-                    {c.why && <div className="saved-item-meta">{c.why}</div>}
-                    <p style={{ fontSize: 13, marginTop: 6, marginBottom: 0, whiteSpace: "pre-wrap" }}>{c.caption}</p>
-                  </div>
-                  <div className="saved-item-actions">
-                    <button type="button" className="saved-item-categorize" onClick={() => editCaption(c)}>
-                      Edit
-                    </button>
+            {captions.map((c) => {
+              const isExpanded = expandedCaptionId === c.id;
+              return (
+                <div key={c.id} className="saved-item">
+                  <div className="saved-item-row">
                     <button
                       type="button"
-                      className="saved-item-delete"
-                      onClick={() => deleteCaption(c.id)}
-                      aria-label="Delete caption"
+                      className="saved-item-main"
+                      onClick={() => setExpandedCaptionId((id) => (id === c.id ? null : c.id))}
                     >
-                      ×
+                      <div className="saved-item-idea">{captionTitle(c.caption)}</div>
+                      <div className="saved-item-chips">
+                        <span className="saved-chip">{c.platform}</span>
+                        <span className={`saved-chip ${c.tier === "outlier" ? "category-chip" : ""}`}>{c.tier}</span>
+                      </div>
                     </button>
+                    <div className="saved-item-actions">
+                      <button type="button" className="saved-item-categorize" onClick={() => editCaption(c)}>
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        className="saved-item-delete"
+                        onClick={() => deleteCaption(c.id)}
+                        aria-label="Delete caption"
+                      >
+                        ×
+                      </button>
+                    </div>
                   </div>
+                  {isExpanded && (
+                    <div style={{ padding: "0 10px 10px" }}>
+                      {c.stats && <div className="saved-item-meta">{c.stats}</div>}
+                      {c.why && <div className="saved-item-meta">{c.why}</div>}
+                      <p style={{ fontSize: 13, marginTop: 6, marginBottom: 0, whiteSpace: "pre-wrap" }}>{c.caption}</p>
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <form onSubmit={submitCaption} className="card" style={{ marginTop: 16, background: "var(--bg-raised)" }}>
