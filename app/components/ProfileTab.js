@@ -9,6 +9,7 @@ export default function ProfileTab() {
   const [instructionsLoading, setInstructionsLoading] = useState(true);
   const [newInstruction, setNewInstruction] = useState("");
   const [savingInstruction, setSavingInstruction] = useState(false);
+  const [editingInstructionId, setEditingInstructionId] = useState(null);
 
   const [captions, setCaptions] = useState([]);
   const [captionsLoading, setCaptionsLoading] = useState(true);
@@ -49,21 +50,31 @@ export default function ProfileTab() {
     setCaptionsLoading(false);
   }
 
-  async function addInstruction(e) {
+  function resetInstructionForm() {
+    setNewInstruction("");
+    setEditingInstructionId(null);
+  }
+
+  async function submitInstruction(e) {
     e.preventDefault();
     const text = newInstruction.trim();
     if (!text || savingInstruction) return;
     setSavingInstruction(true);
     try {
-      const res = await fetch("/api/profile-instructions", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ text }),
-      });
+      const isEditing = !!editingInstructionId;
+      const res = await fetch(
+        isEditing ? `/api/profile-instructions/${editingInstructionId}` : "/api/profile-instructions",
+        {
+          method: isEditing ? "PATCH" : "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ text }),
+        }
+      );
       if (res.ok) {
         const data = await res.json();
-        setInstructions((list) => [...list, data.instruction]);
-        setNewInstruction("");
+        const saved = data.instruction;
+        setInstructions((list) => (isEditing ? list.map((i) => (i.id === saved.id ? saved : i)) : [...list, saved]));
+        resetInstructionForm();
       }
     } catch {
       // Leaves the draft text in place so they can just retry.
@@ -71,8 +82,14 @@ export default function ProfileTab() {
     setSavingInstruction(false);
   }
 
+  function editInstruction(i) {
+    setEditingInstructionId(i.id);
+    setNewInstruction(i.text);
+  }
+
   async function deleteInstruction(id) {
     setInstructions((list) => list.filter((i) => i.id !== id));
+    if (editingInstructionId === id) resetInstructionForm();
     try {
       await fetch(`/api/profile-instructions/${id}`, { method: "DELETE" });
     } catch {
@@ -143,6 +160,9 @@ export default function ProfileTab() {
                     {i.text}
                   </div>
                   <div className="saved-item-actions">
+                    <button type="button" className="saved-item-categorize" onClick={() => editInstruction(i)}>
+                      Edit
+                    </button>
                     <button
                       type="button"
                       className="saved-item-delete"
@@ -156,7 +176,7 @@ export default function ProfileTab() {
               </div>
             ))}
           </div>
-          <form onSubmit={addInstruction} style={{ display: "flex", gap: 8, marginTop: 12 }}>
+          <form onSubmit={submitInstruction} style={{ display: "flex", gap: 8, marginTop: 12 }}>
             <input
               placeholder='e.g. "No double hyphens (--) or em dashes in captions"'
               value={newInstruction}
@@ -164,8 +184,13 @@ export default function ProfileTab() {
               style={{ flex: 1 }}
             />
             <button type="submit" className="btn-ghost" disabled={savingInstruction || !newInstruction.trim()}>
-              {savingInstruction ? "Adding…" : "Add"}
+              {savingInstruction ? "Saving…" : editingInstructionId ? "Save changes" : "Add"}
             </button>
+            {editingInstructionId && (
+              <button type="button" className="btn-ghost" onClick={resetInstructionForm}>
+                Cancel
+              </button>
+            )}
           </form>
         </div>
 
