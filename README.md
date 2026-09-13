@@ -236,6 +236,8 @@ Each saved idea can be tagged with one free-text category (a season, a client, a
 
 The `saved_food_items` and `saved_places` tables/API routes (`app/api/food-items/`, `app/api/places/`) are left in the codebase rather than deleted - harmless, just unreachable from the UI now - in case old saved data is still sitting in them from before this change. `saved_searches` is the only one of the three still actively written to.
 
+Discovery also has an optional "What are you looking for?" field alongside Location - a theme/occasion ("christmas things," "date night spots") that gets folded into every category's own search phrasing in `findDiscoveryIdeas` (`lib/claude.js`), rather than just tacked onto the location string. A category is only included in results at all if what it actually turned up genuinely connects to that focus - no padding a category with generic results just to fill it. Saved alongside the rest of the search as `focus`.
+
 Requires one table:
 
 ```sql
@@ -245,11 +247,18 @@ create table saved_searches (
   location text not null,
   categories text[] not null,
   results jsonb not null,
-  category text
+  category text,
+  focus text
 );
 ```
 
-Without it, the Discovery tab's search still works exactly the same — "Save this search" just silently does nothing, same degrade-gracefully rule as everywhere else Supabase is optional in this app.
+If you set this table up before the "What are you looking for?" field existed, run this once to add the new column:
+
+```sql
+alter table saved_searches add column if not exists focus text;
+```
+
+Without this table configured at all, the Discovery tab's search still works exactly the same — "Save this search" just silently does nothing, same degrade-gracefully rule as everywhere else Supabase is optional in this app.
 
 <details>
 <summary>If you have old data in <code>saved_food_items</code>/<code>saved_places</code> from before this change</summary>

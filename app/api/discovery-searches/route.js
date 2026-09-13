@@ -40,11 +40,13 @@ export async function POST(req) {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
-  const { location, categories, results } = body;
+  const { location, categories, results, focus } = body;
 
   if (!location || !results) {
     return NextResponse.json({ error: "location and results are both required." }, { status: 400 });
   }
+
+  const trimmedFocus = typeof focus === "string" ? focus.trim() : "";
 
   const { data, error } = await supabase
     .from("saved_searches")
@@ -52,6 +54,7 @@ export async function POST(req) {
       location,
       categories: categories?.length ? categories : ["all"],
       results,
+      focus: trimmedFocus || null,
     })
     .select()
     .single();

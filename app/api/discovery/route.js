@@ -15,13 +15,13 @@ export async function POST(req) {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
-  const { location, categories } = body;
+  const { location, categories, focus } = body;
 
   if (!location) {
     return NextResponse.json({ error: "location is required." }, { status: 400 });
   }
 
-  const discoveryIdeas = await findDiscoveryIdeas({ location, categories });
+  const discoveryIdeas = await findDiscoveryIdeas({ location, categories, focus });
   if (!discoveryIdeas) {
     return NextResponse.json(
       { error: "Couldn't find things to do there right now. Try again." },

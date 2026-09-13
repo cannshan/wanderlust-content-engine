@@ -66,15 +66,20 @@ function PlaceList({
 export default function DiscoveryTab() {
   const [location, setLocation] = useState("");
   const [categories, setCategories] = useState(["all"]);
+  // Optional theme/occasion ("christmas things", "date night spots") -
+  // folded into every category's search phrasing rather than just
+  // appended to the location, see findDiscoveryIdeas in lib/claude.js.
+  const [focus, setFocus] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState(null);
-  // Captured at search time, not read live from `location`/`categories` -
-  // those stay editable for the next search while a saved search still
-  // needs to record what was actually searched to produce it (same
-  // formSnapshot idea as ContentTab.js).
+  // Captured at search time, not read live from `location`/`categories`/
+  // `focus` - those stay editable for the next search while a saved
+  // search still needs to record what was actually searched to produce it
+  // (same formSnapshot idea as ContentTab.js).
   const [resultLocation, setResultLocation] = useState("");
   const [resultCategories, setResultCategories] = useState(["all"]);
+  const [resultFocus, setResultFocus] = useState("");
 
   const [savedSearches, setSavedSearches] = useState([]);
   const [savedSearchesLoading, setSavedSearchesLoading] = useState(true);
@@ -143,13 +148,14 @@ export default function DiscoveryTab() {
       const res = await fetch("/api/discovery", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ location: location.trim(), categories }),
+        body: JSON.stringify({ location: location.trim(), categories, focus: focus.trim() }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Couldn't find things to do there.");
       setResult(data.discoveryIdeas);
       setResultLocation(location.trim());
       setResultCategories(categories);
+      setResultFocus(focus.trim());
     } catch (err) {
       setError(err.message || "Couldn't find things to do there.");
     }
@@ -209,7 +215,7 @@ export default function DiscoveryTab() {
       const res = await fetch("/api/discovery-searches", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ location: resultLocation, categories: resultCategories, results: result }),
+        body: JSON.stringify({ location: resultLocation, categories: resultCategories, results: result, focus: resultFocus }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -225,9 +231,11 @@ export default function DiscoveryTab() {
   function loadSavedSearch(saved) {
     setLocation(saved.location);
     setCategories(saved.categories?.length ? saved.categories : ["all"]);
+    setFocus(saved.focus || "");
     setResult(saved.results);
     setResultLocation(saved.location);
     setResultCategories(saved.categories || ["all"]);
+    setResultFocus(saved.focus || "");
     setCurrentSavedSearchId(saved.id);
     setError("");
   }
@@ -255,6 +263,16 @@ export default function DiscoveryTab() {
               placeholder="Maine, or Boothbay Harbor, Maine"
               value={location}
               onChange={(e) => setLocation(e.target.value)}
+            />
+          </div>
+
+          <div className="field">
+            <label htmlFor="discoveryFocus">What are you looking for? (optional)</label>
+            <input
+              id="discoveryFocus"
+              placeholder="Christmas things, date night spots, family-friendly"
+              value={focus}
+              onChange={(e) => setFocus(e.target.value)}
             />
           </div>
 
@@ -298,6 +316,12 @@ export default function DiscoveryTab() {
                 {currentSavedSearchId ? "Saved" : savingSearch ? "Saving…" : "Save this search"}
               </button>
             </div>
+
+            {resultFocus && (
+              <p className="hint" style={{ marginBottom: 16 }}>
+                Filtered to: <strong>{resultFocus}</strong>
+              </p>
+            )}
 
             <div style={{ marginBottom: 20 }}>
               <p className="hint" style={{ marginBottom: 8, fontWeight: 600 }}>
@@ -389,6 +413,7 @@ export default function DiscoveryTab() {
                     <div className="saved-item-idea">{s.location}</div>
                     <div className="saved-item-meta">
                       {placeCount} place{placeCount === 1 ? "" : "s"}
+                      {s.focus ? ` · ${s.focus}` : ""}
                     </div>
                     <div className="saved-item-chips">
                       {s.category && <span className="saved-chip category-chip">{s.category}</span>}
