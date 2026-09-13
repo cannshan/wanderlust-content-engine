@@ -315,6 +315,31 @@ Verified the cap doesn't cost real accuracy: tested live against Barnacle Billy'
 
 A "What to Wear" result isn't persisted anywhere - it's ephemeral React state on the Planning tab, same as it was ephemeral on Discovery before this change, so it clears on refresh and re-runs from scratch (a fresh live search) each time the button's clicked.
 
+## Tracking what Claude API calls actually cost
+
+Every real Claude API call in `lib/claude.js` runs through `logUsage()`, which computes the real dollar cost from what Anthropic's response actually billed (input/output/cache tokens at their published per-token rates, plus $0.01 per web search) - not an estimate from `max_tokens` ceilings. It always logs a `[cost] <feature> $0.0123 ...` line to the console; when Supabase is configured, it also writes a row to `api_cost_logs` so spend can be reviewed later instead of scrolled past in server logs.
+
+Requires one table:
+
+```sql
+create table api_cost_logs (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  feature text not null,
+  model text not null,
+  cost_usd numeric not null,
+  input_tokens int not null default 0,
+  output_tokens int not null default 0,
+  cache_read_tokens int not null default 0,
+  cache_write_tokens int not null default 0,
+  searches int not null default 0
+);
+```
+
+Without this table, cost tracking just falls back to the console-only `[cost]` lines - same degrade-gracefully rule as everywhere else Supabase is optional in this app.
+
+`GET /api/cost-logs` (optionally `?limit=`, default 500, max 2000) returns the raw rows plus a `byFeature` summary (call count, total cost, average cost per call) sorted by total spend - open it directly in a browser, or point any tool at it, to see what's actually being spent without querying Supabase directly.
+
 ## Deploying so it works on her phone
 
 The easiest path is [Vercel](https://vercel.com) (built by the makers of Next.js, generous free tier, HTTPS by default):
