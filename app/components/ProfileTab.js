@@ -182,6 +182,17 @@ export default function ProfileTab() {
         <div className="card">
           <h3 style={{ marginTop: 0 }}>Custom instructions</h3>
           <p className="hint">Instructions the app follows on every generation.</p>
+          <form onSubmit={submitInstruction} style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+            <input
+              placeholder='e.g. "No double hyphens (--) or em dashes in captions"'
+              value={newInstruction}
+              onChange={(e) => setNewInstruction(e.target.value)}
+              style={{ flex: 1 }}
+            />
+            <button type="submit" className="btn-ghost" disabled={savingInstruction || !newInstruction.trim()}>
+              {savingInstruction ? "Saving…" : "Add"}
+            </button>
+          </form>
           {instructionsLoading && <p className="hint">Loading…</p>}
           {!instructionsLoading && instructions.length === 0 && <p className="hint">Nothing added yet.</p>}
           <div className="saved-list">
@@ -246,17 +257,6 @@ export default function ProfileTab() {
               );
             })}
           </div>
-          <form onSubmit={submitInstruction} style={{ display: "flex", gap: 8, marginTop: 12 }}>
-            <input
-              placeholder='e.g. "No double hyphens (--) or em dashes in captions"'
-              value={newInstruction}
-              onChange={(e) => setNewInstruction(e.target.value)}
-              style={{ flex: 1 }}
-            />
-            <button type="submit" className="btn-ghost" disabled={savingInstruction || !newInstruction.trim()}>
-              {savingInstruction ? "Saving…" : "Add"}
-            </button>
-          </form>
         </div>
 
         <div className="card" style={{ marginTop: 20 }}>
