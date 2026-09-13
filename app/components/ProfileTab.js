@@ -26,6 +26,9 @@ export default function ProfileTab() {
   const [editingInstructionId, setEditingInstructionId] = useState(null);
   const [editingInstructionDraft, setEditingInstructionDraft] = useState("");
   const [savingInstructionEdit, setSavingInstructionEdit] = useState(false);
+  // Trello-style drag reorder - id (not index) of the row currently being
+  // dragged, or null when nothing is. See handleInstructionDragOver below.
+  const [draggedInstructionId, setDraggedInstructionId] = useState(null);
 
   const [captions, setCaptions] = useState([]);
   const [captionsLoading, setCaptionsLoading] = useState(true);
@@ -133,6 +136,36 @@ export default function ProfileTab() {
     }
   }
 
+  // The list itself reorders live as the dragged row crosses another one,
+  // so by the time the drag ends the on-screen order already IS the new
+  // order - dragEnd just has to persist it.
+  function handleInstructionDragOver(e, overId) {
+    e.preventDefault();
+    if (draggedInstructionId === null || draggedInstructionId === overId) return;
+    setInstructions((list) => {
+      const fromIndex = list.findIndex((i) => i.id === draggedInstructionId);
+      const toIndex = list.findIndex((i) => i.id === overId);
+      if (fromIndex === -1 || toIndex === -1) return list;
+      const reordered = [...list];
+      const [moved] = reordered.splice(fromIndex, 1);
+      reordered.splice(toIndex, 0, moved);
+      return reordered;
+    });
+  }
+
+  async function handleInstructionDragEnd() {
+    setDraggedInstructionId(null);
+    try {
+      await fetch("/api/profile-instructions/reorder", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ids: instructions.map((i) => i.id) }),
+      });
+    } catch {
+      // Already reordered on screen; a failed save just means it reverts next reload.
+    }
+  }
+
   function resetCaptionForm() {
     setCaptionForm(initialCaptionForm);
     setEditingCaptionId(null);
@@ -199,8 +232,27 @@ export default function ProfileTab() {
             {instructions.map((i) => {
               const isEditing = editingInstructionId === i.id;
               return (
-                <div key={i.id} className="saved-item">
+                <div
+                  key={i.id}
+                  className="saved-item"
+                  draggable={!isEditing}
+                  onDragStart={() => setDraggedInstructionId(i.id)}
+                  onDragOver={(e) => handleInstructionDragOver(e, i.id)}
+                  onDragEnd={handleInstructionDragEnd}
+                  style={{
+                    opacity: draggedInstructionId === i.id ? 0.4 : 1,
+                    cursor: isEditing ? "default" : "grab",
+                  }}
+                >
                   <div className="saved-item-row">
+                    {!isEditing && (
+                      <span
+                        aria-hidden="true"
+                        style={{ padding: "0 4px", color: "var(--ink-faint)", flexShrink: 0 }}
+                      >
+                        ⠿
+                      </span>
+                    )}
                     {isEditing ? (
                       <div style={{ display: "flex", gap: 8, flex: 1, padding: "6px 10px" }}>
                         <input

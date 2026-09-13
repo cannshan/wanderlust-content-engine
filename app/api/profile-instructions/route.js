@@ -19,6 +19,7 @@ export async function GET() {
   const { data, error } = await supabase
     .from("profile_instructions")
     .select("*")
+    .order("position", { ascending: true, nullsFirst: false })
     .order("created_at", { ascending: true });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

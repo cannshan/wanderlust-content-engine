@@ -104,7 +104,7 @@ This is deliberately a different, cheaper capability than AI-generating brand-ne
 
 Two editable lists that feed into every Claude call that writes or searches for content - Content tab generation (TikTok/Instagram/YouTube), Reel Voiceover, and (see below) the Discovery tab's own searches:
 
-- **Custom instructions** - free-text rules Leah types in herself: a phrasing habit to avoid ("no double hyphens (--) or em dashes - that reads as AI-written"), a fact the app should always get right, an example food/place it should know about, or anything else it should adhere to. No categories or tiers, just a flat list - meant to stay simple to add to, not another taxonomy to manage. Add, edit, or delete any of them at any time - editing is a real update to the existing row (PATCH), not a delete-and-recreate, so it keeps its place in the list rather than jumping to the end. These are injected last in whichever prompt is using them, framed as overriding the general guidance above them if the two ever conflict, since a rule Leah stated herself should win over general-purpose guidance.
+- **Custom instructions** - free-text rules Leah types in herself: a phrasing habit to avoid ("no double hyphens (--) or em dashes - that reads as AI-written"), a fact the app should always get right, an example food/place it should know about, or anything else it should adhere to. No categories or tiers, just a flat list - meant to stay simple to add to, not another taxonomy to manage. Add, edit, or delete any of them at any time - editing is a real update to the existing row (PATCH), not a delete-and-recreate, so it keeps its place in the list rather than jumping to the end. Reorderable with the ▲▼ buttons on each row - the saved `position` drives both the on-screen order and the order they're injected in, so a rule near the bottom (last-injected) can be moved up to change which one effectively wins if two ever conflict. New ones default to `position: null` and sort after everything else (then by `created_at`) until reordered. These are injected last in whichever prompt is using them, framed as overriding the general guidance above them if the two ever conflict, since a rule Leah stated herself should win over general-purpose guidance.
 - **Voice examples (sample captions)** - the 14 real captions that used to be hardcoded directly in `lib/voiceProfile.js` (`DEFAULT_SAMPLE_CAPTIONS`) now live here instead, editable and addable to. Each one carries platform, optional stats, a tier (`baseline` or `outlier`), an optional "why it outperformed" note (only meaningful for outliers), and the caption text itself - same fields `buildSystemPrompt()` always used, just editable now instead of requiring a code change to add a new one. This one only feeds `buildSystemPrompt()` (caption writing) - it wouldn't mean anything to a Discovery search that isn't writing a caption yet.
 
 **Reach, corrected after launch:** custom instructions initially only reached `buildSystemPrompt()` in `lib/voiceProfile.js` - Content tab captions and Reel Voiceover. `findDiscoveryIdeas`, `findNearbyFilmingIdeas`, and `suggestForPlace` (the Discovery tab's search and per-place suggestion functions) build their prompts independently of `voiceProfile.js` entirely, so an instruction like "look for opportunities to go viral, especially animal content" or "look for trends around the current closest holiday" was only ever shaping how an already-chosen place got written up, never which places actually got surfaced in the first place - even though that's clearly what an instruction like that is for. All three now call `getCustomInstructions()` too (via a small shared `customInstructionsBlock()` helper in `lib/claude.js`) so a rule added once in the Profile tab reaches every part of the app that searches or writes, not just the caption step. Verified live: with those two instructions already in place, a real Discovery search for Ogunquit, Maine in late September surfaced "OgunquitFest / Dogtoberfest Costume Parade" - tagged `animal content` in its own category field - a direct, visible result of both rules actually shaping the search, not just decorating the output afterward.
@@ -117,7 +117,8 @@ Requires two more tables:
 create table profile_instructions (
   id uuid primary key default gen_random_uuid(),
   created_at timestamptz not null default now(),
-  text text not null
+  text text not null,
+  position int
 );
 
 create table profile_captions (
@@ -129,6 +130,12 @@ create table profile_captions (
   why text,
   caption text not null
 );
+```
+
+If you set `profile_instructions` up before reordering existed, run this once to add the new column:
+
+```sql
+alter table profile_instructions add column if not exists position int;
 ```
 
 ## Local setup
