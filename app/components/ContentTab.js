@@ -6,10 +6,14 @@ import { extractVideoFrames } from "../../lib/videoFrames";
 import { useCategorizedItems } from "../../lib/useCategorizedItems";
 import { CategoryFilterRow, CategorizePanel } from "./CategoryUI";
 
-// Raw file size cap for an uploaded menu photo/PDF - base64 encoding
-// inflates size by ~33%, so 4MB raw becomes ~5.3MB in the request body.
-// Kept safely under Vercel's serverless request body limit.
-const MAX_MENU_FILE_BYTES = 4 * 1024 * 1024;
+// Combined raw size cap across every uploaded menu photo/PDF (not per
+// file) - base64 encoding inflates size by ~33%, so 4MB raw becomes
+// ~5.3MB in the request body. Kept safely under Vercel's serverless
+// request body limit regardless of how that 4MB is split across files.
+const MAX_MENU_FILES_TOTAL_BYTES = 4 * 1024 * 1024;
+// A paper menu might need a front and back photo, or separate food/
+// drink shots - 3 is enough room for that without the request ballooning.
+const MAX_MENU_FILES = 3;
 
 // A place can have separate food/drink/dessert menus, or a seasonal one
 // alongside the regular one - 5 is generous room for that without turning
@@ -53,7 +57,7 @@ export default function ContentTab() {
   const [isRestaurant, setIsRestaurant] = useState(false);
   const [restaurantName, setRestaurantName] = useState("");
   const [menuLinks, setMenuLinks] = useState([""]);
-  const [menuFile, setMenuFile] = useState(null);
+  const [menuFiles, setMenuFiles] = useState([]);
   const [menuFileError, setMenuFileError] = useState("");
   const [voiceoverVideoFile, setVoiceoverVideoFile] = useState(null);
   const [voiceoverVideoUrl, setVoiceoverVideoUrl] = useState("");
@@ -154,15 +158,15 @@ export default function ContentTab() {
       instagram: saved.platforms.includes("instagram"),
       youtube: saved.platforms.includes("youtube"),
     });
-    // The menu link(s) come back too, but never a file - that was never
-    // saved in the first place (see the comment on the restaurant_name/
-    // menu_link insert in app/api/ideas/route.js). menu_links (the array
-    // column) is the current source; menu_link (singular) is the fallback
-    // for ideas saved before multiple links were supported.
+    // The menu link(s) come back too, but never the files - those were
+    // never saved in the first place (see the comment on the
+    // restaurant_name/menu_link insert in app/api/ideas/route.js). menu_links
+    // (the array column) is the current source; menu_link (singular) is the
+    // fallback for ideas saved before multiple links were supported.
     setIsRestaurant(!!saved.restaurant_name);
     setRestaurantName(saved.restaurant_name || "");
     setMenuLinks(saved.menu_links?.length ? saved.menu_links : saved.menu_link ? [saved.menu_link] : [""]);
-    setMenuFile(null);
+    setMenuFiles([]);
     setMenuFileError("");
     // Same as the menu file above - the uploaded reel itself was never
     // saved (only the voiceover script/scene summary it produced), so
@@ -259,16 +263,33 @@ export default function ContentTab() {
     setNearbyLoading(false);
   }
 
-  function handleMenuFileChange(e) {
-    const file = e.target.files?.[0] || null;
-    if (file && file.size > MAX_MENU_FILE_BYTES) {
-      setMenuFileError("That file's too big - please use something under 4MB (a phone photo of the menu is fine).");
-      setMenuFile(null);
-      e.target.value = "";
-      return;
-    }
+  // Files accumulate across picks (each pick's FileList replaces the
+  // native input's own selection, so this app keeps its own list instead
+  // and resets the input each time so picking again - even the same file -
+  // still fires onChange).
+  function handleMenuFilesChange(e) {
+    const picked = Array.from(e.target.files || []);
+    e.target.value = "";
+    if (picked.length === 0) return;
+    setMenuFiles((current) => {
+      if (current.length >= MAX_MENU_FILES) {
+        setMenuFileError(`Up to ${MAX_MENU_FILES} files - remove one first.`);
+        return current;
+      }
+      const combined = [...current, ...picked].slice(0, MAX_MENU_FILES);
+      const totalBytes = combined.reduce((sum, f) => sum + f.size, 0);
+      if (totalBytes > MAX_MENU_FILES_TOTAL_BYTES) {
+        setMenuFileError("Those add up to more than 4MB total - try smaller photos, fewer files, or a PDF instead.");
+        return current;
+      }
+      setMenuFileError("");
+      return combined;
+    });
+  }
+
+  function removeMenuFile(index) {
+    setMenuFiles((files) => files.filter((_, i) => i !== index));
     setMenuFileError("");
-    setMenuFile(file);
   }
 
   function updateMenuLink(index, value) {
@@ -385,11 +406,13 @@ export default function ContentTab() {
     }
 
     // The restaurant check is opt-in via the checkbox now, not
-    // auto-detected - only fires (and only reads the uploaded menu file,
-    // which needs converting to base64 first) when isRestaurant is on and
+    // auto-detected - only fires (and only reads the uploaded menu files,
+    // which need converting to base64 first) when isRestaurant is on and
     // a restaurant name was actually given. Styling is opt-in the same
     // way. Neither adds a request at all when its toggle is off.
-    const menuFileBase64 = menuFile ? await fileToBase64(menuFile) : null;
+    const menuFilesData = await Promise.all(
+      menuFiles.map(async (f) => ({ base64: await fileToBase64(f), mediaType: f.type }))
+    );
 
     // If a reel was uploaded alongside the voiceover toggle, the voiceover
     // should come from watching that footage instead of narrating the
@@ -431,8 +454,7 @@ export default function ContentTab() {
             idea: form.idea,
             storyBeat: form.storyBeat,
             menuLinks: trimmedMenuLinks,
-            menuFileBase64,
-            menuFileMediaType: menuFile?.type || null,
+            menuFiles: menuFilesData,
           })
         : Promise.resolve(null),
       fetchContext("/api/location-search", {
@@ -680,9 +702,31 @@ export default function ContentTab() {
             </div>
 
             <div className="field">
-              <label htmlFor="menuFile">Or upload a menu photo/PDF (optional)</label>
-              <input id="menuFile" type="file" accept="image/*,application/pdf" onChange={handleMenuFileChange} />
-              {menuFile && <p className="hint" style={{ marginTop: 6 }}>{menuFile.name}</p>}
+              <label htmlFor="menuFile">Or upload menu photos/PDFs (optional)</label>
+              <input
+                id="menuFile"
+                type="file"
+                accept="image/*,application/pdf"
+                multiple
+                onChange={handleMenuFilesChange}
+              />
+              {menuFiles.length > 0 && (
+                <div style={{ marginTop: 6 }}>
+                  {menuFiles.map((f, i) => (
+                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <p className="hint" style={{ margin: 0, flex: 1 }}>{f.name}</p>
+                      <button
+                        type="button"
+                        className="btn-ghost"
+                        onClick={() => removeMenuFile(i)}
+                        aria-label="Remove this file"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
               {menuFileError && (
                 <p className="hint" style={{ marginTop: 6, color: "var(--bad)" }}>{menuFileError}</p>
               )}

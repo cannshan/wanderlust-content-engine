@@ -25,7 +25,7 @@ export async function POST(req, { params }) {
   }
 
   const { id } = await params;
-  const { name, placeCategory, area, searchLocation, focus, menuLinks, menuFileBase64, menuFileMediaType } = body;
+  const { name, placeCategory, area, searchLocation, focus, menuLinks, menuFiles } = body;
 
   if (!name) {
     return NextResponse.json({ error: "name is required." }, { status: 400 });
@@ -42,8 +42,7 @@ export async function POST(req, { params }) {
     searchLocation,
     focus,
     menuLinks: trimmedMenuLinks,
-    menuFileBase64,
-    menuFileMediaType,
+    menuFiles,
   });
   if (!research) {
     return NextResponse.json({ error: "Couldn't put together research for this place. Try again." }, { status: 500 });

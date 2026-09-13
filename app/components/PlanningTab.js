@@ -17,10 +17,11 @@ function shortArea(area) {
   return (idx === -1 ? area : area.slice(0, idx)).trim();
 }
 
-// Same cap/helper as ContentTab's own restaurant-menu upload - kept
+// Same caps/helper as ContentTab's own restaurant-menu upload - kept
 // separate rather than shared, since it's a few lines and this app
 // doesn't otherwise share client-side helpers between tab components.
-const MAX_MENU_FILE_BYTES = 4 * 1024 * 1024;
+const MAX_MENU_FILES_TOTAL_BYTES = 4 * 1024 * 1024;
+const MAX_MENU_FILES = 3;
 const MAX_MENU_LINKS = 5;
 
 function fileToBase64(file) {
@@ -83,10 +84,11 @@ export default function PlanningTab() {
   const [styleState, setStyleState] = useState({});
   // Per-item menu link drafts, keyed by item id - initialized from
   // item.menu_links (persisted) the first time an item's inputs render,
-  // then live-edited here same as focusDrafts. The uploaded file itself
-  // is never persisted - only ever sent inline with the next research
-  // call, same "read once, never stored" rule as ContentTab's own menu
-  // upload.
+  // then live-edited here same as focusDrafts. The uploaded files
+  // themselves are never persisted - only ever sent inline with the next
+  // research call, same "read once, never stored" rule as ContentTab's
+  // own menu upload. menuFiles[item.id] is an array (up to
+  // MAX_MENU_FILES), same as ContentTab's menuFiles state.
   const [menuLinksDrafts, setMenuLinksDrafts] = useState({});
   const [menuFiles, setMenuFiles] = useState({});
   const [menuFileErrors, setMenuFileErrors] = useState({});
@@ -232,8 +234,9 @@ export default function PlanningTab() {
   async function research(item, focusOverride) {
     const focus = focusOverride !== undefined ? focusOverride : focusDrafts[item.id] || "";
     const menuLinks = getMenuLinks(item).map((l) => l.trim()).filter(Boolean);
-    const menuFile = menuFiles[item.id] || null;
-    const menuFileBase64 = menuFile ? await fileToBase64(menuFile) : null;
+    const menuFilesData = await Promise.all(
+      (menuFiles[item.id] || []).map(async (f) => ({ base64: await fileToBase64(f), mediaType: f.type }))
+    );
     setResearchState((s) => ({ ...s, [item.id]: { loading: true, error: null } }));
     try {
       const res = await fetch(`/api/planning-items/${item.id}/research`, {
@@ -246,8 +249,7 @@ export default function PlanningTab() {
           searchLocation: item.search_location,
           focus,
           menuLinks,
-          menuFileBase64,
-          menuFileMediaType: menuFile?.type || null,
+          menuFiles: menuFilesData,
         }),
       });
       const data = await res.json();
@@ -321,16 +323,37 @@ export default function PlanningTab() {
     setMenuLinksDrafts((d) => ({ ...d, [item.id]: next.length > 0 ? next : [""] }));
   }
 
-  function handleMenuFileChange(item, e) {
-    const file = e.target.files?.[0] || null;
-    if (file && file.size > MAX_MENU_FILE_BYTES) {
-      setMenuFileErrors((errs) => ({ ...errs, [item.id]: "That file's too big - please use something under 4MB (a phone photo of the menu is fine)." }));
-      setMenuFiles((f) => ({ ...f, [item.id]: null }));
-      e.target.value = "";
-      return;
-    }
+  // Same accumulate-across-picks pattern as ContentTab's own version -
+  // each pick's FileList replaces the native input's own selection, so
+  // this app keeps its own per-item list instead and resets the input
+  // each time so picking again (even the same file) still fires onChange.
+  function handleMenuFilesChange(item, e) {
+    const picked = Array.from(e.target.files || []);
+    e.target.value = "";
+    if (picked.length === 0) return;
+    setMenuFiles((f) => {
+      const current = f[item.id] || [];
+      if (current.length >= MAX_MENU_FILES) {
+        setMenuFileErrors((errs) => ({ ...errs, [item.id]: `Up to ${MAX_MENU_FILES} files - remove one first.` }));
+        return f;
+      }
+      const combined = [...current, ...picked].slice(0, MAX_MENU_FILES);
+      const totalBytes = combined.reduce((sum, file) => sum + file.size, 0);
+      if (totalBytes > MAX_MENU_FILES_TOTAL_BYTES) {
+        setMenuFileErrors((errs) => ({
+          ...errs,
+          [item.id]: "Those add up to more than 4MB total - try smaller photos, fewer files, or a PDF instead.",
+        }));
+        return f;
+      }
+      setMenuFileErrors((errs) => ({ ...errs, [item.id]: null }));
+      return { ...f, [item.id]: combined };
+    });
+  }
+
+  function removeMenuFile(item, index) {
+    setMenuFiles((f) => ({ ...f, [item.id]: (f[item.id] || []).filter((_, i) => i !== index) }));
     setMenuFileErrors((errs) => ({ ...errs, [item.id]: null }));
-    setMenuFiles((f) => ({ ...f, [item.id]: file }));
   }
 
   async function deleteItem(id) {
@@ -391,7 +414,7 @@ export default function PlanningTab() {
 
         {(() => {
           const menuLinks = getMenuLinks(item);
-          const menuFile = menuFiles[item.id] || null;
+          const itemMenuFiles = menuFiles[item.id] || [];
           const menuFileError = menuFileErrors[item.id];
           return (
             <div className="field" style={{ marginBottom: 8 }}>
@@ -429,15 +452,32 @@ export default function PlanningTab() {
               </p>
 
               <label htmlFor={`menuFile-${item.id}`} style={{ marginTop: 10, display: "block" }}>
-                Or upload a menu photo/PDF (optional)
+                Or upload menu photos/PDFs (optional)
               </label>
               <input
                 id={`menuFile-${item.id}`}
                 type="file"
                 accept="image/*,application/pdf"
-                onChange={(e) => handleMenuFileChange(item, e)}
+                multiple
+                onChange={(e) => handleMenuFilesChange(item, e)}
               />
-              {menuFile && <p className="hint" style={{ marginTop: 6 }}>{menuFile.name}</p>}
+              {itemMenuFiles.length > 0 && (
+                <div style={{ marginTop: 6 }}>
+                  {itemMenuFiles.map((f, i) => (
+                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <p className="hint" style={{ margin: 0, flex: 1 }}>{f.name}</p>
+                      <button
+                        type="button"
+                        className="btn-ghost"
+                        onClick={() => removeMenuFile(item, i)}
+                        aria-label="Remove this file"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
               {menuFileError && (
                 <p className="hint" style={{ marginTop: 6, color: "var(--bad)" }}>
                   {menuFileError}
