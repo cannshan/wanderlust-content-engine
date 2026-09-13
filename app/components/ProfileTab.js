@@ -39,6 +39,8 @@ export default function ProfileTab() {
   // 18+ full captions all expanded at once was the whole problem being
   // fixed here.
   const [expandedCaptionId, setExpandedCaptionId] = useState(null);
+  // Same Trello-style drag reorder as instructions above.
+  const [draggedCaptionId, setDraggedCaptionId] = useState(null);
 
   useEffect(() => {
     loadInstructions();
@@ -209,6 +211,35 @@ export default function ProfileTab() {
     }
   }
 
+  // Same live-reorder-while-dragging pattern as handleInstructionDragOver
+  // above.
+  function handleCaptionDragOver(e, overId) {
+    e.preventDefault();
+    if (draggedCaptionId === null || draggedCaptionId === overId) return;
+    setCaptions((list) => {
+      const fromIndex = list.findIndex((c) => c.id === draggedCaptionId);
+      const toIndex = list.findIndex((c) => c.id === overId);
+      if (fromIndex === -1 || toIndex === -1) return list;
+      const reordered = [...list];
+      const [moved] = reordered.splice(fromIndex, 1);
+      reordered.splice(toIndex, 0, moved);
+      return reordered;
+    });
+  }
+
+  async function handleCaptionDragEnd() {
+    setDraggedCaptionId(null);
+    try {
+      await fetch("/api/profile-captions/reorder", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ids: captions.map((c) => c.id) }),
+      });
+    } catch {
+      // Already reordered on screen; a failed save just means it reverts next reload.
+    }
+  }
+
   return (
     <div className="layout">
       <div className="main">
@@ -322,8 +353,19 @@ export default function ProfileTab() {
             {captions.map((c) => {
               const isExpanded = expandedCaptionId === c.id;
               return (
-                <div key={c.id} className="saved-item">
+                <div
+                  key={c.id}
+                  className="saved-item"
+                  draggable
+                  onDragStart={() => setDraggedCaptionId(c.id)}
+                  onDragOver={(e) => handleCaptionDragOver(e, c.id)}
+                  onDragEnd={handleCaptionDragEnd}
+                  style={{ opacity: draggedCaptionId === c.id ? 0.4 : 1, cursor: "grab" }}
+                >
                   <div className="saved-item-row">
+                    <span aria-hidden="true" style={{ padding: "0 4px", color: "var(--ink-faint)", flexShrink: 0 }}>
+                      ⠿
+                    </span>
                     <button
                       type="button"
                       className="saved-item-main"
