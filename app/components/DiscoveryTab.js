@@ -270,7 +270,7 @@ export default function DiscoveryTab() {
             <label htmlFor="discoveryFocus">What are you looking for? (optional)</label>
             <input
               id="discoveryFocus"
-              placeholder="Christmas things, date night spots, etc"
+              placeholder="Christmas things, date night spots"
               value={focus}
               onChange={(e) => setFocus(e.target.value)}
             />
