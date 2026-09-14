@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useCategorizedItems } from "../../lib/useCategorizedItems";
 import { CategoryFilterRow, CategorizePanel } from "./CategoryUI";
 import { AddToPlanningPicker } from "./PlanningPicker";
+import PlanningCalendar from "./PlanningCalendar";
 
 // The `area` field is free text from a live search, not a guaranteed
 // clean "Town, State" - it can come back as a full descriptive aside, e.g.
@@ -15,6 +16,17 @@ function shortArea(area) {
   if (!area) return "";
   const idx = area.indexOf("(");
   return (idx === -1 ? area : area.slice(0, idx)).trim();
+}
+
+// "Oct 15" for the sidebar's compact date chip - built from separate y/m/d
+// numbers rather than `new Date(item.planned_date)` directly, since that
+// parses a bare "YYYY-MM-DD" as UTC midnight, which toLocaleDateString()
+// can then display as the PREVIOUS day in any negative-UTC-offset
+// timezone (all of the US). Same reasoning as dateKey() in
+// PlanningCalendar.js, just in reverse.
+function formatShortDate(isoDate) {
+  const [y, m, d] = isoDate.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
 // Same as DiscoveryTab's own version - a Google Maps search link rather
@@ -114,6 +126,45 @@ export default function PlanningTab() {
   const [menuLinksDrafts, setMenuLinksDrafts] = useState({});
   const [menuFiles, setMenuFiles] = useState({});
   const [menuFileErrors, setMenuFileErrors] = useState({});
+
+  // The month calendar (PlanningCalendar.js) is hidden until the button
+  // next to "Planning" above the search box opens it, then renders as its
+  // own full-width block above the whole two-column layout - a real month
+  // grid needs more width than either the search box or the 280px sidebar
+  // has room for. Starts on the current real month, not tied to whatever
+  // month a selected item's planned_date falls in.
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [calendarDate, setCalendarDate] = useState(() => {
+    const now = new Date();
+    return { year: now.getFullYear(), month: now.getMonth() };
+  });
+
+  function calendarPrevMonth() {
+    setCalendarDate((d) => (d.month === 0 ? { year: d.year - 1, month: 11 } : { year: d.year, month: d.month - 1 }));
+  }
+
+  function calendarNextMonth() {
+    setCalendarDate((d) => (d.month === 11 ? { year: d.year + 1, month: 0 } : { year: d.year, month: d.month + 1 }));
+  }
+
+  // Same optimistic-update, best-effort-PATCH pattern as
+  // useCategorizedItems' applyCategory - low-stakes enough not to need a
+  // loading state, and a failed write just means the next reload shows
+  // the real (unset) state rather than the UI silently drifting forever.
+  // date: a plain "YYYY-MM-DD" string from the <input type="date"> below,
+  // or null to clear it.
+  async function updatePlannedDate(item, date) {
+    setItems((list) => list.map((i) => (i.id === item.id ? { ...i, planned_date: date } : i)));
+    try {
+      await fetch(`/api/planning-items/${item.id}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ plannedDate: date }),
+      });
+    } catch {
+      // Degrades the same way every other best-effort write in this app does.
+    }
+  }
 
   const categorizedHook = useCategorizedItems(items, setItems, "/api/planning-items");
   const selected = items.find((i) => i.id === selectedId) || null;
@@ -415,15 +466,37 @@ export default function PlanningTab() {
             )}
             <br />
             <span className="saved-item-meta">{item.search_location}</span>
-            {item.category && (
+            {(item.category || item.planned_date) && (
               <div className="saved-item-chips">
-                <span className="saved-chip category-chip">{item.category}</span>
+                {item.category && <span className="saved-chip category-chip">{item.category}</span>}
+                {item.planned_date && <span className="saved-chip date-chip">📅 {formatShortDate(item.planned_date)}</span>}
               </div>
             )}
           </div>
           <button type="button" className="btn-ghost place-save-btn" disabled>
             In Planning
           </button>
+        </div>
+
+        <div className="field" style={{ marginTop: 12, marginBottom: 8 }}>
+          <label htmlFor={`date-${item.id}`}>Planned date (optional)</label>
+          <div style={{ display: "flex", gap: 6 }}>
+            <input
+              id={`date-${item.id}`}
+              type="date"
+              value={item.planned_date || ""}
+              onChange={(e) => updatePlannedDate(item, e.target.value || null)}
+              style={{ flex: 1 }}
+            />
+            {item.planned_date && (
+              <button type="button" className="btn-ghost" style={{ flexShrink: 0 }} onClick={() => updatePlannedDate(item, null)}>
+                Clear
+              </button>
+            )}
+          </div>
+          <p className="hint" style={{ marginTop: 6 }}>
+            Set a date to have this show up on the calendar above.
+          </p>
         </div>
 
         <div className="field" style={{ marginTop: 12, marginBottom: 8 }}>
@@ -624,10 +697,26 @@ export default function PlanningTab() {
     selected && searchResults?.some((p) => p.name.toLowerCase() === selected.name.toLowerCase());
 
   return (
-    <div className="layout">
+    <>
+      {calendarOpen && (
+        <PlanningCalendar
+          items={items}
+          year={calendarDate.year}
+          month={calendarDate.month}
+          onPrevMonth={calendarPrevMonth}
+          onNextMonth={calendarNextMonth}
+          onSelectItem={setSelectedId}
+        />
+      )}
+      <div className="layout">
       <div className="main">
         <form onSubmit={onSearchSubmit} className="card">
-          <h3 style={{ marginTop: 0 }}>Planning</h3>
+          <div className="planning-heading-row">
+            <h3 style={{ margin: 0 }}>Planning</h3>
+            <button type="button" className="btn-ghost" onClick={() => setCalendarOpen((v) => !v)}>
+              📅 {calendarOpen ? "Hide calendar" : "Calendar"}
+            </button>
+          </div>
           <div className="field" style={{ marginBottom: 0 }}>
             <label htmlFor="planningSearch">Search for any specific place or experience</label>
             <div style={{ display: "flex", gap: 8 }}>
@@ -801,9 +890,12 @@ export default function PlanningTab() {
                       {item.name}
                     </a>
                   </div>
-                  <div className="saved-item-meta">{shortArea(item.area) || item.search_location}</div>
+                  <div className="saved-item-meta one-line" title={shortArea(item.area) || item.search_location}>
+                    {shortArea(item.area) || item.search_location}
+                  </div>
                   <div className="saved-item-chips">
                     {item.category && <span className="saved-chip category-chip">{item.category}</span>}
+                    {item.planned_date && <span className="saved-chip date-chip">📅 {formatShortDate(item.planned_date)}</span>}
                   </div>
                 </div>
                 <div className="saved-item-actions">
@@ -864,6 +956,7 @@ export default function PlanningTab() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 }

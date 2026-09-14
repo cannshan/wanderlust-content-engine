@@ -90,11 +90,39 @@ export default function Shell() {
         ))}
       </div>
 
-      {activeTab === "content" && <ContentTab />}
-      {activeTab === "discovery" && <DiscoveryTab />}
-      {activeTab === "planning" && <PlanningTab />}
-      {activeTab === "reel-voiceover" && <ReelVoiceoverTab />}
-      {activeTab === "profile" && <ProfileTab />}
+      {/* Every tab stays mounted at all times now, just hidden - switching
+          conditionally rendered ({activeTab === "x" && <XTab />}) unmounted
+          whichever tab wasn't active, and unmounting killed that tab's
+          in-flight fetches' ability to ever update state again (React
+          drops a state update aimed at an unmounted component instead of
+          erroring, so a long Discovery/Generate call in flight looked like
+          it silently stopped - the request itself was still running
+          server-side, but there was no live component left to receive the
+          result when it finished). `hidden` is the plain HTML attribute,
+          not a class - the browser's own UA stylesheet already treats
+          `[hidden]` as `display: none`, no extra CSS needed, and it's
+          automatically removed from the accessibility tree/tab order, so
+          a hidden tab's inputs don't intercept focus or clicks. The real
+          request lifecycle is now: keeps running regardless of which tab
+          is visible, ends only if the browser tab/window actually closes -
+          exactly the intended behavior. */}
+      <div className="tab-panels">
+        <div className="tab-panel" hidden={activeTab !== "content"}>
+          <ContentTab />
+        </div>
+        <div className="tab-panel" hidden={activeTab !== "discovery"}>
+          <DiscoveryTab />
+        </div>
+        <div className="tab-panel" hidden={activeTab !== "planning"}>
+          <PlanningTab />
+        </div>
+        <div className="tab-panel" hidden={activeTab !== "reel-voiceover"}>
+          <ReelVoiceoverTab />
+        </div>
+        <div className="tab-panel" hidden={activeTab !== "profile"}>
+          <ProfileTab />
+        </div>
+      </div>
     </div>
   );
 }

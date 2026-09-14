@@ -49,8 +49,16 @@ html, body {
   /* Defensive baseline - the page itself should never scroll
      horizontally, no matter what overflows somewhere inside it (see
      .top-tabs below for the specific case this was added for). Anything
-     that genuinely needs horizontal scroll should contain it locally. */
-  overflow-x: hidden;
+     that genuinely needs horizontal scroll should contain it locally.
+     `clip`, not `hidden` - per the CSS Overflow spec, overflow-x: hidden
+     forces overflow-y's computed value to auto if it was visible,
+     promoting body into an explicit vertical scroll container even on
+     pages short enough not to need one - on Windows' classic (non-
+     overlay) scrollbar rendering that shows a permanent scrollbar
+     track/gutter on the right regardless of whether there's anything to
+     scroll. `clip` blocks horizontal overflow the same way without that
+     legacy hidden/visible coupling rule applying. */
+  overflow-x: clip;
 }
 
 /* Toggled on document.body only while the login page is mounted (see
@@ -91,12 +99,27 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 .shell {
   max-width: 1100px;
   margin: 0 auto;
-  padding: 22px 20px 60px;
+  padding: 22px 20px 24px;
+}
+
+/* Wraps the 5 always-mounted tab <div hidden={...}> panels (see
+   page.js) - a plain child of .shell on mobile (natural single-column
+   page scroll, same as always), but promoted to fill the remaining
+   viewport height on desktop below (see the min-width block), so each
+   tab's own .main/.sidebar can scroll independently instead of growing
+   the whole page. */
+.tab-panels {
+  min-width: 0;
+}
+
+.tab-panel {
+  min-width: 0;
 }
 
 .layout {
   display: flex;
-  align-items: flex-start;
+  flex-direction: column;
+  align-items: stretch;
   gap: 24px;
 }
 
@@ -107,23 +130,87 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 }
 
 .sidebar {
-  width: 280px;
+  /* Widened from 280px - at 280px, the Planning sidebar's action buttons
+     (Categorize/×) squeezed the name/location column down to ~118px,
+     just short of what a typical "Town, Rhode Island"-length area needs
+     to fit on one line without truncating (the .one-line class on
+     .saved-item-meta, see PlanningTab.js, is still there as a safety net
+     for genuinely long ones). Shared by every tab's sidebar, not just
+     Planning's, for a consistent width across the app. */
+  width: 320px;
   flex-shrink: 0;
   background: var(--bg-raised);
   border: 1px solid var(--line);
   border-radius: 12px;
   box-shadow: var(--shadow);
   padding: 18px;
-  position: sticky;
-  top: 24px;
-  max-height: calc(100vh - 48px);
-  overflow-y: auto;
 }
 
-@media (max-width: 900px) {
-  .layout { flex-direction: column; }
-  .main { max-width: none; width: 100%; }
-  .sidebar { width: 100%; position: static; max-height: none; }
+/* Below this width, everything above stays in its natural, mobile-first
+   shape: .layout stacks main-then-sidebar in one column, and the whole
+   page scrolls together as usual - exactly how it always has. A phone
+   screen is too narrow for two independently-scrolling panes to make
+   sense (scrolling a short .main wouldn't reveal a .sidebar sitting
+   below it if .main trapped the gesture in its own internal scroll), so
+   the fixed-height/independent-scroll behavior below is desktop-only. */
+@media (min-width: 901px) {
+  /* Fixes a real bug, not just a style preference: .shell used to have
+     no height limit, so .main and .sidebar (previously capped to
+     calc(100vh - 48px) via position:sticky) could still leave the
+     OUTER page tall enough to need its own scrollbar on top of each
+     column's own internal one - two scrollbars responding differently
+     depending on where the mouse was. Worse, "48px" was already stale -
+     the real topbar+tabs+padding stack measured 146px, so even the
+     sidebar's own scroll was sized wrong. Rather than hardcode the
+     correct number (guaranteed to silently drift again the next time
+     the topbar changes - a new badge, a wrapped line), .shell is now a
+     real fixed-height flex column: topbar and tabs keep their natural
+     height, and .tab-panels flexes to fill exactly whatever's left,
+     with no viewport-height arithmetic anywhere.
+     The outer page itself never scrolls at this width - every tab's
+     .main and .sidebar scroll independently within their own share of
+     that space instead, and Planning's calendar (rendered above
+     .layout only on that tab) still gets its natural height first,
+     with .layout flexing to fill whatever room remains below it. */
+  .shell {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .topbar, .top-tabs { flex-shrink: 0; }
+
+  .tab-panels {
+    flex: 1;
+    min-height: 0;
+  }
+
+  .tab-panel {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* Without this, .tab-panel's own `display: flex` (an author style)
+     would outrank the browser's UA-stylesheet `[hidden] { display:
+     none }` rule regardless of source order - UA styles are the lowest-
+     priority origin in the cascade, so any author rule wins a
+     specificity tie against them. Higher specificity here (class +
+     attribute) restores the hidden tab actually being hidden. */
+  .tab-panel[hidden] {
+    display: none;
+  }
+
+  .layout {
+    flex: 1;
+    min-height: 0;
+    flex-direction: row;
+  }
+
+  .main { overflow-y: auto; }
+  .sidebar { overflow-y: auto; }
 }
 
 .saved-list {
@@ -196,6 +283,18 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   overflow-wrap: break-word;
 }
 
+/* Scoped to just the Planning sidebar's own use of .saved-item-meta
+   (a "Town, State" area) - not the shared class itself, since other
+   users of it (Profile's longer stats/why text, Discovery's own meta
+   line) still need normal wrapping. Truncates with an ellipsis instead
+   of wrapping to a second row; the full text is still in the title
+   attribute for a hover tooltip. */
+.saved-item-meta.one-line {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .saved-item-chips {
   display: flex;
   gap: 4px;
@@ -224,6 +323,97 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 }
 
 .saved-item-delete:hover { color: var(--bad); }
+
+.planning-heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+/* Renders as its own full-width block above .layout (see PlanningTab.js)
+   rather than inside the sidebar - a real month grid needs more width
+   than the 280px sidebar has room for. */
+.planning-calendar {
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  padding: 18px;
+  margin-bottom: 24px;
+}
+
+.planning-calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.planning-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.planning-calendar-weekday {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--ink-faint);
+  text-align: center;
+  padding-bottom: 6px;
+}
+
+.planning-calendar-cell {
+  min-height: 76px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  overflow: hidden;
+}
+
+.planning-calendar-cell.empty {
+  border-color: transparent;
+  background: transparent;
+}
+
+.planning-calendar-cell.today {
+  border-color: var(--wine);
+  background: var(--wine-soft);
+}
+
+.planning-calendar-daynum {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--ink-faint);
+}
+
+.planning-calendar-pill {
+  background: var(--wine-soft);
+  color: var(--wine);
+  border: none;
+  border-radius: 5px;
+  padding: 2px 6px;
+  font-size: 11px;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.planning-calendar-pill:hover { opacity: .8; }
+
+@media (max-width: 640px) {
+  .planning-calendar-cell { min-height: 50px; }
+  .planning-calendar-pill { font-size: 10px; }
+}
 
 .category-chip {
   background: var(--forest-soft);
@@ -611,6 +801,16 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 }
 
 .tab-btn:hover { color: var(--ink); }
+
+/* .tab-btn.active and .tab-btn:hover have equal specificity, so without
+   this, hovering the CURRENTLY ACTIVE tab let :hover's color win by
+   source order alone - the active tab briefly lost its wine highlight
+   (color only; the border-bottom underline stayed wine, since :hover
+   never touches it) right as the mouse landed on it, while an inactive
+   neighbor showed its own hover cleanly. Looked like "hovering directly
+   over it doesn't highlight, but next to it does." Higher specificity
+   here keeps the active tab wine-colored regardless of hover. */
+.tab-btn.active:hover { color: var(--wine); }
 
 .description-box {
   white-space: pre-wrap;

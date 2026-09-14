@@ -57,7 +57,7 @@ An optional **"What are you looking for?"** free-text field sits right above the
 
 **What to Wear** - moved here from Discovery, and changed in kind: instead of purchasable clothing links, this now searches specifically for real photos of real people actually wearing a fitting look for this place's vibe/season/occasion (a fashion blog, a real Instagram/Pinterest post, a street-style roundup) - a mood board, not a shopping list. A purchasable product page is fine too if that's genuinely the best real image a search turns up, but it's no longer the goal. Every image shown still goes through the same two-step verification as before it's displayed (`lib/ogImage.js` for a real preview image, then a Haiku vision check that it genuinely shows someone wearing a fitting look) - see "Per-place suggestions" further down for exactly how that pipeline works; it's unchanged, just repointed at outfit-inspiration photos instead of shoppable items.
 
-Requires one more table (plus the `category` column if you already had `planning_items` from before this):
+Requires one more table (plus a couple of columns if you already had `planning_items` from before this):
 
 ```sql
 create table planning_items (
@@ -72,12 +72,18 @@ create table planning_items (
   search_location text not null,
   category text,
   research jsonb,
-  researched_at timestamptz
+  researched_at timestamptz,
+  menu_links text[],
+  planned_date date
 );
 
--- if the table already existed without `category`:
--- alter table planning_items add column category text;
+-- if the table already existed without these columns:
+-- alter table planning_items add column if not exists category text;
+-- alter table planning_items add column if not exists menu_links text[];
+-- alter table planning_items add column if not exists planned_date date;
 ```
+
+`planned_date` (optional, set from the Calendar button in the Planning tab's sidebar) is what populates the calendar view - a plain date, not a timestamp, since a planning item is planned *for* a day, not a specific time.
 
 ## Reel Voiceover tab
 
