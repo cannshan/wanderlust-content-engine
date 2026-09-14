@@ -321,6 +321,8 @@ Every real Claude API call in `lib/claude.js` runs through `logUsage()`, which c
 
 `findDiscoveryIdeas` and `findNearbyFilmingIdeas` also pass their full raw model output into `raw_response` on that same row - those are the two calls whose place NAMEs go straight from the model's own text to the screen with no verification step (unlike the style/food image links, which get fetched and checked before ever being shown), so a wrong-but-well-formed name (parses fine, just isn't the real place) has no other trail to debug from otherwise.
 
+`attemptGeneration` (the main per-platform "Generate" call) passes a readable trace instead: its one live web search's query, the real results that search returned, and the finished `submit_post` call it made, via `summarizeApiBlocks()`. This is what to check when a generated caption states something surprisingly specific (a real event, a TV/movie tie-in) and it's not obvious whether that came from the live search or the model's own training knowledge - the trace shows the actual search query and whether the claim genuinely appears in a real result's title, or never showed up in search at all.
+
 Requires one table:
 
 ```sql
