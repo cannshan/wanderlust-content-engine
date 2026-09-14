@@ -599,17 +599,20 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
   max-width: 360px;
   margin: 0 auto;
-  padding: 0 20px;
+  /* True 50% vertical centering (justify-content: center) reads as too
+     low - eyes scan top-down, so dead-center feels off-balance. Anchored
+     from the top instead, at a fixed distance rather than a fraction of
+     viewport height, so it doesn't drift on very tall/short screens. */
+  padding: 14vh 20px 0;
   text-align: center;
 }
 
 .login-wordmark {
   font-size: 34px;
   color: var(--wine);
-  margin: 0 0 32px;
+  margin: 0 0 16px;
 }
 
 /* The wordmark above reads centered, but form fields inside the
