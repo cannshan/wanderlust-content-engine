@@ -319,6 +319,8 @@ A "What to Wear" result isn't persisted anywhere - it's ephemeral React state on
 
 Every real Claude API call in `lib/claude.js` runs through `logUsage()`, which computes the real dollar cost from what Anthropic's response actually billed (input/output/cache tokens at their published per-token rates, plus $0.01 per web search) - not an estimate from `max_tokens` ceilings. It also times the call itself (`Date.now()` right before the request, subtracted off after the response comes back), so slow-feature questions ("why did that search take two minutes") have a real number behind them instead of a guess. It always logs a `[cost] <feature> $0.0123 ... duration_ms=...` line to the console; when Supabase is configured, it also writes a row to `api_cost_logs` so both can be reviewed later instead of scrolled past in server logs.
 
+`findDiscoveryIdeas` and `findNearbyFilmingIdeas` also pass their full raw model output into `raw_response` on that same row - those are the two calls whose place NAMEs go straight from the model's own text to the screen with no verification step (unlike the style/food image links, which get fetched and checked before ever being shown), so a wrong-but-well-formed name (parses fine, just isn't the real place) has no other trail to debug from otherwise.
+
 Requires one table:
 
 ```sql
@@ -333,19 +335,26 @@ create table api_cost_logs (
   cache_read_tokens int not null default 0,
   cache_write_tokens int not null default 0,
   searches int not null default 0,
-  duration_ms int
+  duration_ms int,
+  raw_response text
 );
 ```
 
-If you set this table up before timing was tracked, run this once to add the new column:
+If you set this table up before timing was tracked, run this once to add that column:
 
 ```sql
 alter table api_cost_logs add column if not exists duration_ms int;
 ```
 
+If you set this table up before raw responses were logged, run this once to add that column:
+
+```sql
+alter table api_cost_logs add column if not exists raw_response text;
+```
+
 Without this table, cost/timing tracking just falls back to the console-only `[cost]` lines - same degrade-gracefully rule as everywhere else Supabase is optional in this app.
 
-`GET /api/cost-logs` (optionally `?limit=`, default 500, max 2000; `?since=<ISO timestamp>` to filter to rows at or after that time) returns the raw rows plus a `byFeature` summary (call count, total cost, average cost per call, average duration) sorted by total spend - open it directly in a browser, or point any tool at it, to see what's actually being spent (and how long it's taking) without querying Supabase directly.
+`GET /api/cost-logs` (optionally `?limit=`, default 500, max 2000; `?since=<ISO timestamp>` to filter to rows at or after that time) returns the raw rows plus a `byFeature` summary (call count, total cost, average cost per call, average duration) sorted by total spend - open it directly in a browser, or point any tool at it, to see what's actually being spent (and how long it's taking) without querying Supabase directly. Rows leave out `raw_response` by default (see the comment in `app/api/cost-logs/route.js`) - add `?includeRaw=1` to get it back, e.g. when tracking down a specific bad Discovery/Nearby result.
 
 A small "This week: $X.XX" badge in the top bar (`app/components/WeeklySpend.js`) shows a running total since the most recent Monday, refreshed every 60 seconds - reads the same `/api/cost-logs?since=` endpoint, and renders nothing at all if the table isn't configured yet rather than showing an error.
 

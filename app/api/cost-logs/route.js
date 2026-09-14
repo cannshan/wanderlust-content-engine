@@ -11,6 +11,17 @@ import { getSupabase } from "../../../lib/supabase";
 // (see WeeklySpend.js) computes the start of the current week client-side
 // and passes it here, rather than this route owning a fixed idea of what
 // "the week" means.
+//
+// raw_response (the full model output logUsage() stores for
+// findDiscoveryIdeas/findNearbyFilmingIdeas - see lib/claude.js) is left
+// out of the default row shape and only included with ?includeRaw=1 -
+// WeeklySpend.js polls this route every 60 seconds for a cost total it
+// never looks at raw text for, and that text can run several KB per row,
+// so dragging it along on every poll would be pure wasted bandwidth for a
+// field only ever needed when actually debugging a specific bad result.
+const LOG_COLUMNS =
+  "id, created_at, feature, model, cost_usd, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, searches, duration_ms";
+
 export async function GET(req) {
   const supabase = getSupabase();
   if (!supabase) {
@@ -23,8 +34,13 @@ export async function GET(req) {
   const { searchParams } = new URL(req.url);
   const limit = Math.min(parseInt(searchParams.get("limit") || "500", 10) || 500, 2000);
   const since = searchParams.get("since");
+  const includeRaw = searchParams.get("includeRaw") === "1";
 
-  let query = supabase.from("api_cost_logs").select("*").order("created_at", { ascending: false }).limit(limit);
+  let query = supabase
+    .from("api_cost_logs")
+    .select(includeRaw ? `${LOG_COLUMNS}, raw_response` : LOG_COLUMNS)
+    .order("created_at", { ascending: false })
+    .limit(limit);
   if (since) query = query.gte("created_at", since);
   const { data, error } = await query;
 
