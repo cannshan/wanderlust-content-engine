@@ -877,25 +877,11 @@ export default function ContentTab() {
                 {copied === "description" ? "Copied" : "Copy description"}
               </button>
 
-              {platform.hashtags?.length > 0 && (
-                <div className="field">
-                  <label>Hashtags</label>
-                  <div className="chipset">
-                    {platform.hashtags.map((tag) => (
-                      <span className="chip" key={tag}>{tag}</span>
-                    ))}
-                  </div>
-                  <button
-                    className="btn-ghost"
-                    onClick={() => copy(platform.hashtags.join(" "), "tags")}
-                  >
-                    {copied === "tags" ? "Copied" : "Copy just the tags"}
-                  </button>
-                </div>
-              )}
-
               {platform.hashtag_rationale && (
-                <p className="rationale" style={{ marginTop: 16 }}>{platform.hashtag_rationale}</p>
+                <div className="field" style={{ marginTop: 16 }}>
+                  <label>Hashtags</label>
+                  <p className="rationale">{platform.hashtag_rationale}</p>
+                </div>
               )}
 
               {platform.video_length && (
