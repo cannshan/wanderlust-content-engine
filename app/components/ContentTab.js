@@ -779,7 +779,7 @@ export default function ContentTab() {
               onClick={() => update("lengthSeconds", 30)}
             >
               <span className="goal-title">~30 seconds</span>
-              <span className="goal-sub">Faster/punchier — won't earn from TikTok Creator Rewards</span>
+              <span className="goal-sub">Faster/punchier — won't earn</span>
             </button>
           </div>
         </div>
