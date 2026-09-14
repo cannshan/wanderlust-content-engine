@@ -323,6 +323,7 @@ export default function PlanningTab() {
           focus,
           menuLinks,
           menuFiles: menuFilesData,
+          plannedDate: item.planned_date || null,
         }),
       });
       const data = await res.json();
@@ -607,6 +608,19 @@ export default function PlanningTab() {
         {r && (
           <div style={{ marginTop: 12 }}>
             {r.summary && <p className="rationale">{r.summary}</p>}
+
+            {r.whatsHappeningThen?.length > 0 && (
+              <div style={{ marginTop: 10 }}>
+                <p className="hint" style={{ fontWeight: 600, marginBottom: 6 }}>
+                  📅 Happening around {item.planned_date ? formatShortDate(item.planned_date) : "your visit"}
+                </p>
+                <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13 }}>
+                  {r.whatsHappeningThen.map((t, ti) => (
+                    <li key={ti}>{t}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             {r.wildFoodAndDrink?.length > 0 && (
               <div style={{ marginTop: 10 }}>

@@ -275,7 +275,7 @@ export default function ProfileTab() {
                     cursor: isEditing ? "default" : "grab",
                   }}
                 >
-                  <div className="saved-item-row">
+                  <div className="saved-item-row reorder-row">
                     {!isEditing && (
                       <span
                         aria-hidden="true"
@@ -362,7 +362,7 @@ export default function ProfileTab() {
                   onDragEnd={handleCaptionDragEnd}
                   style={{ opacity: draggedCaptionId === c.id ? 0.4 : 1, cursor: "grab" }}
                 >
-                  <div className="saved-item-row">
+                  <div className="saved-item-row reorder-row">
                     <span aria-hidden="true" style={{ padding: "0 4px", color: "var(--ink-faint)", flexShrink: 0 }}>
                       ⠿
                     </span>

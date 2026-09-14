@@ -231,27 +231,70 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   background: var(--wine-soft);
 }
 
+/* Stacked (actions row, then main content), not side-by-side - side-by-side
+   used to squeeze .saved-item-main into roughly half the card's width
+   (Categorize + × ate the other half), which mattered once a card's meta
+   line got long (a Discovery saved search's location + place count + a
+   free-text focus note like "can you scan all reviews in an hour radius
+   for 'bernese mountain dog'" wrapped to 3 lines in that narrow column,
+   even though the card itself had plenty of unused width). Stacking
+   lets the text use the full card width, and the actions - short,
+   right-aligned, one line - cost far less height back than the wrapping
+   they used to cause. The actions sit at the card's top edge (see the
+   order: -1 below). */
 .saved-item-row {
   display: flex;
-  align-items: stretch;
-  gap: 4px;
+  flex-direction: column;
 }
 
 .saved-item-main {
-  flex: 1;
+  width: 100%;
   min-width: 0;
   text-align: left;
   background: transparent;
   border: none;
-  padding: 10px 10px;
+  padding: 2px 10px 10px;
   cursor: pointer;
 }
 
+/* order: -1 puts the actions above the content visually while leaving
+   them last in the DOM - deliberate, not an accident of markup. The
+   card's own name/meta button is the thing you're looking for when you
+   scan the sidebar, so it stays first for a screen reader and for tab
+   order; Categorize/x are secondary controls that just happen to read
+   better pinned to the card's top edge. Flipping the JSX instead would
+   have moved them ahead of the content in both. */
 .saved-item-actions {
+  order: -1;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
+  justify-content: flex-end;
   gap: 2px;
-  padding-top: 6px;
+  padding: 6px 6px 0;
+}
+
+/* Profile's two reorderable lists (instructions, captions) put a drag
+   grip in the row as a sibling of the content, and a grip only reads as
+   one when it sits BESIDE what it drags - stacking would strand it on
+   its own line above the card. Those rows keep the original horizontal
+   layout; the stacking above is for the sidebars whose rows are just
+   content + actions, with nothing that needs to sit alongside. */
+.saved-item-row.reorder-row {
+  flex-direction: row;
+  align-items: stretch;
+  gap: 4px;
+}
+
+.reorder-row .saved-item-main {
+  width: auto;
+  flex: 1;
+  padding: 10px 10px;
+}
+
+.reorder-row .saved-item-actions {
+  order: 0;
+  align-items: flex-start;
+  padding: 6px 0 0;
 }
 
 .saved-item-categorize {
