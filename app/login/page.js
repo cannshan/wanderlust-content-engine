@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 function LoginForm() {
@@ -9,6 +9,16 @@ function LoginForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // The whole page is one small centered card - there's never a genuine
+  // need to scroll here, so lock it while this page is mounted. Scoped
+  // to a body class (not a global overflow:hidden in globals.css) so it
+  // reverts automatically the moment the real app - which does need to
+  // scroll - takes over after a successful login.
+  useEffect(() => {
+    document.body.classList.add("no-scroll");
+    return () => document.body.classList.remove("no-scroll");
+  }, []);
 
   async function onSubmit(e) {
     e.preventDefault();

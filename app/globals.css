@@ -46,7 +46,17 @@ html, body {
   font-family: 'Work Sans', ui-sans-serif, system-ui, sans-serif;
   margin: 0;
   line-height: 1.5;
+  /* Defensive baseline - the page itself should never scroll
+     horizontally, no matter what overflows somewhere inside it (see
+     .top-tabs below for the specific case this was added for). Anything
+     that genuinely needs horizontal scroll should contain it locally. */
+  overflow-x: hidden;
 }
+
+/* Toggled on document.body only while the login page is mounted (see
+   app/login/page.js) - that page never has more content than fits one
+   screen, so scrolling there is never actually needed. */
+body.no-scroll { overflow: hidden; }
 
 h1, h2, h3 {
   font-family: 'Fraunces', Georgia, serif;
@@ -317,9 +327,26 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 
 .topbar h1 { font-size: 24px; color: var(--wine); }
 
-.monthly-spend {
+/* Mirrors .monthly-spend's positioning on the opposite corner - that one
+   is localhost-only, this one is for everyone, so they need to coexist
+   without colliding when both happen to be visible at once. */
+.signout-btn {
   position: absolute;
   right: 0;
+  bottom: 2px;
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--ink-soft);
+  border-radius: 7px;
+  padding: 5px 10px;
+  font-size: 12px;
+}
+
+.signout-btn:hover { border-color: var(--wine); color: var(--wine); }
+
+.monthly-spend {
+  position: absolute;
+  left: 0;
   bottom: 2px;
   font-family: 'IBM Plex Mono', monospace;
   font-size: 12px;
@@ -540,11 +567,31 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   gap: 8px;
   border-bottom: 1px solid var(--line);
   margin-bottom: 28px;
+  /* 5 tabs (one two-word) don't fit at phone widths - contained here as
+     its own small horizontal swipe strip (standard mobile tab-bar
+     pattern) instead of letting the overflow drag the whole page
+     sideways, which is what happened before this was added. */
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.top-tabs::-webkit-scrollbar { display: none; }
+
+@media (max-width: 480px) {
+  /* justify-content: center on an overflowing flex row is a known trap -
+     the browser centers first, then some browsers make the START of the
+     overflow unreachable even while scrolling. Only matters once 5 tabs
+     genuinely don't fit, so scoped to the widths where that's true. */
+  .top-tabs { justify-content: flex-start; }
 }
 
 .top-tabs .tab-btn {
   padding: 10px 16px;
   font-size: 15px;
+  /* Without this, flex would squeeze labels ("Reel Voiceover") to fit
+     rather than let the strip scroll, which is the whole point above. */
+  flex-shrink: 0;
 }
 
 .tab-btn {

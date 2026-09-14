@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import ContentTab from "./components/ContentTab";
 import DiscoveryTab from "./components/DiscoveryTab";
 import PlanningTab from "./components/PlanningTab";
@@ -19,10 +20,24 @@ const TABS = [
 const ACTIVE_TAB_STORAGE_KEY = "wwwActiveTab";
 
 export default function Shell() {
+  const router = useRouter();
   // Starts on Discovery (matches server-rendered HTML, avoiding a
   // hydration mismatch), then a client-only effect below restores
   // whatever tab was open before a refresh, from localStorage.
   const [activeTab, setActiveTab] = useState("discovery");
+
+  // Clears the auth cookie server-side, then a hard-ish redirect - not
+  // just router.push, since proxy.js's own cookie check is what actually
+  // decides access; router.refresh() forces it to re-run against the
+  // now-cleared cookie rather than trusting stale client-side state.
+  async function signOut() {
+    try {
+      await fetch("/api/logout", { method: "POST" });
+    } finally {
+      router.push("/login");
+      router.refresh();
+    }
+  }
 
   useEffect(() => {
     try {
@@ -53,6 +68,9 @@ export default function Shell() {
   return (
     <div className="shell">
       <div className="topbar">
+        <button type="button" className="signout-btn" onClick={signOut}>
+          Sign out
+        </button>
         <div>
           <h1>Wine Wilderness Wanderlust</h1>
         </div>
