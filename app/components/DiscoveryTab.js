@@ -6,6 +6,18 @@ import { useCategorizedItems } from "../../lib/useCategorizedItems";
 import { CategoryFilterRow, CategorizePanel } from "./CategoryUI";
 import { AddToPlanningPicker } from "./PlanningPicker";
 
+// A Google Maps search link rather than trying to have the model cite an
+// exact source URL for each place - that would mean trusting a citation
+// the app never verifies (unlike suggestForPlace's style/food images,
+// which go through a real fetch-and-check step before ever being shown).
+// A maps search always resolves to something real and useful for "let me
+// quickly check this place out" - photos, reviews, hours, address - for
+// any real place name, with no risk of a wrong or invented link.
+function mapsSearchUrl(name, area) {
+  const query = [name, area].filter(Boolean).join(", ");
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+}
+
 function PlaceList({
   places,
   emptyHint,
@@ -31,7 +43,9 @@ function PlaceList({
           <li key={i}>
             <div className="place-row">
               <div className="place-info">
-                <strong>{place.name}</strong>
+                <a href={mapsSearchUrl(place.name, place.area)} target="_blank" rel="noopener noreferrer" className="place-link">
+                  <strong>{place.name}</strong>
+                </a>
                 {place.category ? ` — ${place.category}` : ""}
                 {place.area ? ` (${place.area})` : ""}
                 <br />

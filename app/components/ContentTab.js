@@ -15,6 +15,15 @@ const MAX_MENU_FILES_TOTAL_BYTES = 4 * 1024 * 1024;
 // drink shots - 3 is enough room for that without the request ballooning.
 const MAX_MENU_FILES = 3;
 
+// Same as DiscoveryTab's/PlanningTab's own version - a Google Maps search
+// link rather than a model-cited source URL the app never verifies. Only
+// ever passed a name here (nearby-ideas places carry DISTANCE, not AREA -
+// "~8 miles, 15 min drive" isn't useful appended to a maps query the way a
+// real town/neighborhood name is), which Maps resolves fine on its own.
+function mapsSearchUrl(name) {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(name)}`;
+}
+
 // A place can have separate food/drink/dessert menus, or a seasonal one
 // alongside the regular one - 5 is generous room for that without turning
 // the form into an open-ended list.
@@ -1012,7 +1021,7 @@ export default function ContentTab() {
                   <ul className="shotlist">
                     {nearbyResult.viral.map((place, i) => (
                       <li key={i}>
-                        <strong>{place.name}</strong>
+                        <a href={mapsSearchUrl(place.name)} target="_blank" rel="noopener noreferrer" className="place-link"><strong>{place.name}</strong></a>
                         {place.category ? ` — ${place.category}` : ""}
                         {place.distance ? ` (${place.distance})` : ""}
                         <br />
@@ -1038,7 +1047,7 @@ export default function ContentTab() {
                   <ul className="shotlist">
                     {nearbyResult.hidden.map((place, i) => (
                       <li key={i}>
-                        <strong>{place.name}</strong>
+                        <a href={mapsSearchUrl(place.name)} target="_blank" rel="noopener noreferrer" className="place-link"><strong>{place.name}</strong></a>
                         {place.category ? ` — ${place.category}` : ""}
                         {place.distance ? ` (${place.distance})` : ""}
                         <br />

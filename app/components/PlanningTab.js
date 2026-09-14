@@ -17,6 +17,14 @@ function shortArea(area) {
   return (idx === -1 ? area : area.slice(0, idx)).trim();
 }
 
+// Same as DiscoveryTab's own version - a Google Maps search link rather
+// than a model-cited source URL the app never verifies. Works for any
+// real place name, no risk of a wrong or invented link.
+function mapsSearchUrl(name, area) {
+  const query = [name, area].filter(Boolean).join(", ");
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+}
+
 // Same caps/helper as ContentTab's own restaurant-menu upload - kept
 // separate rather than shared, since it's a few lines and this app
 // doesn't otherwise share client-side helpers between tab components.
@@ -381,7 +389,9 @@ export default function PlanningTab() {
       <>
         <div className="place-row">
           <div className="place-info">
-            <strong>{item.name}</strong>
+            <a href={mapsSearchUrl(item.name, item.area)} target="_blank" rel="noopener noreferrer" className="place-link">
+              <strong>{item.name}</strong>
+            </a>
             {item.area ? ` (${item.area})` : ""}
             {item.why && (
               <>
@@ -546,7 +556,9 @@ export default function PlanningTab() {
                 </p>
                 {r.nearbyWorthGoing.map((p, pi) => (
                   <div key={pi} style={{ marginBottom: 8 }}>
-                    <strong>{p.name}</strong>
+                    <a href={mapsSearchUrl(p.name, p.area)} target="_blank" rel="noopener noreferrer" className="place-link">
+                      <strong>{p.name}</strong>
+                    </a>
                     {p.area && <span className="food-item-source"> · {p.area}</span>}
                     <div style={{ fontSize: 13 }}>{p.why}</div>
                   </div>
@@ -654,7 +666,9 @@ export default function PlanningTab() {
                   <li key={i}>
                     <div className="place-row">
                       <div className="place-info">
-                        <strong>{place.name}</strong>
+                        <a href={mapsSearchUrl(place.name, place.area)} target="_blank" rel="noopener noreferrer" className="place-link">
+                          <strong>{place.name}</strong>
+                        </a>
                         {place.area ? ` (${place.area})` : ""}
                         <br />
                         {place.why}

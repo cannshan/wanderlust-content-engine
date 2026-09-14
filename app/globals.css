@@ -626,6 +626,14 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 
 .place-info { flex: 1; min-width: 0; }
 
+/* Links a finding's name to a Google Maps search of it (see mapsSearchUrl
+   in DiscoveryTab.js/PlanningTab.js/ContentTab.js) - a dedicated class
+   rather than relying on a parent wrapper, since these appear inside
+   several different layout contexts (.place-info, a plain research-result
+   div, etc.) that don't all share one common ancestor. */
+.place-link { color: inherit; text-decoration: none; }
+.place-link:hover { color: var(--wine); text-decoration: underline; }
+
 .place-save-btn { flex-shrink: 0; }
 
 .place-suggest-row {
