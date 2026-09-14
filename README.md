@@ -349,6 +349,10 @@ Without this table, cost/timing tracking just falls back to the console-only `[c
 
 A small "This week: $X.XX" badge in the top bar (`app/components/WeeklySpend.js`) shows a running total since the most recent Monday, refreshed every 60 seconds - reads the same `/api/cost-logs?since=` endpoint, and renders nothing at all if the table isn't configured yet rather than showing an error.
 
+The badge is hidden by default - there's one shared `DASHBOARD_PASSWORD` for this app, no separate owner login, so visibility is a per-browser `localStorage` flag instead of a real permission. Visit the app once with `?showCosts=1` in the URL (e.g. `https://your-deploy.vercel.app/?showCosts=1`) to unlock it in that browser - it persists after that, so the URL only needs the param the first time. Anyone else using the same shared password, on their own browser/device, never sees it unless they're given that same link.
+
+**Prompt caching on Discovery/Nearby Ideas:** both split their prompt into a location/category-independent instruction block (bucket definitions, evidence rules, output format, a worked example - identical every time) sent as a cached `system` block, and a small per-request block (location, focus, category list, custom instructions) that's never cached. `tools[].max_uses` is deliberately fixed at the "all categories" ceiling on every call, even a 1-category search - that costs nothing extra (`max_uses` is a cap, not a target; the prompt's own "one search per category" instruction is what actually limits search count), but it keeps `tools` byte-identical across every category combination, which is required for the cached instructions to match - Anthropic's cache is a prefix match, and `tools` renders before `system`.
+
 ## Deploying so it works on her phone
 
 The easiest path is [Vercel](https://vercel.com) (built by the makers of Next.js, generous free tier, HTTPS by default):
