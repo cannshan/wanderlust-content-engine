@@ -90,6 +90,20 @@ export default function PlanningTab() {
   // mode: "style"), so it gets its own state rather than overloading
   // researchState with unrelated fields.
   const [styleState, setStyleState] = useState({});
+  // The one style link card clicked open for a bigger look, or null.
+  // Clicking a card used to navigate straight to its source blog - she
+  // just wants to see the outfit photo itself larger, not read someone's
+  // blog post, so the card now opens this in-app lightbox instead
+  // (source link still there, just secondary, inside the lightbox).
+  const [zoomedStyleImage, setZoomedStyleImage] = useState(null);
+  useEffect(() => {
+    if (!zoomedStyleImage) return;
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") setZoomedStyleImage(null);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [zoomedStyleImage]);
   // Per-item menu link drafts, keyed by item id - initialized from
   // item.menu_links (persisted) the first time an item's inputs render,
   // then live-edited here same as focusDrafts. The uploaded files
@@ -577,7 +591,12 @@ export default function PlanningTab() {
             {style.styleLinks?.length > 0 && (
               <div className="style-links">
                 {style.styleLinks.map((link, li) => (
-                  <a key={li} href={link.url} target="_blank" rel="noopener noreferrer" className="style-link-card">
+                  <button
+                    key={li}
+                    type="button"
+                    className="style-link-card"
+                    onClick={() => setZoomedStyleImage(link)}
+                  >
                     {link.imageUrl && (
                       <img
                         src={link.imageUrl}
@@ -588,7 +607,7 @@ export default function PlanningTab() {
                       />
                     )}
                     <span>{link.label}</span>
-                  </a>
+                  </button>
                 ))}
               </div>
             )}
@@ -820,6 +839,31 @@ export default function PlanningTab() {
           ))}
         </div>
       </aside>
+
+      {zoomedStyleImage && (
+        <div
+          className="style-lightbox-overlay"
+          onClick={() => setZoomedStyleImage(null)}
+        >
+          <div className="style-lightbox" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              className="style-lightbox-close"
+              onClick={() => setZoomedStyleImage(null)}
+              aria-label="Close"
+            >
+              ×
+            </button>
+            <img src={zoomedStyleImage.imageUrl} alt={zoomedStyleImage.label} />
+            <div className="style-lightbox-caption">
+              <span>{zoomedStyleImage.label}</span>
+              <a href={zoomedStyleImage.url} target="_blank" rel="noopener noreferrer">
+                View original ↗
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

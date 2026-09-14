@@ -650,12 +650,17 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   margin-top: 8px;
 }
 
+/* A <button> now, not an <a> - clicking opens the lightbox below instead
+   of navigating to the source blog, so the reset properties (font,
+   cursor) that a plain <a> got for free need to be set explicitly. */
 .style-link-card {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 4px;
   width: 96px;
+  font: inherit;
+  cursor: pointer;
   text-decoration: none;
   color: var(--ink-soft);
   font-size: 11px;
@@ -674,6 +679,72 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   object-fit: cover;
   border-radius: 4px;
 }
+
+/* Bigger in-app look at one style photo - she wants to actually see the
+   outfit clearly, not get routed to whatever blog it came from, so
+   clicking a card opens this instead of the source link directly. The
+   source is still one small link in the caption for anyone who does
+   want to trace it back (e.g. to shop it), just no longer the default
+   action. */
+.style-lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 100;
+}
+
+.style-lightbox {
+  position: relative;
+  max-width: min(600px, 100%);
+  max-height: 100%;
+  background: var(--bg-raised);
+  border-radius: 10px;
+  padding: 12px;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.style-lightbox img {
+  max-width: 100%;
+  max-height: 70vh;
+  object-fit: contain;
+  border-radius: 6px;
+}
+
+.style-lightbox-caption {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.style-lightbox-caption a { color: var(--ink-faint); white-space: nowrap; }
+.style-lightbox-caption a:hover { color: var(--wine); }
+
+.style-lightbox-close {
+  position: absolute;
+  top: -12px;
+  right: -12px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--bg-raised);
+  color: var(--ink);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.style-lightbox-close:hover { border-color: var(--wine); color: var(--wine); }
 
 /* Deliberately not .rationale (13px, muted --ink-soft) - a food/activity
    pick is the actual answer to the button someone clicked, not a
