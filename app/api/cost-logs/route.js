@@ -34,9 +34,13 @@ export async function GET(req) {
   let totalCostUsd = 0;
   for (const row of data) {
     totalCostUsd += row.cost_usd;
-    const entry = byFeatureMap[row.feature] || { feature: row.feature, count: 0, cost_usd: 0 };
+    const entry = byFeatureMap[row.feature] || { feature: row.feature, count: 0, cost_usd: 0, durationTotal: 0, durationCount: 0 };
     entry.count += 1;
     entry.cost_usd += row.cost_usd;
+    if (row.duration_ms != null) {
+      entry.durationTotal += row.duration_ms;
+      entry.durationCount += 1;
+    }
     byFeatureMap[row.feature] = entry;
   }
   const byFeature = Object.values(byFeatureMap)
@@ -45,6 +49,7 @@ export async function GET(req) {
       count: entry.count,
       cost_usd: Number(entry.cost_usd.toFixed(4)),
       avg_cost_usd: Number((entry.cost_usd / entry.count).toFixed(4)),
+      avg_duration_ms: entry.durationCount ? Math.round(entry.durationTotal / entry.durationCount) : null,
     }))
     .sort((a, b) => b.cost_usd - a.cost_usd);
 

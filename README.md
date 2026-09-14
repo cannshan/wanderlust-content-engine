@@ -317,7 +317,7 @@ A "What to Wear" result isn't persisted anywhere - it's ephemeral React state on
 
 ## Tracking what Claude API calls actually cost
 
-Every real Claude API call in `lib/claude.js` runs through `logUsage()`, which computes the real dollar cost from what Anthropic's response actually billed (input/output/cache tokens at their published per-token rates, plus $0.01 per web search) - not an estimate from `max_tokens` ceilings. It always logs a `[cost] <feature> $0.0123 ...` line to the console; when Supabase is configured, it also writes a row to `api_cost_logs` so spend can be reviewed later instead of scrolled past in server logs.
+Every real Claude API call in `lib/claude.js` runs through `logUsage()`, which computes the real dollar cost from what Anthropic's response actually billed (input/output/cache tokens at their published per-token rates, plus $0.01 per web search) - not an estimate from `max_tokens` ceilings. It also times the call itself (`Date.now()` right before the request, subtracted off after the response comes back), so slow-feature questions ("why did that search take two minutes") have a real number behind them instead of a guess. It always logs a `[cost] <feature> $0.0123 ... duration_ms=...` line to the console; when Supabase is configured, it also writes a row to `api_cost_logs` so both can be reviewed later instead of scrolled past in server logs.
 
 Requires one table:
 
@@ -332,13 +332,20 @@ create table api_cost_logs (
   output_tokens int not null default 0,
   cache_read_tokens int not null default 0,
   cache_write_tokens int not null default 0,
-  searches int not null default 0
+  searches int not null default 0,
+  duration_ms int
 );
 ```
 
-Without this table, cost tracking just falls back to the console-only `[cost]` lines - same degrade-gracefully rule as everywhere else Supabase is optional in this app.
+If you set this table up before timing was tracked, run this once to add the new column:
 
-`GET /api/cost-logs` (optionally `?limit=`, default 500, max 2000; `?since=<ISO timestamp>` to filter to rows at or after that time) returns the raw rows plus a `byFeature` summary (call count, total cost, average cost per call) sorted by total spend - open it directly in a browser, or point any tool at it, to see what's actually being spent without querying Supabase directly.
+```sql
+alter table api_cost_logs add column if not exists duration_ms int;
+```
+
+Without this table, cost/timing tracking just falls back to the console-only `[cost]` lines - same degrade-gracefully rule as everywhere else Supabase is optional in this app.
+
+`GET /api/cost-logs` (optionally `?limit=`, default 500, max 2000; `?since=<ISO timestamp>` to filter to rows at or after that time) returns the raw rows plus a `byFeature` summary (call count, total cost, average cost per call, average duration) sorted by total spend - open it directly in a browser, or point any tool at it, to see what's actually being spent (and how long it's taking) without querying Supabase directly.
 
 A small "This week: $X.XX" badge in the top bar (`app/components/WeeklySpend.js`) shows a running total since the most recent Monday, refreshed every 60 seconds - reads the same `/api/cost-logs?since=` endpoint, and renders nothing at all if the table isn't configured yet rather than showing an error.
 
