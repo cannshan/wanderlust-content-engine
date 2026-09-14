@@ -33,7 +33,7 @@ function LoginForm() {
 
   return (
     <div className="login-shell">
-      <p className="eyebrow">WWW Content Engine</p>
+      <p className="eyebrow">Wander HQ</p>
       <h1 style={{ fontSize: 24, marginBottom: 20 }}>Enter password</h1>
       <form onSubmit={onSubmit} className="card">
         {error && <div className="error-banner">{error}</div>}

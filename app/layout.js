@@ -1,7 +1,7 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "WWW Content Engine",
+  title: "Wander HQ",
   description: "Description + hashtag generator for Wine Wilderness Wanderlust",
 };
 
