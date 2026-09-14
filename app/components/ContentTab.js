@@ -24,6 +24,16 @@ function mapsSearchUrl(name) {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(name)}`;
 }
 
+// Caption + hashtags as one paste-ready block, tags on their own line at
+// the end - matches how this actually gets pasted into TikTok/Instagram/
+// YouTube (one field, hashtags trailing the caption), rather than two
+// separate copies the user has to paste and stitch together themselves.
+function descriptionWithTags(platform) {
+  return platform.hashtags?.length > 0
+    ? `${platform.description}\n\n${platform.hashtags.join(" ")}`
+    : platform.description;
+}
+
 // A place can have separate food/drink/dessert menus, or a seasonal one
 // alongside the regular one - 5 is generous room for that without turning
 // the form into an open-ended list.
@@ -858,25 +868,31 @@ export default function ContentTab() {
                 </div>
               )}
 
-              <div className="description-box">{platform.description}</div>
-              <button className="btn-ghost" onClick={() => copy(platform.description, "description")} style={{ marginBottom: 20 }}>
+              <div className="description-box">{descriptionWithTags(platform)}</div>
+              <button
+                className="btn-ghost"
+                onClick={() => copy(descriptionWithTags(platform), "description")}
+                style={{ marginBottom: 20 }}
+              >
                 {copied === "description" ? "Copied" : "Copy description"}
               </button>
 
-              <div className="field">
-                <label>Hashtags</label>
-                <div className="chipset">
-                  {platform.hashtags?.map((tag) => (
-                    <span className="chip" key={tag}>{tag}</span>
-                  ))}
+              {platform.hashtags?.length > 0 && (
+                <div className="field">
+                  <label>Hashtags</label>
+                  <div className="chipset">
+                    {platform.hashtags.map((tag) => (
+                      <span className="chip" key={tag}>{tag}</span>
+                    ))}
+                  </div>
+                  <button
+                    className="btn-ghost"
+                    onClick={() => copy(platform.hashtags.join(" "), "tags")}
+                  >
+                    {copied === "tags" ? "Copied" : "Copy just the tags"}
+                  </button>
                 </div>
-                <button
-                  className="btn-ghost"
-                  onClick={() => copy(platform.hashtags?.join(" "), "tags")}
-                >
-                  {copied === "tags" ? "Copied" : "Copy all tags"}
-                </button>
-              </div>
+              )}
 
               {platform.hashtag_rationale && (
                 <p className="rationale" style={{ marginTop: 16 }}>{platform.hashtag_rationale}</p>
