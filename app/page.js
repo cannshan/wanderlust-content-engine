@@ -6,6 +6,7 @@ import DiscoveryTab from "./components/DiscoveryTab";
 import PlanningTab from "./components/PlanningTab";
 import ReelVoiceoverTab from "./components/ReelVoiceoverTab";
 import ProfileTab from "./components/ProfileTab";
+import WeeklySpend from "./components/WeeklySpend";
 
 const TABS = [
   { key: "discovery", label: "Discovery" },
@@ -55,6 +56,7 @@ export default function Shell() {
         <div>
           <h1>Wine Wilderness Wanderlust</h1>
         </div>
+        <WeeklySpend />
       </div>
 
       <div className="top-tabs">

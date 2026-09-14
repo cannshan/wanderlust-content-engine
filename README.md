@@ -338,7 +338,9 @@ create table api_cost_logs (
 
 Without this table, cost tracking just falls back to the console-only `[cost]` lines - same degrade-gracefully rule as everywhere else Supabase is optional in this app.
 
-`GET /api/cost-logs` (optionally `?limit=`, default 500, max 2000) returns the raw rows plus a `byFeature` summary (call count, total cost, average cost per call) sorted by total spend - open it directly in a browser, or point any tool at it, to see what's actually being spent without querying Supabase directly.
+`GET /api/cost-logs` (optionally `?limit=`, default 500, max 2000; `?since=<ISO timestamp>` to filter to rows at or after that time) returns the raw rows plus a `byFeature` summary (call count, total cost, average cost per call) sorted by total spend - open it directly in a browser, or point any tool at it, to see what's actually being spent without querying Supabase directly.
+
+A small "This week: $X.XX" badge in the top bar (`app/components/WeeklySpend.js`) shows a running total since the most recent Monday, refreshed every 60 seconds - reads the same `/api/cost-logs?since=` endpoint, and renders nothing at all if the table isn't configured yet rather than showing an error.
 
 ## Deploying so it works on her phone
 

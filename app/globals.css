@@ -307,6 +307,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 .category-clear:hover { color: var(--bad); }
 
 .topbar {
+  position: relative;
   display: flex;
   align-items: baseline;
   justify-content: center;
@@ -315,6 +316,17 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 }
 
 .topbar h1 { font-size: 24px; color: var(--wine); }
+
+.weekly-spend {
+  position: absolute;
+  right: 0;
+  bottom: 2px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.weekly-spend strong { color: var(--wine); }
 
 .topbar .eyebrow {
   font-family: 'IBM Plex Mono', monospace;

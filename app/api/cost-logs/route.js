@@ -6,7 +6,11 @@ import { getSupabase } from "../../../lib/supabase";
 // by-feature summary in one response so this can answer "what am I
 // spending, and on what" without a separate aggregation query - visit
 // /api/cost-logs directly in a browser, or pass ?limit= to see more/fewer
-// rows (defaults to the most recent 500).
+// rows (defaults to the most recent 500). Optional ?since=<ISO timestamp>
+// filters to rows at or after that time - the "This week" dashboard badge
+// (see WeeklySpend.js) computes the start of the current week client-side
+// and passes it here, rather than this route owning a fixed idea of what
+// "the week" means.
 export async function GET(req) {
   const supabase = getSupabase();
   if (!supabase) {
@@ -18,12 +22,11 @@ export async function GET(req) {
 
   const { searchParams } = new URL(req.url);
   const limit = Math.min(parseInt(searchParams.get("limit") || "500", 10) || 500, 2000);
+  const since = searchParams.get("since");
 
-  const { data, error } = await supabase
-    .from("api_cost_logs")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .limit(limit);
+  let query = supabase.from("api_cost_logs").select("*").order("created_at", { ascending: false }).limit(limit);
+  if (since) query = query.gte("created_at", since);
+  const { data, error } = await query;
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
