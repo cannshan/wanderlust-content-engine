@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { writeVoiceoverFromReel } from "../../../lib/claude";
+import { checkBudget, BUDGET_LIMIT_MESSAGE } from "../../../lib/budget";
 
 // The video itself never reaches this route - the client extracts a
 // handful of small JPEG frames in-browser (see lib/videoFrames.js) and
@@ -19,6 +20,12 @@ export async function POST(req) {
 
   if (!Array.isArray(frames) || frames.length === 0) {
     return NextResponse.json({ error: "No video frames were provided." }, { status: 400 });
+  }
+
+  // Not currently enforced - see the identical comment in /api/discovery.
+  const budget = await checkBudget();
+  if (!budget.ok) {
+    return NextResponse.json({ error: BUDGET_LIMIT_MESSAGE }, { status: 429 });
   }
 
   try {

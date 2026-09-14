@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { findDiscoveryIdeas } from "../../../lib/claude";
+import { checkBudget, BUDGET_LIMIT_MESSAGE } from "../../../lib/budget";
 
 // Same shape as /api/nearby-ideas - opt-in, on-demand, not bundled into
 // any other click - but not anchored to a primary idea. Up to 9 sequential
@@ -25,6 +26,13 @@ export async function POST(req) {
 
   if (!location) {
     return NextResponse.json({ error: "location is required." }, { status: 400 });
+  }
+
+  // Not currently enforced (see ENFORCE_WEEKLY_BUDGET in lib/budget.js) -
+  // wired up ahead of needing it for real per-account billing.
+  const budget = await checkBudget();
+  if (!budget.ok) {
+    return NextResponse.json({ error: BUDGET_LIMIT_MESSAGE }, { status: 429 });
   }
 
   const discoveryIdeas = await findDiscoveryIdeas({ location, categories, focus });

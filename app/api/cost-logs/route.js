@@ -7,15 +7,15 @@ import { getSupabase } from "../../../lib/supabase";
 // spending, and on what" without a separate aggregation query - visit
 // /api/cost-logs directly in a browser, or pass ?limit= to see more/fewer
 // rows (defaults to the most recent 500). Optional ?since=<ISO timestamp>
-// filters to rows at or after that time - the "This week" dashboard badge
-// (see WeeklySpend.js) computes the start of the current week client-side
-// and passes it here, rather than this route owning a fixed idea of what
-// "the week" means.
+// filters to rows at or after that time - the "this month" dashboard
+// badge (see MonthlySpend.js) computes the start of the current calendar
+// month client-side and passes it here, rather than this route owning a
+// fixed idea of what "the month" means.
 //
 // raw_response (the full model output logUsage() stores for
 // findDiscoveryIdeas/findNearbyFilmingIdeas - see lib/claude.js) is left
 // out of the default row shape and only included with ?includeRaw=1 -
-// WeeklySpend.js polls this route every 60 seconds for a cost total it
+// MonthlySpend.js polls this route every 60 seconds for a cost total it
 // never looks at raw text for, and that text can run several KB per row,
 // so dragging it along on every poll would be pure wasted bandwidth for a
 // field only ever needed when actually debugging a specific bad result.

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { writeReelEditPlan } from "../../../lib/claude";
+import { checkBudget, BUDGET_LIMIT_MESSAGE } from "../../../lib/budget";
 
 // Same shape as /api/reel-voiceover - frames only, never the raw video
 // files themselves, so this stays well under Vercel's request body limit
@@ -23,6 +24,12 @@ export async function POST(req) {
 
   if (!Array.isArray(clips) || clips.length === 0) {
     return NextResponse.json({ error: "No clips were provided." }, { status: 400 });
+  }
+
+  // Not currently enforced - see the identical comment in /api/discovery.
+  const budget = await checkBudget();
+  if (!budget.ok) {
+    return NextResponse.json({ error: BUDGET_LIMIT_MESSAGE }, { status: 429 });
   }
 
   try {

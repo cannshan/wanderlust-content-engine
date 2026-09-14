@@ -317,7 +317,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 
 .topbar h1 { font-size: 24px; color: var(--wine); }
 
-.weekly-spend {
+.monthly-spend {
   position: absolute;
   right: 0;
   bottom: 2px;
@@ -326,7 +326,22 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   color: var(--ink-soft);
 }
 
-.weekly-spend strong { color: var(--wine); }
+.monthly-spend strong { color: var(--wine); }
+
+.monthly-spend-bar {
+  width: 110px;
+  height: 4px;
+  margin-top: 3px;
+  background: var(--line);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.monthly-spend-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
 
 .topbar .eyebrow {
   font-family: 'IBM Plex Mono', monospace;

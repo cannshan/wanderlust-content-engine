@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSupabase } from "../../../../../lib/supabase";
 import { researchPlanningItem } from "../../../../../lib/claude";
+import { checkBudget, BUDGET_LIMIT_MESSAGE } from "../../../../../lib/budget";
 
 // Fires only when the user clicks "Research this place" on a specific
 // Planning tab item - never automatically. Same reasoning depth/cost as
@@ -34,6 +35,12 @@ export async function POST(req, { params }) {
   const trimmedMenuLinks = (Array.isArray(menuLinks) ? menuLinks : [])
     .map((l) => (typeof l === "string" ? l.trim() : ""))
     .filter(Boolean);
+
+  // Not currently enforced - see the identical comment in /api/discovery.
+  const budget = await checkBudget();
+  if (!budget.ok) {
+    return NextResponse.json({ error: BUDGET_LIMIT_MESSAGE }, { status: 429 });
+  }
 
   const research = await researchPlanningItem({
     name,

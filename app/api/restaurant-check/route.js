@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { analyzeRestaurant } from "../../../lib/claude";
+import { checkBudget } from "../../../lib/budget";
 
 // Replaces /api/menu-check's old auto-detect-and-search approach. This one
 // only ever gets called when the user has explicitly checked "Restaurant"
@@ -28,6 +29,12 @@ export async function POST(req) {
   if (!restaurantName) {
     return NextResponse.json({ error: "restaurantName is required." }, { status: 400 });
   }
+
+  // Silently returns null on a budget block, same as this optional
+  // pre-fetch already does whenever the real call fails for any other
+  // reason - see the identical comment in /api/location-search.
+  const budget = await checkBudget();
+  if (!budget.ok) return NextResponse.json({ restaurantContext: null });
 
   const restaurantContext = await analyzeRestaurant({
     restaurantName,

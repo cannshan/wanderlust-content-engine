@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getTrendingHashtags } from "../../../lib/trends";
 import { generatePost, analyzeRestaurant, findLocationTagOptions } from "../../../lib/claude";
+import { checkBudget, BUDGET_LIMIT_MESSAGE } from "../../../lib/budget";
 
 // generatePost() now retries up to 3x internally on a malformed/incomplete
 // model response, so a single request can involve up to 3 full generation
@@ -37,6 +38,14 @@ export async function POST(req) {
       { error: "Idea and location are both required." },
       { status: 400 }
     );
+  }
+
+  // Checked before any of the real (paid) work below, including the
+  // restaurant/location-tag fallback searches. Not currently enforced -
+  // see the identical comment in /api/discovery.
+  const budget = await checkBudget();
+  if (!budget.ok) {
+    return NextResponse.json({ error: BUDGET_LIMIT_MESSAGE }, { status: 429 });
   }
 
   const resolvedPlatform = ["instagram", "youtube"].includes(platform) ? platform : "tiktok";

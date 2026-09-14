@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { searchForPlace } from "../../../lib/claude";
+import { checkBudget, BUDGET_LIMIT_MESSAGE } from "../../../lib/budget";
 
 // Powers the Planning tab's own search bar - a direct free-text lookup for
 // one specific restaurant/hike/place, separate from Discovery's broad
@@ -18,6 +19,12 @@ export async function POST(req) {
   const { query } = body;
   if (!query || !query.trim()) {
     return NextResponse.json({ error: "query is required." }, { status: 400 });
+  }
+
+  // Not currently enforced - see the identical comment in /api/discovery.
+  const budget = await checkBudget();
+  if (!budget.ok) {
+    return NextResponse.json({ error: BUDGET_LIMIT_MESSAGE }, { status: 429 });
   }
 
   const places = await searchForPlace({ query });

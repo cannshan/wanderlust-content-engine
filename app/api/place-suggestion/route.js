@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { suggestForPlace } from "../../../lib/claude";
+import { checkBudget, BUDGET_LIMIT_MESSAGE } from "../../../lib/budget";
 
 // Ad-hoc only - fires when a user clicks one of the three per-place
 // buttons in DiscoveryTab (Clothes to Wear / Foodie-Explore Advice /
@@ -23,6 +24,12 @@ export async function POST(req) {
 
   if (!name) {
     return NextResponse.json({ error: "name is required." }, { status: 400 });
+  }
+
+  // Not currently enforced - see the identical comment in /api/discovery.
+  const budget = await checkBudget();
+  if (!budget.ok) {
+    return NextResponse.json({ error: BUDGET_LIMIT_MESSAGE }, { status: 429 });
   }
 
   const suggestion = await suggestForPlace({ name, placeCategory, area, searchLocation, mode });

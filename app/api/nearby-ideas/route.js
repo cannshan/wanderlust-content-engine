@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { findNearbyFilmingIdeas } from "../../../lib/claude";
+import { checkBudget, BUDGET_LIMIT_MESSAGE } from "../../../lib/budget";
 
 // Deliberately separate from /api/generate - this only runs when the user
 // explicitly asks for it (see the "Find nearby ideas" button in page.js,
@@ -25,6 +26,12 @@ export async function POST(req) {
 
   if (!location) {
     return NextResponse.json({ error: "location is required." }, { status: 400 });
+  }
+
+  // Not currently enforced - see the identical comment in /api/discovery.
+  const budget = await checkBudget();
+  if (!budget.ok) {
+    return NextResponse.json({ error: BUDGET_LIMIT_MESSAGE }, { status: 429 });
   }
 
   const nearbyIdeas = await findNearbyFilmingIdeas({ idea, location, storyBeat, categories });

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { findLocationTagOptions } from "../../../lib/claude";
+import { checkBudget } from "../../../lib/budget";
 
 // Same reasoning as /api/restaurant-check: a dedicated endpoint so this
 // live search runs exactly once per "Generate" click instead of once per
@@ -23,6 +24,12 @@ export async function POST(req) {
       { status: 400 }
     );
   }
+
+  // Silently returns null on a budget block, same as this optional
+  // pre-fetch already does whenever the real call fails for any other
+  // reason - it just quietly comes back empty, no error surfaced.
+  const budget = await checkBudget();
+  if (!budget.ok) return NextResponse.json({ locationContext: null });
 
   const locationContext = await findLocationTagOptions(idea, location, storyBeat);
   return NextResponse.json({ locationContext });
