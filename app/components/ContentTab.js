@@ -254,7 +254,16 @@ export default function ContentTab() {
           categories: nearbyCategories,
         }),
       });
-      const data = await res.json();
+      // Same reasoning as generateOne() above - a non-JSON body means the
+      // platform killed the request (almost always a timeout on "all
+      // categories"), not an application error.
+      const raw = await res.text();
+      let data;
+      try {
+        data = JSON.parse(raw);
+      } catch {
+        throw new Error("Request timed out or failed before completing. Try again, or narrow the categories.");
+      }
       if (!res.ok) throw new Error(data.error || "Couldn't find nearby ideas.");
       setNearbyResult(data.nearbyIdeas);
     } catch (err) {

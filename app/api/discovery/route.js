@@ -2,10 +2,16 @@ import { NextResponse } from "next/server";
 import { findDiscoveryIdeas } from "../../../lib/claude";
 
 // Same shape as /api/nearby-ideas - opt-in, on-demand, not bundled into
-// any other click - but not anchored to a primary idea. Three search
-// passes (see findDiscoveryIdeas) means this can take a bit longer than
-// the two-pass nearby-ideas search, especially for "all categories".
-export const maxDuration = 120;
+// any other click - but not anchored to a primary idea. Up to 9 sequential
+// search passes for "all categories" (see findDiscoveryIdeas) routinely
+// measured at 90-100+ seconds live, sometimes more - the previous 120s
+// ceiling was too tight and real runs were hitting it, which kills the
+// function mid-response and returns Vercel's own plain-text/HTML error
+// page instead of JSON. That's what a raw "Unexpected token 'A', 'An
+// error o...' is not valid JSON" in the browser actually was - not a
+// parsing bug, a timeout. Raised to match the other genuinely-slow
+// multi-search endpoints (generate, reel-edit-plan, planning research).
+export const maxDuration = 240;
 
 export async function POST(req) {
   let body;

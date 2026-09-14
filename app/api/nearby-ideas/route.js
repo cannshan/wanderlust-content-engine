@@ -4,9 +4,14 @@ import { findNearbyFilmingIdeas } from "../../../lib/claude";
 // Deliberately separate from /api/generate - this only runs when the user
 // explicitly asks for it (see the "Find nearby ideas" button in page.js,
 // shown once a result already exists), not bundled into every Generate
-// click. findNearbyFilmingIdeas() does up to 5 searches in one call, so
-// it's worth more time than the other pre-fetch endpoints but still opt-in.
-export const maxDuration = 120;
+// click. findNearbyFilmingIdeas() does one sequential search per category
+// (up to 9 for "all categories") in one call, so it's worth more time than
+// the other pre-fetch endpoints but still opt-in. Raised from 120 for the
+// same reason as /api/discovery - real "all categories" runs measured
+// close to or past that ceiling, and a killed function returns Vercel's
+// own non-JSON error page, which surfaces client-side as a raw
+// "Unexpected token... is not valid JSON" instead of a real message.
+export const maxDuration = 240;
 
 export async function POST(req) {
   let body;

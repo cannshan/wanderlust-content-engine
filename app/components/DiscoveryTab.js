@@ -150,7 +150,19 @@ export default function DiscoveryTab() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ location: location.trim(), categories, focus: focus.trim() }),
       });
-      const data = await res.json();
+      // Parsed as text first, same reasoning as ContentTab.js's
+      // generateOne: a non-JSON body means the platform (Vercel) killed
+      // the request before our own code could respond - almost always a
+      // function timeout on "all categories", not an application error -
+      // so this surfaces a real message instead of a raw JSON.parse
+      // SyntaxError like "Unexpected token 'A', 'An error o...'".
+      const raw = await res.text();
+      let data;
+      try {
+        data = JSON.parse(raw);
+      } catch {
+        throw new Error("Request timed out or failed before completing. Try again, or narrow the categories.");
+      }
       if (!res.ok) throw new Error(data.error || "Couldn't find things to do there.");
       setResult(data.discoveryIdeas);
       setResultLocation(location.trim());
