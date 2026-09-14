@@ -231,20 +231,22 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   background: var(--wine-soft);
 }
 
-/* Stacked (actions row, then main content), not side-by-side - side-by-side
-   used to squeeze .saved-item-main into roughly half the card's width
-   (Categorize + × ate the other half), which mattered once a card's meta
-   line got long (a Discovery saved search's location + place count + a
-   free-text focus note like "can you scan all reviews in an hour radius
-   for 'bernese mountain dog'" wrapped to 3 lines in that narrow column,
-   even though the card itself had plenty of unused width). Stacking
-   lets the text use the full card width, and the actions - short,
-   right-aligned, one line - cost far less height back than the wrapping
-   they used to cause. The actions sit at the card's top edge (see the
-   order: -1 below). */
+/* The content block owns the card's full width; Categorize/x are lifted
+   out of the flow and pinned to the top-right corner, with a matching
+   notch reserved at the title's top-right so the title's FIRST line
+   starts beside them and any later line flows the full width
+   underneath. Laying them out side by side in flow instead squeezed
+   .saved-item-main into roughly half the card (a Discovery meta line
+   like "21 places - can you scan all reviews in an hour radius for
+   'bernese mountain dog'" wrapped to 3 lines in that narrow column
+   while the card had unused width); stacking them as separate rows
+   fixed the width but spent a whole line on two small controls. This
+   does both - the title shares their line, and nothing else is
+   narrowed. */
 .saved-item-row {
   display: flex;
   flex-direction: column;
+  position: relative;
 }
 
 .saved-item-main {
@@ -253,32 +255,52 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   text-align: left;
   background: transparent;
   border: none;
-  padding: 2px 10px 10px;
+  padding: 10px 10px;
   cursor: pointer;
 }
 
-/* order: -1 puts the actions above the content visually while leaving
-   them last in the DOM - deliberate, not an accident of markup. The
-   card's own name/meta button is the thing you're looking for when you
-   scan the sidebar, so it stays first for a screen reader and for tab
-   order; Categorize/x are secondary controls that just happen to read
-   better pinned to the card's top edge. Flipping the JSX instead would
-   have moved them ahead of the content in both. */
 .saved-item-actions {
-  order: -1;
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 2px;
-  padding: 6px 6px 0;
+}
+
+/* Out of flow rather than reordered: the name/meta button is what
+   you're actually scanning the sidebar for, so it stays first in the
+   DOM for tab order and screen readers, while Categorize/x - secondary
+   controls - just read better pinned to the corner. The actions can't
+   be a real float (they'd have to live inside .saved-item-main, which
+   is a <button> in most of these tabs, and buttons can't nest), hence
+   absolute + the reserved notch below. */
+.saved-item-row:not(.reorder-row) .saved-item-actions {
+  position: absolute;
+  top: 7px;
+  right: 6px;
+}
+
+/* flow-root so the notch float is contained by the title itself - left
+   to escape, a notch taller than a one-line title would indent the
+   meta line below it too, which is exactly the squeeze this layout
+   exists to avoid. Width tracks the real rendered width of Categorize
+   + x (~103px) plus breathing room. */
+.saved-item-row:not(.reorder-row) .saved-item-idea {
+  display: flow-root;
+}
+
+.saved-item-row:not(.reorder-row) .saved-item-idea::before {
+  content: "";
+  float: right;
+  width: 110px;
+  height: 19px;
 }
 
 /* Profile's two reorderable lists (instructions, captions) put a drag
    grip in the row as a sibling of the content, and a grip only reads as
    one when it sits BESIDE what it drags - stacking would strand it on
    its own line above the card. Those rows keep the original horizontal
-   layout; the stacking above is for the sidebars whose rows are just
-   content + actions, with nothing that needs to sit alongside. */
+   layout, and their actions stay in flow (no corner pinning, no title
+   notch) since nothing there needs to share the title's line. */
 .saved-item-row.reorder-row {
   flex-direction: row;
   align-items: stretch;
@@ -292,7 +314,6 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 }
 
 .reorder-row .saved-item-actions {
-  order: 0;
   align-items: flex-start;
   padding: 6px 0 0;
 }
