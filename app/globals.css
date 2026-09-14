@@ -595,9 +595,30 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 }
 
 .login-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   max-width: 360px;
-  margin: 18vh auto 0;
+  margin: 0 auto;
   padding: 0 20px;
+  text-align: center;
+}
+
+.login-wordmark {
+  font-size: 34px;
+  color: var(--wine);
+  margin: 0 0 32px;
+}
+
+/* The wordmark above reads centered, but form fields inside the
+   card itself still read left-to-right like every other form in the app
+   - only the page's own header text is centered, not the form. */
+.login-shell .card {
+  width: 100%;
+  text-align: left;
+  padding: 28px 24px;
 }
 
 .video-meta {
