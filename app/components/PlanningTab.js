@@ -753,13 +753,40 @@ export default function PlanningTab() {
           {categorizedHook.filteredItems.map((item) => (
             <div key={item.id} className={`saved-item ${selectedId === item.id ? "active" : ""}`}>
               <div className="saved-item-row">
-                <button type="button" className="saved-item-main" onClick={() => setSelectedId(item.id)}>
-                  <div className="saved-item-idea">{item.name}</div>
+                {/* A real <button> can't contain an <a> (invalid nesting,
+                    and the anchor's click would bubble into this one's
+                    onClick too) - div+role="button" instead, same
+                    .saved-item-main styling (it was always just a
+                    reset-style clickable box, not relying on native
+                    button semantics beyond click/keyboard activation). */}
+                <div
+                  className="saved-item-main"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setSelectedId(item.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setSelectedId(item.id);
+                    }
+                  }}
+                >
+                  <div className="saved-item-idea">
+                    <a
+                      href={mapsSearchUrl(item.name, item.area)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="place-link"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {item.name}
+                    </a>
+                  </div>
                   <div className="saved-item-meta">{shortArea(item.area) || item.search_location}</div>
                   <div className="saved-item-chips">
                     {item.category && <span className="saved-chip category-chip">{item.category}</span>}
                   </div>
-                </button>
+                </div>
                 <div className="saved-item-actions">
                   <button
                     type="button"

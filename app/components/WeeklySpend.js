@@ -15,18 +15,19 @@ function startOfWeekIso() {
 
 const REFRESH_MS = 60_000;
 // There's only one shared DASHBOARD_PASSWORD in this app - no separate
-// "owner" account to gate this on - so visibility is a per-browser
-// localStorage flag instead: hidden by default (what anyone else sharing
-// the password sees), and only turned on in the one browser that visits
-// with ?showCosts=1 once. That visit persists the flag, so it doesn't
-// need to be in the URL again after the first time.
-const SHOW_FLAG_KEY = "wwwShowCostBadge";
+// "owner" account to gate this on, and it's not something the person
+// actually using the deployed app (not the one building it) should ever
+// see. Gated on hostname instead of a manual flag: always on for local
+// dev (localhost/127.0.0.1, whatever port), always off on any deployed
+// hostname - no link to remember, and nobody using the real site can end
+// up seeing it, on any device, ever.
+const LOCAL_HOSTNAMES = ["localhost", "127.0.0.1"];
 
 // Small badge in the shell's topbar, visible from every tab - a running
 // total of what this week's Claude API calls have actually cost, pulled
 // from api_cost_logs (see logUsage() in lib/claude.js and /api/cost-logs).
 // Same degrade-gracefully rule as the rest of this app: if Supabase/the
-// table isn't set up, or this browser hasn't unlocked it, this just
+// table isn't set up, or this isn't a local dev hostname, this just
 // renders nothing rather than an error or a locked-looking placeholder.
 export default function WeeklySpend() {
   const [totalUsd, setTotalUsd] = useState(null);
@@ -34,16 +35,7 @@ export default function WeeklySpend() {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    try {
-      const params = new URLSearchParams(window.location.search);
-      if (params.get("showCosts") === "1") {
-        localStorage.setItem(SHOW_FLAG_KEY, "1");
-      }
-      setVisible(localStorage.getItem(SHOW_FLAG_KEY) === "1");
-    } catch {
-      // Storage unavailable (private browsing) - stays hidden, same as
-      // the default for everyone who hasn't unlocked it.
-    }
+    setVisible(LOCAL_HOSTNAMES.includes(window.location.hostname));
   }, []);
 
   useEffect(() => {
@@ -75,7 +67,7 @@ export default function WeeklySpend() {
   if (!visible || !available || totalUsd === null) return null;
 
   return (
-    <div className="weekly-spend" title="Total real Claude API cost logged since Monday, across every feature - only visible in this browser">
+    <div className="weekly-spend" title="Total real Claude API cost logged since Monday, across every feature - only visible on localhost">
       This week: <strong>${totalUsd.toFixed(2)}</strong>
     </div>
   );
