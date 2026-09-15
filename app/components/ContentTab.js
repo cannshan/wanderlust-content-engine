@@ -5,6 +5,7 @@ import { PLATFORM_LABELS, PLATFORM_ORDER, CATEGORY_OPTIONS, MAX_VIDEO_FILE_BYTES
 import { extractVideoFrames } from "../../lib/videoFrames";
 import { useCategorizedItems } from "../../lib/useCategorizedItems";
 import { CategoryFilterRow, CategorizePanel } from "./CategoryUI";
+import PlanningCalendar from "./PlanningCalendar";
 
 // Combined raw size cap across every uploaded menu photo/PDF (not per
 // file) - base64 encoding inflates size by ~33%, so 4MB raw becomes
@@ -22,6 +23,17 @@ const MAX_MENU_FILES = 3;
 // real town/neighborhood name is), which Maps resolves fine on its own.
 function mapsSearchUrl(name) {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(name)}`;
+}
+
+// "Oct 15" for the sidebar's compact date chip - built from separate y/m/d
+// numbers rather than `new Date(item.planned_date)` directly, since that
+// parses a bare "YYYY-MM-DD" as UTC midnight, which toLocaleDateString()
+// can then display as the PREVIOUS day in any negative-UTC-offset timezone
+// (all of the US). Same reasoning as dateKey() in PlanningCalendar.js and
+// formatShortDate() in PlanningTab.js, just in reverse.
+function formatShortDate(isoDate) {
+  const [y, m, d] = isoDate.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
 // Caption + hashtags as one paste-ready block, tags on their own line at
@@ -94,6 +106,29 @@ export default function ContentTab() {
   const [nearbyLoading, setNearbyLoading] = useState(false);
   const [nearbyResult, setNearbyResult] = useState(null);
   const [nearbyError, setNearbyError] = useState("");
+
+  // The month calendar (PlanningCalendar.js, moved here from the Planning
+  // tab - places to go don't need a content calendar, but scheduling when
+  // a saved idea goes out does) is hidden until the button next to
+  // "Content" above the form opens it, then renders as its own full-width
+  // block above the whole two-column layout - a real month grid needs more
+  // width than either the form or the 280px sidebar has room for. Starts
+  // on the current real month, not tied to whatever month a saved idea's
+  // planned_date falls in.
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [calendarDate, setCalendarDate] = useState(() => {
+    const now = new Date();
+    return { year: now.getFullYear(), month: now.getMonth() };
+  });
+
+  function calendarPrevMonth() {
+    setCalendarDate((d) => (d.month === 0 ? { year: d.year - 1, month: 11 } : { year: d.year, month: d.month - 1 }));
+  }
+
+  function calendarNextMonth() {
+    setCalendarDate((d) => (d.month === 11 ? { year: d.year + 1, month: 0 } : { year: d.year, month: d.month + 1 }));
+  }
+
   const {
     categorizingId,
     newCategoryDraft,
@@ -123,6 +158,25 @@ export default function ContentTab() {
       // Sidebar just stays empty/stale - saving/generating still works.
     }
     setSavedIdeasLoading(false);
+  }
+
+  // Same optimistic-update, best-effort-PATCH pattern as PlanningTab's own
+  // updatePlannedDate. Only meaningful for an idea that's actually been
+  // saved (a real saved_ideas row to attach the date to) - see the
+  // "Planned date" field below, which only renders once result.savedId
+  // exists. date: a plain "YYYY-MM-DD" string from the <input type="date">,
+  // or null to clear it.
+  async function updatePlannedDate(id, date) {
+    setSavedIdeas((list) => list.map((s) => (s.id === id ? { ...s, planned_date: date } : s)));
+    try {
+      await fetch(`/api/ideas/${id}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ plannedDate: date }),
+      });
+    } catch {
+      // Degrades the same way every other best-effort write in this app does.
+    }
   }
 
   async function saveCurrentResult() {
@@ -563,11 +617,41 @@ export default function ContentTab() {
   }
 
   const platform = result?.platforms?.[activeTab];
+  // The idea currently on screen, if it's actually been saved - source of
+  // truth for its planned date (see updatePlannedDate) rather than
+  // stashing a copy of it on `result` itself, so it always reflects
+  // savedIdeas' current state.
+  const savedIdeaForResult = result?.savedId ? savedIdeas.find((s) => s.id === result.savedId) : null;
 
   return (
-    <div className="layout">
+    <>
+      {calendarOpen && (
+        <PlanningCalendar
+          items={savedIdeas.map((s) => ({ ...s, name: s.idea }))}
+          year={calendarDate.year}
+          month={calendarDate.month}
+          onPrevMonth={calendarPrevMonth}
+          onNextMonth={calendarNextMonth}
+          onSelectItem={(id) => {
+            const saved = savedIdeas.find((s) => s.id === id);
+            if (saved) loadSavedIdea(saved);
+          }}
+          onHide={() => setCalendarOpen(false)}
+        />
+      )}
+      <div className="layout">
       <div className="main">
       <form onSubmit={onSubmit} className="card">
+        <div className="planning-heading-row">
+          <h3 style={{ margin: 0 }}>Content</h3>
+          {/* Open-only - hiding it again is done from the top of the
+              calendar itself (see PlanningCalendar.js). */}
+          {!calendarOpen && (
+            <button type="button" className="btn-ghost" onClick={() => setCalendarOpen(true)}>
+              📅 Calendar
+            </button>
+          )}
+        </div>
         <div className="field">
           <label htmlFor="idea">Idea</label>
           <input
@@ -813,6 +897,34 @@ export default function ContentTab() {
               {result.savedId ? "Saved" : saving ? "Saving…" : "Save this idea"}
             </button>
           </div>
+
+          {savedIdeaForResult && (
+            <div className="field" style={{ marginTop: 12, marginBottom: 20 }}>
+              <label htmlFor="plannedDate">Planned date (optional)</label>
+              <div style={{ display: "flex", gap: 6 }}>
+                <input
+                  id="plannedDate"
+                  type="date"
+                  value={savedIdeaForResult.planned_date || ""}
+                  onChange={(e) => updatePlannedDate(savedIdeaForResult.id, e.target.value || null)}
+                  style={{ flex: 1 }}
+                />
+                {savedIdeaForResult.planned_date && (
+                  <button
+                    type="button"
+                    className="btn-ghost"
+                    style={{ flexShrink: 0 }}
+                    onClick={() => updatePlannedDate(savedIdeaForResult.id, null)}
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+              <p className="hint" style={{ marginTop: 6 }}>
+                Set a date to have this show up on the calendar above.
+              </p>
+            </div>
+          )}
 
           {result.stylingTip && (
             <div className="field" style={{ marginBottom: 20 }}>
@@ -1096,6 +1208,7 @@ export default function ContentTab() {
                   <div className="saved-item-idea">{s.idea}</div>
                   <div className="saved-item-chips">
                     {s.category && <span className="saved-chip category-chip">{s.category}</span>}
+                    {s.planned_date && <span className="saved-chip date-chip">📅 {formatShortDate(s.planned_date)}</span>}
                     {s.platforms.map((p) => (
                       <span className="saved-chip" key={p}>{PLATFORM_LABELS[p]}</span>
                     ))}
@@ -1134,6 +1247,7 @@ export default function ContentTab() {
           ))}
         </div>
       </aside>
-    </div>
+      </div>
+    </>
   );
 }

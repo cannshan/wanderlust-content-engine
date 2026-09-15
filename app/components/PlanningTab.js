@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { useCategorizedItems } from "../../lib/useCategorizedItems";
 import { CategoryFilterRow, CategorizePanel } from "./CategoryUI";
 import { AddToPlanningPicker } from "./PlanningPicker";
-import PlanningCalendar from "./PlanningCalendar";
 
 // The `area` field is free text from a live search, not a guaranteed
 // clean "Town, State" - it can come back as a full descriptive aside, e.g.
@@ -126,26 +125,6 @@ export default function PlanningTab() {
   const [menuLinksDrafts, setMenuLinksDrafts] = useState({});
   const [menuFiles, setMenuFiles] = useState({});
   const [menuFileErrors, setMenuFileErrors] = useState({});
-
-  // The month calendar (PlanningCalendar.js) is hidden until the button
-  // next to "Planning" above the search box opens it, then renders as its
-  // own full-width block above the whole two-column layout - a real month
-  // grid needs more width than either the search box or the 280px sidebar
-  // has room for. Starts on the current real month, not tied to whatever
-  // month a selected item's planned_date falls in.
-  const [calendarOpen, setCalendarOpen] = useState(false);
-  const [calendarDate, setCalendarDate] = useState(() => {
-    const now = new Date();
-    return { year: now.getFullYear(), month: now.getMonth() };
-  });
-
-  function calendarPrevMonth() {
-    setCalendarDate((d) => (d.month === 0 ? { year: d.year - 1, month: 11 } : { year: d.year, month: d.month - 1 }));
-  }
-
-  function calendarNextMonth() {
-    setCalendarDate((d) => (d.month === 11 ? { year: d.year + 1, month: 0 } : { year: d.year, month: d.month + 1 }));
-  }
 
   // Same optimistic-update, best-effort-PATCH pattern as
   // useCategorizedItems' applyCategory - low-stakes enough not to need a
@@ -496,7 +475,7 @@ export default function PlanningTab() {
             )}
           </div>
           <p className="hint" style={{ marginTop: 6 }}>
-            Set a date to have this show up on the calendar above.
+            Set a date to ground "Research this place" in what's actually happening around then.
           </p>
         </div>
 
@@ -712,30 +691,10 @@ export default function PlanningTab() {
 
   return (
     <>
-      {calendarOpen && (
-        <PlanningCalendar
-          items={items}
-          year={calendarDate.year}
-          month={calendarDate.month}
-          onPrevMonth={calendarPrevMonth}
-          onNextMonth={calendarNextMonth}
-          onSelectItem={setSelectedId}
-          onHide={() => setCalendarOpen(false)}
-        />
-      )}
       <div className="layout">
       <div className="main">
         <form onSubmit={onSearchSubmit} className="card">
-          <div className="planning-heading-row">
-            <h3 style={{ margin: 0 }}>Planning</h3>
-            {/* Open-only - hiding it again is done from the top of the
-                calendar itself (see PlanningCalendar.js). */}
-            {!calendarOpen && (
-              <button type="button" className="btn-ghost" onClick={() => setCalendarOpen(true)}>
-                📅 Calendar
-              </button>
-            )}
-          </div>
+          <h3 style={{ margin: 0, marginBottom: 16 }}>Planning</h3>
           <div className="field" style={{ marginBottom: 0 }}>
             <label htmlFor="planningSearch">Search for any specific place or experience</label>
             <div style={{ display: "flex", gap: 8 }}>

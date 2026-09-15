@@ -52,7 +52,7 @@ This is where the real digging happens, once a place is worth spending research 
 - **🍸 Wild food & drink ideas** - up to 4 genuinely standout, unusual real dishes/drinks worth building a video around (or the most surprising things to do/see there, if it's not a food/drink venue) - never a safe "popular menu item" default.
 - **🤫 Secret tips** - up to 5 real insider tips a first-time visitor wouldn't know: timing, booking tricks, easy-to-miss details, cost hacks, honest warnings.
 - **📍 Also worth going nearby** - up to 3 other real places genuinely worth visiting while already in the area.
-- **📅 Happening around \<date\>** - only appears when the item has a planned date set (see the Calendar section above). Its own dedicated search for anything actually happening in the area around that specific date - a seasonal event, festival, exhibit, closure, or altered hours - so a planned date isn't just a calendar label, it actually shapes the research. Same integrity rule as the others: never invented, and an honest "nothing specific found for this date" is a valid result rather than a gap that looks unchecked.
+- **📅 Happening around \<date\>** - only appears when the item has a planned date set (see the "Planned date" field below). Its own dedicated search for anything actually happening in the area around that specific date - a seasonal event, festival, exhibit, closure, or altered hours - so a planned date isn't just a label, it actually shapes the research. Same integrity rule as the others: never invented, and an honest "nothing specific found for this date" is a valid result rather than a gap that looks unchecked.
 
 An optional **"What are you looking for?"** free-text field sits right above the button - anything typed there (e.g. "weird desserts on the menu," "a hidden room," "the best time to avoid crowds") becomes its own dedicated required search alongside the others, with the finding folded into whichever field it best fits rather than forcing a new category. Same integrity rule as everywhere else this app does live search: nothing invented, and an empty or short list (or an honest "nothing genuine turned up for that specific ask") is a valid result. Research is saved directly on the item's row (`research`/`researched_at` below), so it's there next time you open the tab - "Research again" just overwrites it with a fresh pass, using whatever's currently in the focus field and the item's current planned date.
 
@@ -84,7 +84,7 @@ create table planning_items (
 -- alter table planning_items add column if not exists planned_date date;
 ```
 
-`planned_date` (optional, set from the Calendar button in the Planning tab's sidebar) is what populates the calendar view - a plain date, not a timestamp, since a planning item is planned *for* a day, not a specific time.
+**Planned date** - an optional date on each item (a plain `<input type="date">` in its detail card), used only to ground "Research this place"'s "Happening around \<date\>" search above - not tied to any calendar view here. `planned_date` is a plain date, not a timestamp, since a planning item is planned *for* a day, not a specific time. The month calendar itself lives on the Content tab now (see below), scheduling saved content ideas rather than places to go.
 
 ## Reel Voiceover tab
 
@@ -201,7 +201,8 @@ create table saved_ideas (
   restaurant_name text,
   menu_link text,
   menu_links text[],
-  category text
+  category text,
+  planned_date date
 );
 ```
 
@@ -224,6 +225,12 @@ If you set it up before categories existed (see "Categorizing saved ideas" below
 alter table saved_ideas add column if not exists category text;
 ```
 
+If you set it up before the Calendar moved here from the Planning tab, run this once too:
+
+```sql
+alter table saved_ideas add column if not exists planned_date date;
+```
+
 3. In **Project Settings → API**, copy the **Project URL** and the **`service_role`** key (not `anon` — this app only ever talks to Supabase from the server, same as the Anthropic key).
 4. Add `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` to `.env.local` (and to Vercel's environment variables once deployed).
 
@@ -236,6 +243,10 @@ A saved restaurant idea keeps the restaurant name and menu link(s) (so reloading
 ### Categorizing saved ideas
 
 Each saved idea can be tagged with one free-text category (a season, a client, a trip, whatever grouping is useful) via the "Categorize" button on its card in the sidebar. There's no separate list of categories to manage — a category exists simply because at least one saved idea currently uses that name, the same way labels work in most tagging tools. Picking "Categorize" shows every category already in use as a quick pick, plus a field to type a new one; picking "Clear category" removes it from that idea without affecting the category name itself (it just stops showing up anywhere once nothing uses it anymore). A filter row above the saved-ideas list lets you narrow it down to just one category at a time.
+
+### Scheduling saved ideas (Calendar)
+
+Each saved idea can also get an optional planned date, set from the "Planned date" field on its card once it's been saved (the field only shows up after saving — there's no real row to attach a date to before then). The 📅 Calendar button next to "Content" above the form opens a full-width month view (`PlanningCalendar.js`, shared with — and originally built for — the Planning tab before the calendar moved here) showing every scheduled idea as a pill on its date; clicking a pill loads that idea's full result back into the main panel, same as clicking it in the sidebar. This is purely for keeping a content calendar of what's scheduled when — it doesn't drive any research or generation the way `planned_date` does over on Planning.
 
 ### Saving searches from the Discovery tab
 

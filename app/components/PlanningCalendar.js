@@ -15,11 +15,18 @@ function dateKey(year, month, day) {
   return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
-// Renders as its own full-width block above the Planning tab's two-column
-// layout (see PlanningTab.js) rather than inside the sidebar - a real
-// month grid needs more width than the 280px sidebar has room for, and
-// showing it above keeps it visible without competing for space with
-// whatever's selected in the main panel.
+// Renders as its own full-width block above a tab's two-column layout
+// rather than inside the sidebar - a real month grid needs more width
+// than the 280px sidebar has room for, and showing it above keeps it
+// visible without competing for space with whatever's selected in the
+// main panel.
+//
+// Named for the Planning tab it was built for, but driven from the
+// Content tab now (see ContentTab.js): scheduling when a saved idea goes
+// out is what actually wants a month view, while a planning item's
+// planned_date grounds its research instead. Deliberately generic about
+// what it's given - any { id, name, planned_date } does, so ContentTab
+// maps its saved ideas' `idea` onto `name` on the way in.
 export default function PlanningCalendar({ items, year, month, onPrevMonth, onNextMonth, onSelectItem, onHide }) {
   // Keyed by "YYYY-MM-DD" - every item that's been given a planned_date,
   // grouped so a day with more than one thing planned shows all of them,
@@ -44,8 +51,8 @@ export default function PlanningCalendar({ items, year, month, onPrevMonth, onNe
   return (
     <div className="planning-calendar">
       {/* Dismiss lives here, at the top of the calendar itself, rather than
-          back in the Planning heading below it - once the calendar is open
-          it's the thing the eye is on, so that's where the way out belongs. */}
+          back in the tab heading below it - once the calendar is open it's
+          the thing the eye is on, so that's where the way out belongs. */}
       {onHide && (
         <div className="planning-calendar-topbar">
           <button type="button" className="btn-ghost" onClick={onHide}>
