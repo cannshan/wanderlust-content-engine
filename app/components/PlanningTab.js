@@ -720,6 +720,7 @@ export default function PlanningTab() {
           onPrevMonth={calendarPrevMonth}
           onNextMonth={calendarNextMonth}
           onSelectItem={setSelectedId}
+          onHide={() => setCalendarOpen(false)}
         />
       )}
       <div className="layout">
@@ -727,9 +728,13 @@ export default function PlanningTab() {
         <form onSubmit={onSearchSubmit} className="card">
           <div className="planning-heading-row">
             <h3 style={{ margin: 0 }}>Planning</h3>
-            <button type="button" className="btn-ghost" onClick={() => setCalendarOpen((v) => !v)}>
-              📅 {calendarOpen ? "Hide calendar" : "Calendar"}
-            </button>
+            {/* Open-only - hiding it again is done from the top of the
+                calendar itself (see PlanningCalendar.js). */}
+            {!calendarOpen && (
+              <button type="button" className="btn-ghost" onClick={() => setCalendarOpen(true)}>
+                📅 Calendar
+              </button>
+            )}
           </div>
           <div className="field" style={{ marginBottom: 0 }}>
             <label htmlFor="planningSearch">Search for any specific place or experience</label>

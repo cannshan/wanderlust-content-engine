@@ -407,6 +407,12 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   margin-bottom: 24px;
 }
 
+.planning-calendar-topbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+
 .planning-calendar-header {
   display: flex;
   align-items: center;

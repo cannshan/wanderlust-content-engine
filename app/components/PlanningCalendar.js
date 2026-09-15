@@ -20,7 +20,7 @@ function dateKey(year, month, day) {
 // month grid needs more width than the 280px sidebar has room for, and
 // showing it above keeps it visible without competing for space with
 // whatever's selected in the main panel.
-export default function PlanningCalendar({ items, year, month, onPrevMonth, onNextMonth, onSelectItem }) {
+export default function PlanningCalendar({ items, year, month, onPrevMonth, onNextMonth, onSelectItem, onHide }) {
   // Keyed by "YYYY-MM-DD" - every item that's been given a planned_date,
   // grouped so a day with more than one thing planned shows all of them,
   // not just the first.
@@ -43,6 +43,17 @@ export default function PlanningCalendar({ items, year, month, onPrevMonth, onNe
 
   return (
     <div className="planning-calendar">
+      {/* Dismiss lives here, at the top of the calendar itself, rather than
+          back in the Planning heading below it - once the calendar is open
+          it's the thing the eye is on, so that's where the way out belongs. */}
+      {onHide && (
+        <div className="planning-calendar-topbar">
+          <button type="button" className="btn-ghost" onClick={onHide}>
+            📅 Hide calendar
+          </button>
+        </div>
+      )}
+
       <div className="planning-calendar-header">
         <button type="button" className="btn-ghost" onClick={onPrevMonth} aria-label="Previous month">
           ‹
