@@ -1277,18 +1277,6 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 
 .place-save-btn { flex-shrink: 0; }
 
-/* Stacks the cost estimate chip above the "In Planning" button so both
-   stay anchored to the card's top-right corner, same spot the button
-   alone used to occupy - .place-row's own flex row puts this whole
-   column as the second item next to .place-info. */
-.place-cost-corner {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4px;
-  flex-shrink: 0;
-}
-
 .cost-chip {
   background: var(--amber-soft);
   color: var(--amber);

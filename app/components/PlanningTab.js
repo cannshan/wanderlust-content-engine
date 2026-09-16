@@ -534,75 +534,73 @@ export default function PlanningTab() {
             )}
             <br />
             <span className="saved-item-meta">{item.search_location}</span>
-            {(item.category || item.planned_date) && (
+            {(item.category || item.planned_date || item.estimated_cost_usd != null || editingCostId === item.id) && (
               <div className="saved-item-chips">
                 {item.category && <span className="saved-chip category-chip">{item.category}</span>}
                 {item.planned_date && <span className="saved-chip date-chip">📅 {formatShortDate(item.planned_date)}</span>}
+                {editingCostId === item.id ? (
+                  <div className="cost-edit-row">
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      className="cost-edit-input"
+                      value={costDraft}
+                      onChange={(e) => setCostDraft(e.target.value)}
+                      placeholder="0.00"
+                      autoFocus
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          saveCostEdit(item);
+                        } else if (e.key === "Escape") {
+                          cancelEditCost();
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="cost-edit-save"
+                      disabled={costEditSaving}
+                      onClick={() => saveCostEdit(item)}
+                      aria-label="Save cost"
+                      title="Save"
+                    >
+                      ✓
+                    </button>
+                    <button
+                      type="button"
+                      className="cost-edit-cancel"
+                      disabled={costEditSaving}
+                      onClick={cancelEditCost}
+                      aria-label="Cancel"
+                      title="Cancel"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ) : (
+                  item.estimated_cost_usd != null && (
+                    <button
+                      type="button"
+                      className="saved-chip cost-chip cost-chip-btn"
+                      title={item.estimated_cost_note || "Click to edit"}
+                      onClick={() => startEditCost(item)}
+                    >
+                      💰 ${item.estimated_cost_usd.toFixed(2)} for 2
+                      <span className="cost-chip-pencil" aria-hidden="true">✎</span>
+                    </button>
+                  )
+                )}
               </div>
             )}
           </div>
-          <div className="place-cost-corner">
-            {editingCostId === item.id ? (
-              <div className="cost-edit-row">
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  className="cost-edit-input"
-                  value={costDraft}
-                  onChange={(e) => setCostDraft(e.target.value)}
-                  placeholder="0.00"
-                  autoFocus
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      saveCostEdit(item);
-                    } else if (e.key === "Escape") {
-                      cancelEditCost();
-                    }
-                  }}
-                />
-                <button
-                  type="button"
-                  className="cost-edit-save"
-                  disabled={costEditSaving}
-                  onClick={() => saveCostEdit(item)}
-                  aria-label="Save cost"
-                  title="Save"
-                >
-                  ✓
-                </button>
-                <button
-                  type="button"
-                  className="cost-edit-cancel"
-                  disabled={costEditSaving}
-                  onClick={cancelEditCost}
-                  aria-label="Cancel"
-                  title="Cancel"
-                >
-                  ×
-                </button>
-              </div>
-            ) : (
-              item.estimated_cost_usd != null && (
-                <button
-                  type="button"
-                  className="saved-chip cost-chip cost-chip-btn"
-                  title={item.estimated_cost_note || "Click to edit"}
-                  onClick={() => startEditCost(item)}
-                >
-                  💰 ${item.estimated_cost_usd.toFixed(2)} for 2
-                  <span className="cost-chip-pencil" aria-hidden="true">✎</span>
-                </button>
-              )
-            )}
-            <button type="button" className="btn-ghost place-save-btn" disabled>
-              In Planning
-            </button>
-          </div>
+          <button type="button" className="btn-ghost place-save-btn" disabled>
+            In Planning
+          </button>
         </div>
         {editingCostId === item.id && costEditError && (
-          <p className="hint" style={{ color: "var(--bad)", textAlign: "right", marginTop: -8, marginBottom: 8 }}>
+          <p className="hint" style={{ color: "var(--bad)", marginTop: -8, marginBottom: 8 }}>
             {costEditError}
           </p>
         )}
@@ -1035,6 +1033,11 @@ export default function PlanningTab() {
                   <div className="saved-item-chips">
                     {item.category && <span className="saved-chip category-chip">{item.category}</span>}
                     {item.planned_date && <span className="saved-chip date-chip">📅 {formatShortDate(item.planned_date)}</span>}
+                    {item.estimated_cost_usd != null && (
+                      <span className="saved-chip cost-chip" title={item.estimated_cost_note || undefined}>
+                        💰 ${item.estimated_cost_usd.toFixed(2)}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="saved-item-actions">
