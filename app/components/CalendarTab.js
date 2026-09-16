@@ -56,14 +56,26 @@ export default function CalendarTab({ kind, active }) {
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState("");
 
+  // Same idea, for a Trip Calendar item - { id, name, plannedDate }, no
+  // completed flag (a planning item is never marked done from here). Kept
+  // as its own state rather than reusing editingNote, since it saves
+  // through a different route (planning-items, not calendar-items) and
+  // has no completed toggle - a shared shape would just mean checking
+  // which fields actually apply on every use.
+  const [editingPlanningItem, setEditingPlanningItem] = useState(null);
+  const [planningEditSaving, setPlanningEditSaving] = useState(false);
+  const [planningEditError, setPlanningEditError] = useState("");
+
   useEffect(() => {
-    if (!editingNote) return;
+    if (!editingNote && !editingPlanningItem) return;
     const onKeyDown = (e) => {
-      if (e.key === "Escape") setEditingNote(null);
+      if (e.key !== "Escape") return;
+      setEditingNote(null);
+      setEditingPlanningItem(null);
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [editingNote]);
+  }, [editingNote, editingPlanningItem]);
 
   // Refetched every time the tab is opened, not just on mount. Every tab
   // stays mounted for the whole session (see the comment in page.js), so
@@ -214,6 +226,64 @@ export default function CalendarTab({ kind, active }) {
     }
   }
 
+  function openEditPlanningItem(item) {
+    setEditingPlanningItem({ id: item.id, name: item.name, plannedDate: item.planned_date });
+    setPlanningEditError("");
+  }
+
+  async function savePlanningItemEdit(e) {
+    e.preventDefault();
+    if (!editingPlanningItem || planningEditSaving) return;
+    const trimmedName = editingPlanningItem.name.trim();
+    if (!trimmedName || !editingPlanningItem.plannedDate) return;
+
+    setPlanningEditSaving(true);
+    setPlanningEditError("");
+    try {
+      const res = await fetch(`/api/planning-items/${editingPlanningItem.id}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name: trimmedName, plannedDate: editingPlanningItem.plannedDate }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Couldn't save that.");
+      setPlanningItems((list) => list.map((p) => (p.id === data.item.id ? data.item : p)));
+      jumpToMonth(data.item.planned_date);
+      setEditingPlanningItem(null);
+    } catch (err) {
+      setPlanningEditError(err.message || "Couldn't save that.");
+    } finally {
+      setPlanningEditSaving(false);
+    }
+  }
+
+  // The Trip Calendar's equivalent of a note's Delete - but a planning
+  // item is a real researched place that lives on the Planning tab too,
+  // so removing it from view here only clears its date (unscheduling it)
+  // rather than deleting the item itself. A genuine delete still only
+  // happens from the Planning tab, where the full context of what's being
+  // removed is actually visible.
+  async function removePlanningItemFromCalendar() {
+    if (!editingPlanningItem || planningEditSaving) return;
+    setPlanningEditSaving(true);
+    setPlanningEditError("");
+    try {
+      const res = await fetch(`/api/planning-items/${editingPlanningItem.id}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ plannedDate: null }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Couldn't remove that from the calendar.");
+      setPlanningItems((list) => list.map((p) => (p.id === data.item.id ? data.item : p)));
+      setEditingPlanningItem(null);
+    } catch (err) {
+      setPlanningEditError(err.message || "Couldn't remove that from the calendar.");
+    } finally {
+      setPlanningEditSaving(false);
+    }
+  }
+
   // Optimistic drag-to-reschedule, same pattern as removeNote above: move
   // it immediately, put it back if the save actually fails. Split by
   // which list the dropped item actually lives in, since a note and a
@@ -325,7 +395,7 @@ export default function CalendarTab({ kind, active }) {
         onPrevMonth={prevMonth}
         onNextMonth={nextMonth}
         onRemoveItem={isTrip ? undefined : removeNote}
-        onEditItem={isTrip ? undefined : openEditNote}
+        onEditItem={isTrip ? openEditPlanningItem : openEditNote}
         onDropItem={isTrip ? movePlanningDate : handleDropContentItem}
       />
 
@@ -397,6 +467,69 @@ export default function CalendarTab({ kind, active }) {
                     disabled={editSaving || !editingNote.title.trim() || !editingNote.plannedDate}
                   >
                     {editSaving ? "Saving…" : "Save"}
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {editingPlanningItem && (
+        <div className="calendar-edit-overlay" onClick={() => !planningEditSaving && setEditingPlanningItem(null)}>
+          <div className="calendar-edit-modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Edit Trip Calendar item</h3>
+            <form onSubmit={savePlanningItemEdit}>
+              <div className="field">
+                <label htmlFor="editPlanningName">Name</label>
+                <input
+                  id="editPlanningName"
+                  value={editingPlanningItem.name}
+                  onChange={(e) => setEditingPlanningItem((p) => ({ ...p, name: e.target.value }))}
+                  maxLength={200}
+                  autoFocus
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="editPlanningDate">Date</label>
+                <input
+                  id="editPlanningDate"
+                  type="date"
+                  value={editingPlanningItem.plannedDate}
+                  onChange={(e) => setEditingPlanningItem((p) => ({ ...p, plannedDate: e.target.value }))}
+                />
+              </div>
+              <p className="hint" style={{ marginTop: -4 }}>
+                Category, research and everything else about this place still only change on the Planning tab.
+              </p>
+
+              {planningEditError && <p className="hint" style={{ color: "var(--bad)" }}>{planningEditError}</p>}
+
+              <div className="calendar-edit-actions">
+                <button
+                  type="button"
+                  className="btn-ghost"
+                  style={{ color: "var(--bad)" }}
+                  disabled={planningEditSaving}
+                  onClick={removePlanningItemFromCalendar}
+                >
+                  Remove from calendar
+                </button>
+                <div className="calendar-edit-actions-right">
+                  <button
+                    type="button"
+                    className="btn-ghost"
+                    disabled={planningEditSaving}
+                    onClick={() => setEditingPlanningItem(null)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    className="btn-primary"
+                    style={{ width: "auto" }}
+                    disabled={planningEditSaving || !editingPlanningItem.name.trim() || !editingPlanningItem.plannedDate}
+                  >
+                    {planningEditSaving ? "Saving…" : "Save"}
                   </button>
                 </div>
               </div>

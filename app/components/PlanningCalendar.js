@@ -32,10 +32,13 @@ function dateKey(year, month, day) {
 //
 // An item may also carry kind: "note" (a plain scheduling entry with no
 // detail to open into - see the Calendar tab) or kind: "planning" (a Trip
-// Calendar entry, read-only here since editing belongs to the Planning
-// tab). A note with onEditItem given opens its own edit form on click, and
-// with completed: true renders struck-through rather than disappearing -
-// "done" isn't "gone".
+// Calendar entry - its research/category/etc. still only change on the
+// Planning tab, but its own name and date can be edited right here). Both
+// open their own edit form on click when onEditItem is given - a note's
+// caller and a planning item's caller pass different handlers, since they
+// save through different routes. completed: true renders struck-through
+// rather than disappearing - "done" isn't "gone" (notes only; a planning
+// item is never marked completed here).
 //
 // Any item is draggable to a new day when onDropItem is given, regardless
 // of kind - moving a date is a lower-stakes action than editing content,
@@ -214,7 +217,7 @@ export default function PlanningCalendar({
                     title={item.name}
                     {...dragProps}
                   >
-                    {item.kind === "note" && onEditItem ? (
+                    {(item.kind === "note" || item.kind === "planning") && onEditItem ? (
                       <button
                         type="button"
                         className="planning-calendar-pill-label planning-calendar-pill-label-btn"

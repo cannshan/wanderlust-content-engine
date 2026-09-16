@@ -1,15 +1,17 @@
 import { NextResponse } from "next/server";
 import { getSupabase } from "../../../../lib/supabase";
 
-// Sets (or clears, with category: null / plannedDate: null) either or
-// both of a planning item's simple editable fields - category (the
-// free-text organizational tag, same "create it by using it" model as
-// saved_places' own category) and plannedDate (which calendar day this
-// item is scheduled for, see PlanningCalendar.js). Only updates whichever
-// field is actually present in the body - a plain `"category" in body`
-// check, not `typeof body.category === "string"` alone, since the latter
-// would silently wipe an item's category to null on every plannedDate-only
-// request (undefined isn't a string), and vice versa for plannedDate.
+// Sets (or clears, with category: null / plannedDate: null) any of a
+// planning item's simple editable fields - name (the place's own name;
+// editable from the Trip Calendar's edit modal, see CalendarTab.js),
+// category (the free-text organizational tag, same "create it by using
+// it" model as saved_places' own category) and plannedDate (which
+// calendar day this item is scheduled for, see PlanningCalendar.js).
+// Only updates whichever field is actually present in the body - a plain
+// `"category" in body` check, not `typeof body.category === "string"`
+// alone, since the latter would silently wipe an item's category to null
+// on every plannedDate-only request (undefined isn't a string), and vice
+// versa for plannedDate/name.
 export async function PATCH(req, { params }) {
   const supabase = getSupabase();
   if (!supabase) {
@@ -28,6 +30,11 @@ export async function PATCH(req, { params }) {
 
   const { id } = await params;
   const updates = {};
+  if ("name" in body) {
+    const name = typeof body.name === "string" ? body.name.trim().slice(0, 200) : "";
+    if (!name) return NextResponse.json({ error: "name can't be empty." }, { status: 400 });
+    updates.name = name;
+  }
   if ("category" in body) {
     updates.category = typeof body.category === "string" ? body.category.trim().slice(0, 60) || null : null;
   }
