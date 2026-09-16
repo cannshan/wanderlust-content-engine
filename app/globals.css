@@ -480,6 +480,18 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 
 .planning-calendar-pill:hover { opacity: .8; }
 
+/* The standalone Calendar tab's pills are labels, not buttons (no detail
+   panel to open into) - so they drop the pointer and the hover response
+   that would promise something clicking them doesn't do. `display: block`
+   because a <span> would otherwise sit inline and lose the ellipsis
+   truncation the button version gets for free. */
+.planning-calendar-pill.static {
+  display: block;
+  cursor: default;
+}
+
+.planning-calendar-pill.static:hover { opacity: 1; }
+
 @media (max-width: 640px) {
   .planning-calendar-cell { min-height: 50px; }
   .planning-calendar-pill { font-size: 10px; }

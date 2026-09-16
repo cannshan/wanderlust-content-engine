@@ -90,17 +90,28 @@ export default function PlanningCalendar({ items, year, month, onPrevMonth, onNe
           return (
             <div key={i} className={`planning-calendar-cell ${key === todayKey ? "today" : ""}`}>
               <span className="planning-calendar-daynum">{day}</span>
-              {dayItems.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  className="planning-calendar-pill"
-                  onClick={() => onSelectItem(item.id)}
-                  title={item.name}
-                >
-                  {item.name}
-                </button>
-              ))}
+              {/* A pill is only a button where there's somewhere to go.
+                  The standalone Calendar tab has no detail panel to open
+                  an item into, so it passes no onSelectItem and the pills
+                  render as plain labels - clickable-looking UI that does
+                  nothing is worse than UI that doesn't look clickable. */}
+              {dayItems.map((item) =>
+                onSelectItem ? (
+                  <button
+                    key={item.id}
+                    type="button"
+                    className="planning-calendar-pill"
+                    onClick={() => onSelectItem(item.id)}
+                    title={item.name}
+                  >
+                    {item.name}
+                  </button>
+                ) : (
+                  <span key={item.id} className="planning-calendar-pill static" title={item.name}>
+                    {item.name}
+                  </span>
+                )
+              )}
             </div>
           );
         })}

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import ContentTab from "./components/ContentTab";
+import CalendarTab from "./components/CalendarTab";
 import DiscoveryTab from "./components/DiscoveryTab";
 import PlanningTab from "./components/PlanningTab";
 import ReelVoiceoverTab from "./components/ReelVoiceoverTab";
@@ -13,6 +14,7 @@ const TABS = [
   { key: "discovery", label: "Discovery" },
   { key: "planning", label: "Planning" },
   { key: "content", label: "Content" },
+  { key: "calendar", label: "Calendar" },
   { key: "reel-voiceover", label: "Reel Voiceover" },
   { key: "profile", label: "Profile" },
 ];
@@ -109,6 +111,13 @@ export default function Shell() {
       <div className="tab-panels">
         <div className="tab-panel" hidden={activeTab !== "content"}>
           <ContentTab />
+        </div>
+        {/* `active` is passed rather than read from context because
+            CalendarTab needs to know when it's been opened, not just
+            that it exists - it refetches then, so a date set over on
+            Content shows up here without a page reload. */}
+        <div className="tab-panel" hidden={activeTab !== "calendar"}>
+          <CalendarTab active={activeTab === "calendar"} />
         </div>
         <div className="tab-panel" hidden={activeTab !== "discovery"}>
           <DiscoveryTab />
