@@ -27,6 +27,13 @@ function startOfWeekIso() {
 const CURRENT_TIER_LABEL = "Gold";
 const CURRENT_TIER_CAP_USD = 80;
 
+// The visitor-facing weekly badge's own goal - not the shared account's
+// actual Gold tier above (that's what the household's one password is
+// really on), just a target to show visitors something to track against.
+// $10/week matches Silver's $40/mo cap (lib/budget.js TIERS.silver) at 4
+// weeks/month, picked directly rather than derived from CURRENT_TIER_CAP_USD.
+const WEEKLY_SPEND_LIMIT_USD = 10;
+
 const REFRESH_MS = 60_000;
 // Which of the two badges below renders is decided by hostname, not a
 // manual flag: localhost/127.0.0.1 (any port) is you, developing - the
@@ -124,18 +131,21 @@ export default function MonthlySpend() {
   const byFeature = data.byFeature || [];
 
   if (!isDeveloper) {
-    // The visitor-facing badge: one number (this week's real usage so
-    // far) and a breakdown toggle, nothing else - no source chips (always
-    // remote, nothing to switch between), no tier-cap bar (that cap is a
-    // monthly developer/budget concept, not something a visitor's weekly
-    // total should be measured against).
+    // The visitor-facing badge: this week's real usage against a weekly
+    // goal (WEEKLY_SPEND_LIMIT_USD - see above, not the shared account's
+    // actual tier cap) and a breakdown toggle. No source chips - always
+    // remote, nothing to switch between.
+    const weekTotal = data.totalCostUsd ?? 0;
+    const weekPercent = Math.min(100, (weekTotal / WEEKLY_SPEND_LIMIT_USD) * 100);
+    const weekBarColor =
+      weekTotal >= WEEKLY_SPEND_LIMIT_USD ? "var(--bad)" : weekPercent >= 50 ? "var(--amber)" : "var(--forest)";
     return (
       <div className="monthly-spend">
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
-          title="Real usage cost since this Sunday - click for the breakdown"
+          title={`Real usage cost since this Sunday, against a $${WEEKLY_SPEND_LIMIT_USD}/week goal - click for the breakdown`}
           style={{
             background: "transparent",
             border: "none",
@@ -146,7 +156,11 @@ export default function MonthlySpend() {
             textAlign: "left",
           }}
         >
-          This week: <strong>{usd(data.totalCostUsd)}</strong> <span style={{ opacity: 0.6 }}>{open ? "▾" : "▸"}</span>
+          This week: <strong>{usd(weekTotal)}</strong> / ${WEEKLY_SPEND_LIMIT_USD}{" "}
+          <span style={{ opacity: 0.6 }}>{open ? "▾" : "▸"}</span>
+          <div className="monthly-spend-bar">
+            <div className="monthly-spend-bar-fill" style={{ width: `${weekPercent}%`, background: weekBarColor }} />
+          </div>
         </button>
 
         {open && (
