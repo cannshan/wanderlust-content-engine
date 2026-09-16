@@ -323,6 +323,8 @@ The `saved_food_items` and `saved_places` tables/API routes (`app/api/food-items
 
 Discovery also has an optional "What are you looking for?" field alongside Location - a theme/occasion ("christmas things," "date night spots") that gets folded into every category's own search phrasing in `findDiscoveryIdeas` (`lib/claude.js`), rather than just tacked onto the location string. A category is only included in results at all if what it actually turned up genuinely connects to that focus - no padding a category with generic results just to fill it. Saved alongside the rest of the search as `focus`.
 
+**Date (optional):** a plain `<input type="date">` next to "What are you looking for?" - when set, it's folded into every category's search the same way focus is (`"best hiking trails near Boothbay Harbor in early October"` instead of a date-blind search), so anything seasonal shows up the way it actually is around then. It also does one more thing focus doesn't: if a category's search happens to turn up a real, notable event or festival actually happening in the area around that date (backed by genuine search evidence - a real name and date, never a guess), it's included as its own standout result even though it's temporary rather than a permanent place. Same cost/speed as a search without a date - this is a prompt-phrasing change, not an extra API call or search, so it adds no meaningful latency or cost over a normal Discovery search. Saved alongside the rest of the search as `search_date`.
+
 Requires one table:
 
 ```sql
@@ -333,7 +335,8 @@ create table saved_searches (
   categories text[] not null,
   results jsonb not null,
   category text,
-  focus text
+  focus text,
+  search_date date
 );
 ```
 
@@ -341,6 +344,12 @@ If you set this table up before the "What are you looking for?" field existed, r
 
 ```sql
 alter table saved_searches add column if not exists focus text;
+```
+
+If you set this table up before the Date field existed, run this once to add that column too:
+
+```sql
+alter table saved_searches add column if not exists search_date date;
 ```
 
 Without this table configured at all, the Discovery tab's search still works exactly the same — "Save this search" just silently does nothing, same degrade-gracefully rule as everywhere else Supabase is optional in this app.

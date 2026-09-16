@@ -40,13 +40,17 @@ export async function POST(req) {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
-  const { location, categories, results, focus } = body;
+  const { location, categories, results, focus, date } = body;
 
   if (!location || !results) {
     return NextResponse.json({ error: "location and results are both required." }, { status: 400 });
   }
 
   const trimmedFocus = typeof focus === "string" ? focus.trim() : "";
+  // A plain "YYYY-MM-DD" string (an <input type="date">'s native value),
+  // same reasoning as planned_date everywhere else in this app - this is
+  // a day being planned around, not a specific time.
+  const searchDate = typeof date === "string" && date ? date : null;
 
   const { data, error } = await supabase
     .from("saved_searches")
@@ -55,6 +59,7 @@ export async function POST(req) {
       categories: categories?.length ? categories : ["all"],
       results,
       focus: trimmedFocus || null,
+      search_date: searchDate,
     })
     .select()
     .single();

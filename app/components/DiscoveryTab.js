@@ -18,6 +18,16 @@ function mapsSearchUrl(name, area) {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
 }
 
+// "Oct 15" for a saved search's date chip - same y/m/d-based build as
+// formatShortDate() in PlanningTab.js/ContentTab.js, for the same
+// timezone reason: new Date(isoDate) parses a bare "YYYY-MM-DD" as UTC
+// midnight, which toLocaleDateString() can then show as the previous day
+// in any negative-UTC-offset timezone (all of the US).
+function formatShortDate(isoDate) {
+  const [y, m, d] = isoDate.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
 function PlaceList({
   places,
   emptyHint,
@@ -84,16 +94,22 @@ export default function DiscoveryTab() {
   // folded into every category's search phrasing rather than just
   // appended to the location, see findDiscoveryIdeas in lib/claude.js.
   const [focus, setFocus] = useState("");
+  // Optional - when she's planning around a specific date, folded into
+  // every category's search phrasing the same way focus is (seasonal
+  // availability, a real event/festival happening around then) rather
+  // than run as a separate search - see findDiscoveryIdeas.
+  const [date, setDate] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState(null);
   // Captured at search time, not read live from `location`/`categories`/
-  // `focus` - those stay editable for the next search while a saved
-  // search still needs to record what was actually searched to produce it
-  // (same formSnapshot idea as ContentTab.js).
+  // `focus`/`date` - those stay editable for the next search while a
+  // saved search still needs to record what was actually searched to
+  // produce it (same formSnapshot idea as ContentTab.js).
   const [resultLocation, setResultLocation] = useState("");
   const [resultCategories, setResultCategories] = useState(["all"]);
   const [resultFocus, setResultFocus] = useState("");
+  const [resultDate, setResultDate] = useState("");
 
   const [savedSearches, setSavedSearches] = useState([]);
   const [savedSearchesLoading, setSavedSearchesLoading] = useState(true);
@@ -162,7 +178,7 @@ export default function DiscoveryTab() {
       const res = await fetch("/api/discovery", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ location: location.trim(), categories, focus: focus.trim() }),
+        body: JSON.stringify({ location: location.trim(), categories, focus: focus.trim(), date }),
       });
       // Parsed as text first, same reasoning as ContentTab.js's
       // generateOne: a non-JSON body means the platform (Vercel) killed
@@ -182,6 +198,7 @@ export default function DiscoveryTab() {
       setResultLocation(location.trim());
       setResultCategories(categories);
       setResultFocus(focus.trim());
+      setResultDate(date);
     } catch (err) {
       setError(err.message || "Couldn't find things to do there.");
     }
@@ -241,7 +258,13 @@ export default function DiscoveryTab() {
       const res = await fetch("/api/discovery-searches", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ location: resultLocation, categories: resultCategories, results: result, focus: resultFocus }),
+        body: JSON.stringify({
+          location: resultLocation,
+          categories: resultCategories,
+          results: result,
+          focus: resultFocus,
+          date: resultDate,
+        }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -258,10 +281,12 @@ export default function DiscoveryTab() {
     setLocation(saved.location);
     setCategories(saved.categories?.length ? saved.categories : ["all"]);
     setFocus(saved.focus || "");
+    setDate(saved.search_date || "");
     setResult(saved.results);
     setResultLocation(saved.location);
     setResultCategories(saved.categories || ["all"]);
     setResultFocus(saved.focus || "");
+    setResultDate(saved.search_date || "");
     setCurrentSavedSearchId(saved.id);
     setError("");
   }
@@ -300,6 +325,15 @@ export default function DiscoveryTab() {
               value={focus}
               onChange={(e) => setFocus(e.target.value)}
             />
+          </div>
+
+          <div className="field">
+            <label htmlFor="discoveryDate">Date (optional)</label>
+            <input id="discoveryDate" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+            <p className="hint" style={{ marginTop: 6 }}>
+              Factored into every category's search - seasonal availability, and any real event or festival
+              actually happening in the area around then.
+            </p>
           </div>
 
           <div className="field">
@@ -438,6 +472,7 @@ export default function DiscoveryTab() {
                     </div>
                     <div className="saved-item-chips">
                       {s.category && <span className="saved-chip category-chip">{s.category}</span>}
+                      {s.search_date && <span className="saved-chip date-chip">📅 {formatShortDate(s.search_date)}</span>}
                     </div>
                   </button>
                   <div className="saved-item-actions">

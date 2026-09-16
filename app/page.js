@@ -74,7 +74,7 @@ export default function Shell() {
         <button type="button" className="signout-btn" onClick={signOut}>
           Sign out
         </button>
-        <div>
+        <div className="topbar-title">
           <h1>Wine Wilderness Wanderlust</h1>
         </div>
         <MonthlySpend />

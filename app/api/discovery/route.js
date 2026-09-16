@@ -22,7 +22,7 @@ export async function POST(req) {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
-  const { location, categories, focus } = body;
+  const { location, categories, focus, date } = body;
 
   if (!location) {
     return NextResponse.json({ error: "location is required." }, { status: 400 });
@@ -35,7 +35,7 @@ export async function POST(req) {
     return NextResponse.json({ error: BUDGET_LIMIT_MESSAGE }, { status: 429 });
   }
 
-  const discoveryIdeas = await findDiscoveryIdeas({ location, categories, focus });
+  const discoveryIdeas = await findDiscoveryIdeas({ location, categories, focus, date });
   if (!discoveryIdeas) {
     return NextResponse.json(
       { error: "Couldn't find things to do there right now. Try again." },

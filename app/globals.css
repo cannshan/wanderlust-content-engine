@@ -775,6 +775,48 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   color: var(--ink-soft);
 }
 
+/* Below a certain width, the centered title and the two corner-pinned
+   widgets (sign-out, spend badge) run out of room and start overlapping -
+   a centered flex item never yields space to position:absolute siblings,
+   since those are out of flow entirely. Stacks all three instead of
+   corner-pinning them once that width is reached, and reorders them
+   (title first) since the DOM order (sign-out, title, badge) would
+   otherwise stack the sign-out button above the title. */
+@media (max-width: 700px) {
+  .topbar {
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .topbar-title { order: 1; }
+
+  .signout-btn {
+    position: static;
+    order: 2;
+  }
+
+  .monthly-spend {
+    /* Not position: static - this still needs to be its own containing
+       block for its dropdown panel (see the comment above), just no
+       longer pinned to the topbar's corner. */
+    position: relative;
+    left: auto;
+    bottom: auto;
+    order: 3;
+  }
+
+  /* Centered under the now-centered badge instead of left-anchored to
+     it - left: 0 would run a 280px-wide panel off the right edge of a
+     narrow phone screen, since the badge itself is centered here rather
+     than pinned to the corner it has room to hang off of on desktop. */
+  .monthly-spend-panel {
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(280px, calc(100vw - 32px));
+  }
+}
+
 .monthly-spend strong { color: var(--wine); }
 
 .monthly-spend-bar {
