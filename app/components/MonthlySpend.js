@@ -130,7 +130,7 @@ export default function MonthlySpend() {
     // monthly developer/budget concept, not something a visitor's weekly
     // total should be measured against).
     return (
-      <div className="monthly-spend" style={{ position: "relative" }}>
+      <div className="monthly-spend">
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
@@ -195,7 +195,7 @@ export default function MonthlySpend() {
   const activeSource = SOURCES.find((s) => s.key === source);
 
   return (
-    <div className="monthly-spend" style={{ position: "relative" }}>
+    <div className="monthly-spend">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}

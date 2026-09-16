@@ -737,6 +737,14 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 
 .signout-btn:hover { border-color: var(--wine); color: var(--wine); }
 
+/* Pinned to the topbar's top-left corner (the topbar itself is
+   position: relative - see .topbar above). This position: absolute also
+   already gives its own dropdown panel (.monthly-spend-panel, and the
+   developer badge's inline-styled equivalent) a valid containing block on
+   its own - MonthlySpend.js should never add an inline `position:
+   relative` here to "help" that, since an inline style overrides this
+   rule and silently drops the badge back into normal document flow next
+   to the centered title instead of the corner. */
 .monthly-spend {
   position: absolute;
   left: 0;
