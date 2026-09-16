@@ -81,7 +81,6 @@ export default function ContentTab() {
     youtube: true,
   });
   const [extras, setExtras] = useState({
-    voiceover: false,
     music: false,
     styling: false,
   });
@@ -90,9 +89,12 @@ export default function ContentTab() {
   const [menuLinks, setMenuLinks] = useState([""]);
   const [menuFiles, setMenuFiles] = useState([]);
   const [menuFileError, setMenuFileError] = useState("");
-  const [voiceoverVideoFile, setVoiceoverVideoFile] = useState(null);
-  const [voiceoverVideoUrl, setVoiceoverVideoUrl] = useState("");
-  const [voiceoverVideoFileError, setVoiceoverVideoFileError] = useState("");
+  // The finished reel, if she's already filmed it. Used to ground the
+  // caption in what the video actually shows (see fetchFootageContext) -
+  // it is never uploaded as a file, only sampled frames are sent.
+  const [reelVideoFile, setReelVideoFile] = useState(null);
+  const [reelVideoUrl, setReelVideoUrl] = useState("");
+  const [reelVideoFileError, setReelVideoFileError] = useState("");
   const [videoProgress, setVideoProgress] = useState(null);
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
@@ -202,7 +204,7 @@ export default function ContentTab() {
           results: {
             ...result.platforms,
             _styling_tip: result.stylingTip ?? null,
-            _video_scene_summary: result.videoSceneSummary ?? null,
+            _footage_scene_summary: result.footageSceneSummary ?? null,
           },
         }),
       });
@@ -220,7 +222,7 @@ export default function ContentTab() {
   function loadSavedIdea(saved) {
     const {
       _styling_tip: stylingTip,
-      _video_scene_summary: videoSceneSummary,
+      _footage_scene_summary: footageSceneSummary,
       ...platformResults
     } = saved.results || {};
 
@@ -247,12 +249,12 @@ export default function ContentTab() {
     setMenuFiles([]);
     setMenuFileError("");
     // Same as the menu file above - the uploaded reel itself was never
-    // saved (only the voiceover script/scene summary it produced), so
-    // there's nothing to restore here either.
-    setVoiceoverVideoFile(null);
-    setVoiceoverVideoFileError("");
-    if (voiceoverVideoUrl) URL.revokeObjectURL(voiceoverVideoUrl);
-    setVoiceoverVideoUrl("");
+    // saved (only the footage rundown it produced), so there's nothing
+    // to restore here either.
+    setReelVideoFile(null);
+    setReelVideoFileError("");
+    if (reelVideoUrl) URL.revokeObjectURL(reelVideoUrl);
+    setReelVideoUrl("");
     setNearbyResult(null);
     setNearbyError("");
     setResult({
@@ -261,7 +263,7 @@ export default function ContentTab() {
       attempted: saved.platforms,
       savedId: saved.id,
       stylingTip: stylingTip ?? null,
-      videoSceneSummary: videoSceneSummary ?? null,
+      footageSceneSummary: footageSceneSummary ?? null,
       formSnapshot: {
         idea: saved.idea,
         location: saved.location,
@@ -396,29 +398,29 @@ export default function ContentTab() {
     });
   }
 
-  function handleVoiceoverVideoChange(e) {
+  function handleReelVideoChange(e) {
     const file = e.target.files?.[0] || null;
-    if (voiceoverVideoUrl) URL.revokeObjectURL(voiceoverVideoUrl);
+    if (reelVideoUrl) URL.revokeObjectURL(reelVideoUrl);
     if (!file) {
-      setVoiceoverVideoFile(null);
-      setVoiceoverVideoUrl("");
+      setReelVideoFile(null);
+      setReelVideoUrl("");
       return;
     }
     if (file.size > MAX_VIDEO_FILE_BYTES) {
-      setVoiceoverVideoFileError("That file's too big - please use something under 300MB.");
-      setVoiceoverVideoFile(null);
-      setVoiceoverVideoUrl("");
+      setReelVideoFileError("That file's too big - please use something under 300MB.");
+      setReelVideoFile(null);
+      setReelVideoUrl("");
       e.target.value = "";
       return;
     }
-    setVoiceoverVideoFileError("");
-    setVoiceoverVideoFile(file);
-    setVoiceoverVideoUrl(URL.createObjectURL(file));
+    setReelVideoFileError("");
+    setReelVideoFile(file);
+    setReelVideoUrl(URL.createObjectURL(file));
   }
 
   const platformsToGenerate = PLATFORM_ORDER.filter((p) => selectedPlatforms[p]);
 
-  async function generateOne(platformName, restaurantContext, locationContext, includeVoiceover) {
+  async function generateOne(platformName, restaurantContext, locationContext, footageContext) {
     const res = await fetch("/api/generate", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -427,7 +429,7 @@ export default function ContentTab() {
         platform: platformName,
         restaurantContext,
         locationContext,
-        includeVoiceover,
+        footageContext,
         includeMusic: extras.music,
       }),
     });
@@ -501,39 +503,38 @@ export default function ContentTab() {
       menuFiles.map(async (f) => ({ base64: await fileToBase64(f), mediaType: f.type }))
     );
 
-    // If a reel was uploaded alongside the voiceover toggle, the voiceover
-    // should come from watching that footage instead of narrating the
-    // finished caption - grounded in what's actually on screen, not
-    // regenerated per platform. Frame extraction happens entirely in the
-    // browser (see lib/videoFrames.js), then the frames are sent once
-    // here, same pre-fetch-and-share pattern as restaurantContext/
-    // locationContext below - not re-uploaded per platform.
-    async function fetchVideoVoiceover() {
-      if (!(extras.voiceover && voiceoverVideoFile)) return null;
+    // If she's already filmed it, the caption should describe THAT video
+    // rather than the idea typed before filming. Frame extraction happens
+    // entirely in the browser (see lib/videoFrames.js), then the frames
+    // are sent once here and the resulting rundown is shared across every
+    // platform's request - same pre-fetch-and-share pattern as
+    // restaurantContext/locationContext below, since what's on screen
+    // doesn't change per platform.
+    async function fetchFootageContext() {
+      if (!reelVideoFile) return null;
       try {
         setVideoProgress({ done: 0, total: 0 });
-        const { frames, durationSeconds } = await extractVideoFrames(voiceoverVideoFile, (done, total) =>
+        const { frames, durationSeconds } = await extractVideoFrames(reelVideoFile, (done, total) =>
           setVideoProgress({ done, total })
         );
         setVideoProgress(null);
-        return await fetchContext("/api/reel-voiceover", {
+        return await fetchContext("/api/reel-footage", {
           frames,
           durationSeconds,
           idea: form.idea,
           location: form.location,
           notes: form.notes,
-          platform: platformsToGenerate[0],
         });
       } catch {
-        // Same silent-degrade rule as fetchContext's own catch - falls
-        // back to the normal caption-narrated voiceover below instead of
-        // blocking generation.
+        // Same silent-degrade rule as fetchContext's own catch - a
+        // caption written from the idea alone is still a real result, so
+        // this never blocks generation.
         setVideoProgress(null);
         return null;
       }
     }
 
-    const [restaurantData, locationData, stylingData, videoVoiceoverData] = await Promise.all([
+    const [restaurantData, locationData, stylingData, footageData] = await Promise.all([
       isRestaurant && restaurantName.trim()
         ? fetchContext("/api/restaurant-check", {
             restaurantName: restaurantName.trim(),
@@ -556,25 +557,24 @@ export default function ContentTab() {
             storyBeat: form.storyBeat,
           })
         : Promise.resolve(null),
-      fetchVideoVoiceover(),
+      fetchFootageContext(),
     ]);
     const restaurantContext = restaurantData?.restaurantContext ?? null;
     const locationContext = locationData?.locationContext ?? null;
     const stylingTip = stylingData?.stylingTip ?? null;
-    const videoVoiceoverScript = videoVoiceoverData?.voiceoverScript ?? null;
-    const videoSceneSummary = videoVoiceoverData?.sceneSummary ?? null;
+    const footageSceneSummary = footageData?.sceneSummary ?? null;
+    // Handed to every platform's call as one plain block of beats - the
+    // same rundown shown under "What Claude saw" below, so what grounded
+    // the caption is exactly what she can read and check it against.
+    const footageContext = footageSceneSummary?.length ? footageSceneSummary.join("\n") : null;
 
     // Independent, parallel requests, one per selected platform - each
     // platform's generation is faster and more reliable on its own than
     // one combined call (a combined version routinely hit Vercel's
-    // function timeout in testing). Each platform's own voiceover step is
-    // skipped (includeVoiceover: false) whenever the video-grounded script
-    // above already exists - no point paying for a second, caption-based
-    // voiceover nobody will see.
+    // function timeout in testing). Every platform gets the same footage
+    // rundown, since the video is the video regardless of where it goes.
     const outcomes = await Promise.allSettled(
-      platformsToGenerate.map((p) =>
-        generateOne(p, restaurantContext, locationContext, extras.voiceover && !videoVoiceoverScript)
-      )
+      platformsToGenerate.map((p) => generateOne(p, restaurantContext, locationContext, footageContext))
     );
 
     const platforms = {};
@@ -582,13 +582,7 @@ export default function ContentTab() {
     outcomes.forEach((outcome, i) => {
       const p = platformsToGenerate[i];
       if (outcome.status === "fulfilled") {
-        // The video-grounded script replaces whatever (if anything) the
-        // per-platform call would have written - same script shown on
-        // every platform's tab, since it's about the actual footage, not
-        // this platform's specific caption.
-        platforms[p] = videoVoiceoverScript
-          ? { ...outcome.value, voiceover_script: videoVoiceoverScript }
-          : outcome.value;
+        platforms[p] = outcome.value;
       } else {
         errors[p] = outcome.reason?.message || "Failed to generate.";
       }
@@ -609,7 +603,7 @@ export default function ContentTab() {
         formSnapshot,
         savedId: null,
         stylingTip,
-        videoSceneSummary,
+        footageSceneSummary,
       });
     }
     setLoading(false);
@@ -763,14 +757,6 @@ export default function ContentTab() {
           <div className="platform-toggle">
             <button
               type="button"
-              className={`goal-option ${extras.voiceover ? "active" : ""}`}
-              onClick={() => toggleExtra("voiceover")}
-              aria-pressed={extras.voiceover}
-            >
-              <span className="goal-title">Voiceover script</span>
-            </button>
-            <button
-              type="button"
               className={`goal-option ${extras.music ? "active" : ""}`}
               onClick={() => toggleExtra("music")}
               aria-pressed={extras.music}
@@ -788,23 +774,22 @@ export default function ContentTab() {
           </div>
         </div>
 
-        {extras.voiceover && (
-          <div className="field">
-            <label htmlFor="voiceoverVideo">Already filmed it? Upload the reel for an accurate voiceover (optional)</label>
-            <input id="voiceoverVideo" type="file" accept="video/*" onChange={handleVoiceoverVideoChange} />
-            <p className="hint" style={{ marginTop: 6 }}>
-              Processed entirely in your browser, not uploaded as a file — if given, the voiceover script is
-              written to match exactly what's shown in your footage instead of narrating the caption. Skip
-              this and you'll get the caption-narrated voiceover, like before.
-            </p>
-            {voiceoverVideoFileError && (
-              <p className="hint" style={{ marginTop: 6, color: "var(--bad)" }}>{voiceoverVideoFileError}</p>
-            )}
-            {voiceoverVideoUrl && (
-              <video src={voiceoverVideoUrl} controls style={{ width: "100%", borderRadius: 8, maxHeight: 300, marginTop: 10 }} />
-            )}
-          </div>
-        )}
+        <div className="field">
+          <label htmlFor="reelVideo">Already filmed it? Upload the finished reel (optional)</label>
+          <input id="reelVideo" type="file" accept="video/*" onChange={handleReelVideoChange} />
+          <p className="hint" style={{ marginTop: 6 }}>
+            Processed entirely in your browser, never uploaded as a file — only a handful of still frames
+            are sent. Give it the finished video and the caption, title and cover text are written about
+            what's actually on screen, in the order it happens, instead of the idea above. Skip it and
+            everything works exactly as before.
+          </p>
+          {reelVideoFileError && (
+            <p className="hint" style={{ marginTop: 6, color: "var(--bad)" }}>{reelVideoFileError}</p>
+          )}
+          {reelVideoUrl && (
+            <video src={reelVideoUrl} controls style={{ width: "100%", borderRadius: 8, maxHeight: 300, marginTop: 10 }} />
+          )}
+        </div>
 
         <div className="field">
           <label>Restaurant / bar (optional)</label>
@@ -958,17 +943,17 @@ export default function ContentTab() {
             </div>
           )}
 
-          {result.videoSceneSummary?.length > 0 && (
+          {result.footageSceneSummary?.length > 0 && (
             <div className="field" style={{ marginBottom: 20 }}>
               <label>What Claude saw in your footage</label>
               <ul className="shotlist">
-                {result.videoSceneSummary.map((line, i) => (
+                {result.footageSceneSummary.map((line, i) => (
                   <li key={i}>{line}</li>
                 ))}
               </ul>
               <p className="hint" style={{ marginTop: 6 }}>
-                Sanity-check this against your actual footage — the voiceover script below (same on every
-                platform tab) is written to match it.
+                This is what every caption below was written from — check it against your actual footage. If
+                a beat here is wrong, the caption built on it will be too.
               </p>
             </div>
           )}

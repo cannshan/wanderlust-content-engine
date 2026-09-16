@@ -12,6 +12,16 @@ The research and design plan behind this (algorithm rules, caption-formula break
 
 The tool decides on its own whether a topic reads better as flowing narrative or an itinerary-style bullet list, and only tags a business/venue handle if you mentioned one in your notes — neither needs its own form field.
 
+### Grounding the caption in real footage
+
+The generator normally writes from the idea you typed, which describes a video that doesn't exist yet. **Already filmed it?** An optional "Upload the finished reel" field sits under the form — give it the finished video and the caption, title and cover text are written about what's genuinely on screen instead.
+
+The video itself is never uploaded. Exactly as on the Reel Voiceover tab, it's sampled into a handful of still frames in your browser (`lib/videoFrames.js`), and only those small JPEGs are sent — once per Generate click, not once per platform, since what's in the video doesn't change based on where it's posted. `/api/reel-footage` turns them into a beat-by-beat rundown of what's actually visible, which is then handed to every platform's request as context.
+
+Two rules make this worth having. **The footage wins:** where the rundown and your typed idea disagree, the caption follows the footage, because the idea was written before filming and the video is the thing that actually exists. **Nothing gets invented:** the rundown describes only what's visible, and won't name a place or a dish it can't actually see — so a caption can't promise a moment the video doesn't deliver.
+
+The rundown is shown above the result as **"What Claude saw in your footage"** — not decoration, it's the exact text every caption was written from, so if a beat there is wrong you know the caption built on it is wrong too. If frame extraction or the footage read fails, generation silently carries on from the idea alone, the same way every other optional context in this app degrades.
+
 ### YouTube titles
 
 A YouTube Short carries a real title, and unlike a TikTok/Instagram caption it's indexed, searchable metadata — so YouTube (and only YouTube) comes back with **3 title options to pick between**, shown as a selectable stack above the description with "Copy title" copying whichever is selected. They're required to be three genuinely different angles on the same video — one leading with the specific thing itself, one with the surprise/contrast, one with the place or the question a viewer would actually search — not one title reworded three times, and all three have to be equally honest about what the video actually shows; none is allowed to be more clickable by overstating it. They come back best-first, so the first is selected by default and doing nothing is a real choice.
@@ -103,7 +113,7 @@ The video file itself is never uploaded anywhere. Entirely in your browser, it's
 
 Pick a platform (TikTok/Instagram/YouTube) to shape the tone/pacing the same way the rest of the app's voice profile does. This works best on genuine short-form footage (under a few minutes) — very long videos sample the same fixed number of frames, so each one covers proportionally less.
 
-**Already filmed it? Same thing works right from the Content tab.** Turn on the "Voiceover script" extra there and an optional "upload the reel" field appears — if you give it a video, the voiceover script in the result (same script shown on every platform's tab, plus a "what Claude saw" summary above the tabs) is grounded in that actual footage instead of narrating the finished caption. Skip the upload and it falls back to the original caption-narrated voiceover exactly like before; the same silent-fallback also kicks in if the frame extraction or the video analysis itself fails for any reason.
+Voiceovers live here and only here. The Content tab used to have its own "Voiceover script" extra — one that narrated the finished caption for a post that hadn't been filmed yet — and it's gone; a voiceover is worth writing against real footage, which is what this tab is for. Content's reel upload now does something different (see "Grounding the caption in real footage" below): it shapes the caption, and never writes a script.
 
 ### Raw clips - assemble a reel for me
 
@@ -424,6 +434,7 @@ The easiest path is [Vercel](https://vercel.com) (built by the makers of Next.js
 - `app/api/planning-search/` + `lib/claude.js`'s `searchForPlace` — the Planning tab's own free-text search bar. `app/components/PlanningPicker.js` — the shared "Add to Planning" category picker, used by both Discovery and this search bar.
 - `app/api/place-suggestion/` + `lib/ogImage.js` — the "What to Wear" button (now on the Planning tab, not Discovery), and the direct page-fetch that gets a real thumbnail image for a style link - see "Per-place suggestions" above.
 - `app/components/ReelVoiceoverTab.js` + `app/api/reel-voiceover/` + `lib/videoFrames.js` — the Reel Voiceover tab's "already edited" mode - see "Reel Voiceover tab" above.
+- `app/api/reel-footage/` — reads an uploaded reel on the Content tab and reports what's actually in it, so the caption can be written about the real video. Shares `lib/videoFrames.js` with the Reel Voiceover tab but writes no script of its own.
 - `app/api/reel-edit-plan/` + `lib/assembleReel.js` — the "raw clips - assemble for me" mode - see "Raw clips" above.
 - `lib/useCategorizedItems.js` + `app/components/CategoryUI.js` — the shared categorize/filter behavior behind saved ideas, saved searches, and Planning items.
 - `lib/constants.js` — shared platform/category constants used across all three tabs.

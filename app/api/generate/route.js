@@ -29,7 +29,7 @@ export async function POST(req) {
     menuLinks,
     menuFiles,
     locationContext: precomputedLocationContext,
-    includeVoiceover,
+    footageContext,
     includeMusic,
   } = body;
 
@@ -81,7 +81,7 @@ export async function POST(req) {
       restaurantContext ? `"${restaurantContext.slice(0, 200)}${restaurantContext.length > 200 ? "…" : ""}"` : "none/skipped"
     } location_context=${
       locationContext ? `"${locationContext.slice(0, 200)}${locationContext.length > 200 ? "…" : ""}"` : "none/skipped"
-    }`
+    } footage_context=${footageContext ? `${footageContext.length} chars` : "none (no reel uploaded)"}`
   );
 
   try {
@@ -93,9 +93,9 @@ export async function POST(req) {
       liveTrends: trendResult.hashtags,
       restaurantContext,
       locationContext,
+      footageContext,
       lengthSeconds: resolvedLength,
       platform: resolvedPlatform,
-      includeVoiceover,
       includeMusic,
     });
 
