@@ -210,33 +210,50 @@ export default function PlanningCalendar({
                     </button>
                   );
                 }
+                // A note or a Trip Calendar item opens its own edit form
+                // on click, same as the button case above - the whole
+                // pill is the click target (not just its label text), so
+                // a real <button> can't be the outer element once a note
+                // also carries its own nested × remove button (buttons
+                // can't nest). role="button" + a click/Enter handler on
+                // this <span> instead, same pattern as PlanningTab.js's
+                // own saved-item-main cards.
+                const canEdit = (item.kind === "note" || item.kind === "planning") && !!onEditItem;
                 return (
                   <span
                     key={item.id}
-                    className={`planning-calendar-pill static ${item.kind === "note" ? "note" : ""} ${completed ? "completed" : ""}`}
+                    className={`planning-calendar-pill static ${item.kind === "note" ? "note" : ""} ${completed ? "completed" : ""} ${canEdit ? "editable" : ""}`}
                     title={item.name}
                     {...dragProps}
+                    {...(canEdit
+                      ? {
+                          role: "button",
+                          tabIndex: 0,
+                          onClick: () => onEditItem(item),
+                          onKeyDown: (e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              onEditItem(item);
+                            }
+                          },
+                        }
+                      : {})}
                   >
-                    {(item.kind === "note" || item.kind === "planning") && onEditItem ? (
-                      <button
-                        type="button"
-                        className="planning-calendar-pill-label planning-calendar-pill-label-btn"
-                        onClick={() => onEditItem(item)}
-                      >
-                        {completed ? "✓ " : ""}
-                        {item.name}
-                      </button>
-                    ) : (
-                      <span className="planning-calendar-pill-label">
-                        {completed ? "✓ " : ""}
-                        {item.name}
-                      </span>
-                    )}
+                    <span className="planning-calendar-pill-label">
+                      {completed ? "✓ " : ""}
+                      {item.name}
+                    </span>
                     {item.kind === "note" && onRemoveItem && (
                       <button
                         type="button"
                         className="planning-calendar-pill-remove"
-                        onClick={() => onRemoveItem(item)}
+                        onClick={(e) => {
+                          // Stops the click from also bubbling up to the
+                          // pill's own onClick above and opening the edit
+                          // form right as the note gets removed.
+                          e.stopPropagation();
+                          onRemoveItem(item);
+                        }}
                         aria-label={`Remove ${item.name}`}
                         title="Remove"
                       >

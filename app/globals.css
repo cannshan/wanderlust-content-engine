@@ -104,6 +104,20 @@ input[type="checkbox"] {
   accent-color: var(--wine);
 }
 
+/* Drops the native up/down spinner on every cost field (the Planning
+   card's cost-chip editor, the Trip Calendar edit modal's estimated
+   cost) - plain typed-in digits read cleaner than a stepper nobody's
+   actually clicking through by ones for a dollar amount. */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
 input:focus, select:focus, textarea:focus, button:focus-visible {
   outline: 2px solid var(--wine);
   outline-offset: 1px;
@@ -535,8 +549,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   opacity: .55;
 }
 
-.planning-calendar-pill.completed .planning-calendar-pill-label,
-.planning-calendar-pill.completed .planning-calendar-pill-label-btn {
+.planning-calendar-pill.completed .planning-calendar-pill-label {
   text-decoration: line-through;
 }
 
@@ -551,6 +564,16 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 }
 
 .planning-calendar-pill.static:hover { opacity: 1; }
+
+/* A note or Trip Calendar item is the exception - the whole pill (not
+   just its label text) is the click target to open its edit form, see
+   the role="button" span in PlanningCalendar.js. Overrides .static's own
+   cursor/hover-suppression above, just for these. */
+.planning-calendar-pill.static.editable {
+  cursor: pointer;
+}
+
+.planning-calendar-pill.static.editable:hover { opacity: .8; }
 
 /* Title, date and button on one line - adding a scheduling note should
    feel like jotting one down, not filling in a form. Wraps to stacked
@@ -598,23 +621,6 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   flex: 1;
   min-width: 0;
 }
-
-/* Same label look as the plain span above, but a real button - used when
-   a note can be opened for editing (see the Calendar tab), so its title
-   is clickable without looking any different from a note that isn't. */
-.planning-calendar-pill-label-btn {
-  background: transparent;
-  border: none;
-  padding: 0;
-  margin: 0;
-  font: inherit;
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.planning-calendar-pill-label-btn:hover { text-decoration: underline; }
-.planning-calendar-pill.completed .planning-calendar-pill-label-btn:hover { text-decoration: underline line-through; }
 
 /* Pushed to the pill's right edge and only inked on hover - present when
    wanted, not a row of x's competing with the titles. */

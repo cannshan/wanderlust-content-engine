@@ -442,7 +442,21 @@ export default function CalendarTab({ kind, active }) {
         <div className="calendar-edit-overlay" onClick={() => !editSaving && setEditingNote(null)}>
           <div className="calendar-edit-modal" onClick={(e) => e.stopPropagation()}>
             <h3>Edit calendar note</h3>
-            <form onSubmit={saveEditNote}>
+            {/* A submit-type button with no other submit button ahead of
+                it in the form SHOULD make Enter in any field submit
+                natively - live testing found that didn't actually happen
+                here, so this mirrors the Save button's own disabled logic
+                explicitly rather than trusting the browser's implicit
+                submission to kick in. */}
+            <form
+              onSubmit={saveEditNote}
+              onKeyDown={(e) => {
+                if (e.key !== "Enter") return;
+                e.preventDefault();
+                if (editSaving || !editingNote.title.trim() || !editingNote.plannedDate) return;
+                saveEditNote(e);
+              }}
+            >
               <div className="field">
                 <label htmlFor="editNoteTitle">Title</label>
                 <input
@@ -506,7 +520,17 @@ export default function CalendarTab({ kind, active }) {
         <div className="calendar-edit-overlay" onClick={() => !planningEditSaving && setEditingPlanningItem(null)}>
           <div className="calendar-edit-modal" onClick={(e) => e.stopPropagation()}>
             <h3>Edit Trip Calendar item</h3>
-            <form onSubmit={savePlanningItemEdit}>
+            {/* Same explicit Enter handling as the note modal above, and
+                for the same reason - see its comment. */}
+            <form
+              onSubmit={savePlanningItemEdit}
+              onKeyDown={(e) => {
+                if (e.key !== "Enter") return;
+                e.preventDefault();
+                if (planningEditSaving || !editingPlanningItem.name.trim() || !editingPlanningItem.plannedDate) return;
+                savePlanningItemEdit(e);
+              }}
+            >
               <div className="field">
                 <label htmlFor="editPlanningName">Name</label>
                 <input
@@ -538,9 +562,6 @@ export default function CalendarTab({ kind, active }) {
                   onChange={(e) => setEditingPlanningItem((p) => ({ ...p, estimatedCost: e.target.value }))}
                 />
               </div>
-              <p className="hint" style={{ marginTop: -4 }}>
-                Category, research and everything else about this place still only change on the Planning tab.
-              </p>
 
               {planningEditError && <p className="hint" style={{ color: "var(--bad)" }}>{planningEditError}</p>}
 
