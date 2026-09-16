@@ -227,7 +227,15 @@ export default function CalendarTab({ kind, active }) {
   }
 
   function openEditPlanningItem(item) {
-    setEditingPlanningItem({ id: item.id, name: item.name, plannedDate: item.planned_date });
+    setEditingPlanningItem({
+      id: item.id,
+      name: item.name,
+      plannedDate: item.planned_date,
+      estimatedCost: item.estimated_cost_usd != null ? String(item.estimated_cost_usd) : "",
+      // Kept alongside the editable draft above purely to detect whether
+      // the cost was actually touched (see below) - not itself rendered.
+      originalCost: item.estimated_cost_usd,
+    });
     setPlanningEditError("");
   }
 
@@ -237,13 +245,32 @@ export default function CalendarTab({ kind, active }) {
     const trimmedName = editingPlanningItem.name.trim();
     if (!trimmedName || !editingPlanningItem.plannedDate) return;
 
+    const trimmedCost = editingPlanningItem.estimatedCost.trim();
+    let costValue = null;
+    if (trimmedCost !== "") {
+      costValue = Number(trimmedCost);
+      if (!Number.isFinite(costValue) || costValue < 0) {
+        setPlanningEditError("Enter a real number for the cost, or leave it blank.");
+        return;
+      }
+    }
+    // Only touches estimated_cost_note when the cost itself actually
+    // changed - that note explains the AI's OWN reasoning behind the
+    // number it's paired with, so leaving the cost alone should leave
+    // the note alone too, same as PlanningTab.js's own cost-chip editor.
+    const costChanged = costValue !== editingPlanningItem.originalCost;
+
     setPlanningEditSaving(true);
     setPlanningEditError("");
     try {
       const res = await fetch(`/api/planning-items/${editingPlanningItem.id}`, {
         method: "PATCH",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name: trimmedName, plannedDate: editingPlanningItem.plannedDate }),
+        body: JSON.stringify({
+          name: trimmedName,
+          plannedDate: editingPlanningItem.plannedDate,
+          ...(costChanged ? { estimatedCost: costValue, estimatedCostNote: null } : {}),
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Couldn't save that.");
@@ -497,6 +524,18 @@ export default function CalendarTab({ kind, active }) {
                   type="date"
                   value={editingPlanningItem.plannedDate}
                   onChange={(e) => setEditingPlanningItem((p) => ({ ...p, plannedDate: e.target.value }))}
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="editPlanningCost">Estimated cost for two (optional)</label>
+                <input
+                  id="editPlanningCost"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
+                  value={editingPlanningItem.estimatedCost}
+                  onChange={(e) => setEditingPlanningItem((p) => ({ ...p, estimatedCost: e.target.value }))}
                 />
               </div>
               <p className="hint" style={{ marginTop: -4 }}>

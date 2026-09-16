@@ -1080,11 +1080,14 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 
 .top-tabs::-webkit-scrollbar { display: none; }
 
-@media (max-width: 480px) {
+@media (max-width: 700px) {
   /* justify-content: center on an overflowing flex row is a known trap -
      the browser centers first, then some browsers make the START of the
-     overflow unreachable even while scrolling. Only matters once 5 tabs
-     genuinely don't fit, so scoped to the widths where that's true. */
+     overflow unreachable even while scrolling (confirmed live: with 7
+     tabs, Discovery - the first tab - was completely unreachable by
+     scroll at 646px wide, not just on phones). Only matters once the
+     tabs genuinely don't fit - 700px matches the topbar's own stacking
+     breakpoint above, both being "things start running out of room here". */
   .top-tabs { justify-content: flex-start; }
 }
 
@@ -1286,6 +1289,53 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   border-color: transparent;
   white-space: nowrap;
 }
+
+/* The cost chip doubles as its own edit button - a hand-typed override
+   for when the AI's guess is wrong (see PlanningTab.js's startEditCost).
+   Real <button> rather than a <span>, so it's keyboard-reachable too. */
+.cost-chip-btn {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.cost-chip-btn:hover { opacity: .8; }
+
+.cost-chip-pencil {
+  font-size: 9px;
+  opacity: .7;
+}
+
+.cost-edit-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.cost-edit-input {
+  width: 64px;
+  font-size: 11px;
+  padding: 3px 6px;
+  text-align: right;
+}
+
+.cost-edit-save,
+.cost-edit-cancel {
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  width: 20px;
+  height: 20px;
+  line-height: 1;
+  font-size: 12px;
+  color: var(--ink-faint);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.cost-edit-save:hover { border-color: var(--forest); color: var(--forest); }
+.cost-edit-cancel:hover { border-color: var(--bad); color: var(--bad); }
 
 .place-suggest-row {
   display: flex;

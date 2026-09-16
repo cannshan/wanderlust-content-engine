@@ -331,8 +331,7 @@ export default function DiscoveryTab() {
             <label htmlFor="discoveryDate">Date (optional)</label>
             <input id="discoveryDate" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
             <p className="hint" style={{ marginTop: 6 }}>
-              Factored into every category's search - seasonal availability, and any real event or festival
-              actually happening in the area around then.
+              Factors in seasonal timing and any real event happening around then.
             </p>
           </div>
 

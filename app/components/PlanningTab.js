@@ -385,6 +385,58 @@ export default function PlanningTab() {
     }
   }
 
+  // A hand-typed override of the AI's own guess (see the cost chip below)
+  // - editingCostId is the one item currently mid-edit (only one at a
+  // time, same as the category picker's own single-open pattern).
+  // Clears estimated_cost_note on save regardless of what it said before:
+  // that note explains the AI's OWN reasoning ("two entrees at average
+  // price"), which no longer describes a number she just typed in herself.
+  const [editingCostId, setEditingCostId] = useState(null);
+  const [costDraft, setCostDraft] = useState("");
+  const [costEditSaving, setCostEditSaving] = useState(false);
+  const [costEditError, setCostEditError] = useState("");
+
+  function startEditCost(item) {
+    setEditingCostId(item.id);
+    setCostDraft(item.estimated_cost_usd != null ? String(item.estimated_cost_usd) : "");
+    setCostEditError("");
+  }
+
+  function cancelEditCost() {
+    setEditingCostId(null);
+    setCostEditError("");
+  }
+
+  async function saveCostEdit(item) {
+    if (costEditSaving) return;
+    const trimmed = costDraft.trim();
+    let costValue = null;
+    if (trimmed !== "") {
+      costValue = Number(trimmed);
+      if (!Number.isFinite(costValue) || costValue < 0) {
+        setCostEditError("Enter a real number, or clear it.");
+        return;
+      }
+    }
+    setCostEditSaving(true);
+    setCostEditError("");
+    try {
+      const res = await fetch(`/api/planning-items/${item.id}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ estimatedCost: costValue, estimatedCostNote: null }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Couldn't save that.");
+      setItems((list) => list.map((i) => (i.id === item.id ? data.item : i)));
+      setEditingCostId(null);
+    } catch (err) {
+      setCostEditError(err.message || "Couldn't save that.");
+    } finally {
+      setCostEditSaving(false);
+    }
+  }
+
   // item.menu_links (persisted) seeds the draft the first time it's
   // needed; after that, whatever's actually been typed wins. Always at
   // least one (empty) input, same as ContentTab's own version.
@@ -490,16 +542,70 @@ export default function PlanningTab() {
             )}
           </div>
           <div className="place-cost-corner">
-            {item.estimated_cost_usd != null && (
-              <span className="saved-chip cost-chip" title={item.estimated_cost_note || undefined}>
-                💰 ${item.estimated_cost_usd.toFixed(2)} for 2
-              </span>
+            {editingCostId === item.id ? (
+              <div className="cost-edit-row">
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  className="cost-edit-input"
+                  value={costDraft}
+                  onChange={(e) => setCostDraft(e.target.value)}
+                  placeholder="0.00"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      saveCostEdit(item);
+                    } else if (e.key === "Escape") {
+                      cancelEditCost();
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  className="cost-edit-save"
+                  disabled={costEditSaving}
+                  onClick={() => saveCostEdit(item)}
+                  aria-label="Save cost"
+                  title="Save"
+                >
+                  ✓
+                </button>
+                <button
+                  type="button"
+                  className="cost-edit-cancel"
+                  disabled={costEditSaving}
+                  onClick={cancelEditCost}
+                  aria-label="Cancel"
+                  title="Cancel"
+                >
+                  ×
+                </button>
+              </div>
+            ) : (
+              item.estimated_cost_usd != null && (
+                <button
+                  type="button"
+                  className="saved-chip cost-chip cost-chip-btn"
+                  title={item.estimated_cost_note || "Click to edit"}
+                  onClick={() => startEditCost(item)}
+                >
+                  💰 ${item.estimated_cost_usd.toFixed(2)} for 2
+                  <span className="cost-chip-pencil" aria-hidden="true">✎</span>
+                </button>
+              )
             )}
             <button type="button" className="btn-ghost place-save-btn" disabled>
               In Planning
             </button>
           </div>
         </div>
+        {editingCostId === item.id && costEditError && (
+          <p className="hint" style={{ color: "var(--bad)", textAlign: "right", marginTop: -8, marginBottom: 8 }}>
+            {costEditError}
+          </p>
+        )}
 
         <div className="field" style={{ marginTop: 12, marginBottom: 8 }}>
           <label htmlFor={`date-${item.id}`}>Planned date (optional)</label>
