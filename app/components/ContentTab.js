@@ -149,9 +149,29 @@ export default function ContentTab() {
     submitNewCategory,
   } = useCategorizedItems(savedIdeas, setSavedIdeas, "/api/ideas");
 
+  // Plain scheduling notes from the Calendar tab (already-made content
+  // that only needed a post date). Shown here so this calendar is the
+  // whole schedule rather than only the half of it that came out of this
+  // tab - they're read-only here, since adding and removing them belongs
+  // where they're created.
+  const [calendarNotes, setCalendarNotes] = useState([]);
+
   useEffect(() => {
     loadSavedIdeas();
+    loadCalendarNotes();
   }, []);
+
+  async function loadCalendarNotes() {
+    try {
+      const res = await fetch("/api/calendar-items");
+      if (res.ok) {
+        const data = await res.json();
+        setCalendarNotes(data.items || []);
+      }
+    } catch {
+      // Calendar just shows saved ideas alone - nothing else breaks.
+    }
+  }
 
   async function loadSavedIdeas() {
     setSavedIdeasLoading(true);
@@ -641,7 +661,10 @@ export default function ContentTab() {
     <>
       {calendarOpen && (
         <PlanningCalendar
-          items={savedIdeas.map((s) => ({ ...s, name: s.idea }))}
+          items={[
+            ...savedIdeas.map((s) => ({ ...s, name: s.idea })),
+            ...calendarNotes.map((n) => ({ ...n, name: n.title, kind: "note" })),
+          ]}
           year={calendarDate.year}
           month={calendarDate.month}
           onPrevMonth={calendarPrevMonth}
@@ -661,7 +684,17 @@ export default function ContentTab() {
           {/* Open-only - hiding it again is done from the top of the
               calendar itself (see PlanningCalendar.js). */}
           {!calendarOpen && (
-            <button type="button" className="btn-ghost" onClick={() => setCalendarOpen(true)}>
+            <button
+              type="button"
+              className="btn-ghost"
+              onClick={() => {
+                // Refetched on open, not just on mount: both tabs stay
+                // mounted all session, so a note added on the Calendar
+                // tab would otherwise never appear here.
+                loadCalendarNotes();
+                setCalendarOpen(true);
+              }}
+            >
               📅 Calendar
             </button>
           )}

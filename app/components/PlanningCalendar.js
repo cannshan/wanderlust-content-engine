@@ -22,12 +22,17 @@ function dateKey(year, month, day) {
 // main panel.
 //
 // Named for the Planning tab it was built for, but driven from the
-// Content tab now (see ContentTab.js): scheduling when a saved idea goes
-// out is what actually wants a month view, while a planning item's
-// planned_date grounds its research instead. Deliberately generic about
-// what it's given - any { id, name, planned_date } does, so ContentTab
-// maps its saved ideas' `idea` onto `name` on the way in.
-export default function PlanningCalendar({ items, year, month, onPrevMonth, onNextMonth, onSelectItem, onHide }) {
+// Content and Calendar tabs now: scheduling when a saved idea goes out is
+// what actually wants a month view, while a planning item's planned_date
+// grounds its research instead. Deliberately generic about what it's
+// given - any { id, name, planned_date } does, so callers map their own
+// title field onto `name` on the way in.
+//
+// An item may also carry kind: "note", meaning a plain scheduling entry
+// rather than a record that opens into anything (see the Calendar tab).
+// Those never render as buttons even when onSelectItem is given, and get
+// a remove control when onRemoveItem is.
+export default function PlanningCalendar({ items, year, month, onPrevMonth, onNextMonth, onSelectItem, onRemoveItem, onHide }) {
   // Keyed by "YYYY-MM-DD" - every item that's been given a planned_date,
   // grouped so a day with more than one thing planned shows all of them,
   // not just the first.
@@ -90,28 +95,47 @@ export default function PlanningCalendar({ items, year, month, onPrevMonth, onNe
           return (
             <div key={i} className={`planning-calendar-cell ${key === todayKey ? "today" : ""}`}>
               <span className="planning-calendar-daynum">{day}</span>
-              {/* A pill is only a button where there's somewhere to go.
-                  The standalone Calendar tab has no detail panel to open
-                  an item into, so it passes no onSelectItem and the pills
-                  render as plain labels - clickable-looking UI that does
-                  nothing is worse than UI that doesn't look clickable. */}
-              {dayItems.map((item) =>
-                onSelectItem ? (
-                  <button
+              {/* Three shapes, decided per item rather than per calendar:
+                  a real record with somewhere to open into is a button; a
+                  plain scheduling note gets a remove affordance where the
+                  caller offers one; anything else is a label. A pill only
+                  looks clickable where clicking it actually does
+                  something. */}
+              {dayItems.map((item) => {
+                if (item.kind !== "note" && onSelectItem) {
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      className="planning-calendar-pill"
+                      onClick={() => onSelectItem(item.id)}
+                      title={item.name}
+                    >
+                      {item.name}
+                    </button>
+                  );
+                }
+                return (
+                  <span
                     key={item.id}
-                    type="button"
-                    className="planning-calendar-pill"
-                    onClick={() => onSelectItem(item.id)}
+                    className={`planning-calendar-pill static ${item.kind === "note" ? "note" : ""}`}
                     title={item.name}
                   >
-                    {item.name}
-                  </button>
-                ) : (
-                  <span key={item.id} className="planning-calendar-pill static" title={item.name}>
-                    {item.name}
+                    <span className="planning-calendar-pill-label">{item.name}</span>
+                    {item.kind === "note" && onRemoveItem && (
+                      <button
+                        type="button"
+                        className="planning-calendar-pill-remove"
+                        onClick={() => onRemoveItem(item)}
+                        aria-label={`Remove ${item.name}`}
+                        title="Remove"
+                      >
+                        ×
+                      </button>
+                    )}
                   </span>
-                )
-              )}
+                );
+              })}
             </div>
           );
         })}

@@ -492,6 +492,68 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 
 .planning-calendar-pill.static:hover { opacity: 1; }
 
+/* Title, date and button on one line - adding a scheduling note should
+   feel like jotting one down, not filling in a form. Wraps to stacked
+   rows on a phone, where three controls side by side would leave the
+   title box too narrow to read what you typed. */
+.calendar-add-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.calendar-add-row .btn-primary {
+  flex-shrink: 0;
+  width: auto;
+}
+
+@media (max-width: 640px) {
+  .calendar-add-row .field,
+  .calendar-add-row .btn-primary {
+    flex: 1 1 100%;
+  }
+}
+
+/* A scheduling note (already-made content that just needs a post date)
+   sits alongside real content records on the same day, so it's tinted
+   differently - at a glance the calendar should say which entries open
+   into something and which are just a reminder to post. Muted rather
+   than louder: a note carries less in the app than a full record, and
+   shouldn't out-shout one. */
+.planning-calendar-pill.note {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  color: var(--ink-faint);
+}
+
+.planning-calendar-pill-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Pushed to the pill's right edge and only inked on hover - present when
+   wanted, not a row of x's competing with the titles. */
+.planning-calendar-pill-remove {
+  margin-left: auto;
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  color: var(--ink-faint);
+  font-size: 13px;
+  line-height: 1;
+  padding: 0 1px;
+  cursor: pointer;
+  opacity: .45;
+}
+
+.planning-calendar-pill-remove:hover { opacity: 1; color: var(--wine); }
+
 @media (max-width: 640px) {
   .planning-calendar-cell { min-height: 50px; }
   .planning-calendar-pill { font-size: 10px; }
