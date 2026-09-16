@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTH_LABELS = [
   "January", "February", "March", "April", "May", "June",
@@ -22,24 +24,66 @@ function dateKey(year, month, day) {
 // main panel.
 //
 // Named for the Planning tab it was built for, but driven from the
-// Content and Calendar tabs now: scheduling when a saved idea goes out is
-// what actually wants a month view, while a planning item's planned_date
-// grounds its research instead. Deliberately generic about what it's
-// given - any { id, name, planned_date } does, so callers map their own
-// title field onto `name` on the way in.
+// Content, Calendar and Planning-backed "Trip" calendars now: scheduling
+// when a saved idea goes out is what actually wants a month view, while a
+// planning item's planned_date grounds its research instead. Deliberately
+// generic about what it's given - any { id, name, planned_date } does, so
+// callers map their own title field onto `name` on the way in.
 //
-// An item may also carry kind: "note", meaning a plain scheduling entry
-// rather than a record that opens into anything (see the Calendar tab).
-// Those never render as buttons even when onSelectItem is given, and get
-// a remove control when onRemoveItem is.
-export default function PlanningCalendar({ items, year, month, onPrevMonth, onNextMonth, onSelectItem, onRemoveItem, onHide }) {
+// An item may also carry kind: "note" (a plain scheduling entry with no
+// detail to open into - see the Calendar tab) or kind: "planning" (a Trip
+// Calendar entry, read-only here since editing belongs to the Planning
+// tab). A note with onEditItem given opens its own edit form on click, and
+// with completed: true renders struck-through rather than disappearing -
+// "done" isn't "gone".
+//
+// Any item is draggable to a new day when onDropItem is given, regardless
+// of kind - moving a date is a lower-stakes action than editing content,
+// so it's offered even where the pill itself is otherwise read-only.
+export default function PlanningCalendar({
+  items,
+  year,
+  month,
+  onPrevMonth,
+  onNextMonth,
+  onSelectItem,
+  onRemoveItem,
+  onEditItem,
+  onDropItem,
+  onHide,
+}) {
+  // Which day cell is currently being dragged over, for a drop-target
+  // highlight - cleared on drop/dragleave rather than left to whatever the
+  // last dragover event happened to be, so the highlight never sticks
+  // around after the drag actually ends elsewhere.
+  const [dragOverKey, setDragOverKey] = useState(null);
+
   // Keyed by "YYYY-MM-DD" - every item that's been given a planned_date,
   // grouped so a day with more than one thing planned shows all of them,
   // not just the first.
   const itemsByDate = {};
+  // All items by id, regardless of date - a dropped item is looked up here
+  // rather than re-reading dataTransfer's payload beyond the bare id, so
+  // the caller always gets the same object shape it originally handed in.
+  const itemsById = {};
   for (const item of items) {
+    itemsById[item.id] = item;
     if (!item.planned_date) continue;
     (itemsByDate[item.planned_date] ||= []).push(item);
+  }
+
+  function handleDragStart(e, item) {
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", String(item.id));
+  }
+
+  function handleDrop(e, key) {
+    e.preventDefault();
+    setDragOverKey(null);
+    if (!onDropItem) return;
+    const id = e.dataTransfer.getData("text/plain");
+    const item = itemsById[id];
+    if (item && item.planned_date !== key) onDropItem(item, key);
   }
 
   const firstOfMonth = new Date(year, month, 1);
@@ -93,23 +137,50 @@ export default function PlanningCalendar({ items, year, month, onPrevMonth, onNe
           const key = dateKey(year, month, day);
           const dayItems = itemsByDate[key] || [];
           return (
-            <div key={i} className={`planning-calendar-cell ${key === todayKey ? "today" : ""}`}>
+            <div
+              key={i}
+              className={`planning-calendar-cell ${key === todayKey ? "today" : ""} ${dragOverKey === key ? "drag-over" : ""}`}
+              onDragOver={(e) => {
+                if (!onDropItem) return;
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+              }}
+              onDragEnter={(e) => {
+                if (!onDropItem) return;
+                e.preventDefault();
+                setDragOverKey(key);
+              }}
+              onDragLeave={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget)) {
+                  setDragOverKey((k) => (k === key ? null : k));
+                }
+              }}
+              onDrop={(e) => handleDrop(e, key)}
+            >
               <span className="planning-calendar-daynum">{day}</span>
               {/* Three shapes, decided per item rather than per calendar:
                   a real record with somewhere to open into is a button; a
-                  plain scheduling note gets a remove affordance where the
-                  caller offers one; anything else is a label. A pill only
-                  looks clickable where clicking it actually does
-                  something. */}
+                  plain scheduling note gets an edit affordance (and a
+                  remove one) where the caller offers them; anything else
+                  is a label. A pill only looks clickable where clicking it
+                  actually does something - dragging is offered
+                  independently of that, via the `draggable` attribute. */}
               {dayItems.map((item) => {
+                const draggable = !!onDropItem;
+                const dragProps = draggable
+                  ? { draggable: true, onDragStart: (e) => handleDragStart(e, item) }
+                  : {};
+                const completed = !!item.completed;
+
                 if (item.kind !== "note" && onSelectItem) {
                   return (
                     <button
                       key={item.id}
                       type="button"
-                      className="planning-calendar-pill"
+                      className={`planning-calendar-pill ${completed ? "completed" : ""}`}
                       onClick={() => onSelectItem(item.id)}
                       title={item.name}
+                      {...dragProps}
                     >
                       {item.name}
                     </button>
@@ -118,10 +189,25 @@ export default function PlanningCalendar({ items, year, month, onPrevMonth, onNe
                 return (
                   <span
                     key={item.id}
-                    className={`planning-calendar-pill static ${item.kind === "note" ? "note" : ""}`}
+                    className={`planning-calendar-pill static ${item.kind === "note" ? "note" : ""} ${completed ? "completed" : ""}`}
                     title={item.name}
+                    {...dragProps}
                   >
-                    <span className="planning-calendar-pill-label">{item.name}</span>
+                    {item.kind === "note" && onEditItem ? (
+                      <button
+                        type="button"
+                        className="planning-calendar-pill-label planning-calendar-pill-label-btn"
+                        onClick={() => onEditItem(item)}
+                      >
+                        {completed ? "✓ " : ""}
+                        {item.name}
+                      </button>
+                    ) : (
+                      <span className="planning-calendar-pill-label">
+                        {completed ? "✓ " : ""}
+                        {item.name}
+                      </span>
+                    )}
                     {item.kind === "note" && onRemoveItem && (
                       <button
                         type="button"

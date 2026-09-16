@@ -673,6 +673,14 @@ export default function ContentTab() {
             const saved = savedIdeas.find((s) => s.id === id);
             if (saved) loadSavedIdea(saved);
           }}
+          onDropItem={(item, newDate) => {
+            // Notes stay read-only here (see calendarNotes above) - only a
+            // saved idea's own date is draggable from this tab, through
+            // the same updatePlannedDate the "Planned date" field below
+            // already uses.
+            if (item.kind === "note") return;
+            updatePlannedDate(item.id, newDate);
+          }}
           onHide={() => setCalendarOpen(false)}
         />
       )}

@@ -5,11 +5,13 @@ const NOT_CONFIGURED = {
   error: "The calendar isn't configured yet (SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY missing).",
 };
 
-// Moves a calendar note to a different day, or renames it. Only updates
-// whichever field is actually present in the body - the same `"x" in
-// body` check the planning-items and saved-ideas PATCH routes use, for
-// the same reason: keying off the value's type alone would silently wipe
-// the other field on every single-field request.
+// Moves a calendar note to a different day, renames it, or marks it
+// completed. Only updates whichever field is actually present in the body
+// - the same `"x" in body` check the planning-items and saved-ideas PATCH
+// routes use, for the same reason: keying off the value's type alone
+// would silently wipe the other fields on every single-field request
+// (e.g. a drag-to-reschedule sending only plannedDate would otherwise
+// read completed as absent-and-false and un-complete the note).
 export async function PATCH(req, { params }) {
   const supabase = getSupabase();
   if (!supabase) return NextResponse.json(NOT_CONFIGURED, { status: 500 });
@@ -37,6 +39,10 @@ export async function PATCH(req, { params }) {
     const plannedDate = typeof body.plannedDate === "string" && body.plannedDate ? body.plannedDate : "";
     if (!plannedDate) return NextResponse.json({ error: "plannedDate can't be empty." }, { status: 400 });
     updates.planned_date = plannedDate;
+  }
+
+  if ("completed" in body) {
+    updates.completed = !!body.completed;
   }
 
   if (Object.keys(updates).length === 0) {

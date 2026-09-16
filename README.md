@@ -264,15 +264,15 @@ Each saved idea can be tagged with one free-text category (a season, a client, a
 
 Each saved idea can also get an optional planned date, set from the "Planned date" field directly under Location in the form (scheduling is part of thinking about a post, not part of reading its output). The field only shows up for an idea that's actually been saved — there's no real row to attach a date to before then, so a brand-new idea doesn't show it at all. The 📅 Calendar button next to "Content" above the form opens a full-width month view (`PlanningCalendar.js`, shared with — and originally built for — the Planning tab before the calendar moved here) showing every scheduled idea as a pill on its date; clicking a pill loads that idea's full result back into the main panel, same as clicking it in the sidebar.
 
-The same month view also has its own **Calendar tab** (`CalendarTab.js`), for when the calendar is the thing you came to look at rather than something you opened mid-edit. Saved ideas are read-only there — there's no detail panel on a standalone tab to open one into, so those pills render as plain labels rather than buttons, and giving a saved idea a date still happens on the Content tab where the idea itself is.
+The same month view also has its own **Content Calendar tab** (`CalendarTab.js`, `kind="content"`, placed right after Content), for when the calendar is the thing you came to look at rather than something you opened mid-edit. Saved ideas are read-only there — there's no detail panel on a standalone tab to open one into, so those pills render as plain labels rather than buttons, and giving a saved idea a date still happens on the Content tab where the idea itself is.
 
 ### Scheduling notes (already-made content)
 
-Not everything that needs a post date needs a generated package behind it. When a video is already shot, edited and captioned and the only open question is *which day it goes out*, the Calendar tab takes a **title and a date** directly — type it in the row above the month, hit Add, and it's on the calendar. No content record, nothing to generate, nothing to open.
+Not everything that needs a post date needs a generated package behind it. When a video is already shot, edited and captioned and the only open question is *which day it goes out*, the Content Calendar tab takes a **title and a date** directly — type it in the row above the month, hit Add, and it's on the calendar. No content record, nothing to generate, nothing to open.
 
 These live in their own `calendar_items` table rather than as bare `saved_ideas` rows. A saved idea with no idea in it would show up in the Content tab's sidebar as a record that can't be opened into anything, which is exactly the clutter this is meant to avoid — a scheduling note stays a scheduling note.
 
-Both calendars show everything - a schedule with half the entries missing isn't a schedule. Saved ideas and notes sit side by side on the same day and are told apart by tint: a saved idea is tinted (and clickable on the Content tab's version, which opens it), a note is plain. Where a note can be removed it carries a small ×, and removing is optimistic - the entry goes back if the delete actually fails, since something that silently vanished without being deleted is worse than a delete you can retry. Adding and removing notes belongs to the Calendar tab, where they're created; the Content tab's calendar shows them read-only. Both refetch when opened rather than only on mount, since every tab stays mounted for the whole session and would otherwise never notice the other's changes.
+Both calendars show everything - a schedule with half the entries missing isn't a schedule. Saved ideas and notes sit side by side on the same day and are told apart by tint: a saved idea is tinted (and clickable on the Content tab's version, which opens it), a note is plain. Where a note can be removed it carries a small ×, and removing is optimistic - the entry goes back if the delete actually fails, since something that silently vanished without being deleted is worse than a delete you can retry. Adding and removing notes belongs to the Content Calendar tab, where they're created; the Content tab's own embedded calendar shows them read-only. Both refetch when opened rather than only on mount, since every tab stays mounted for the whole session and would otherwise never notice the other's changes.
 
 Requires one more table:
 
@@ -286,6 +286,22 @@ create table calendar_items (
 ```
 
 `planned_date` is `not null` here, unlike a saved idea's — a note with no date has nowhere to live, so clearing one is a delete rather than an update.
+
+If you set this table up before notes could be edited or marked completed, run this once to add the new column:
+
+```sql
+alter table calendar_items add column if not exists completed boolean not null default false;
+```
+
+A note can now be opened for editing (title and date) from its pill on the Content Calendar tab, and marked completed without deleting it — a completed note stays on the calendar, shown struck through with a ✓, rather than disappearing. Only notes are editable this way; a saved idea's own fields still only change on the Content tab.
+
+### Two calendars: Content and Trip
+
+`CalendarTab.js` backs two separate top-level tabs rather than one Calendar tab with a toggle — a fixed `kind` prop (`"content"` or `"trip"`) picks which, and page.js mounts one of each, always alongside the tab its data actually comes from: **Trip Calendar** right after **Planning** (every Planning tab item with a planned date — read-only here since editing what the place *is* still belongs on the Planning tab, only its date is changeable, and only by dragging it to a different day), and **Content Calendar** right after **Content** (unchanged — saved ideas with a planned date, plus notes created here). The two never mix: a planning item never shows on the Content Calendar, and a saved idea/note never shows on the Trip Calendar.
+
+### Dragging cards to reschedule
+
+Any card on either calendar can be dragged to a different day to change its planned date immediately — a saved idea, a note, or a Trip Calendar item. This is a plain HTML5 drag-and-drop (mouse-driven; there's no touch/drag fallback for phones yet), and it's optimistic the same way removing a note is: the card moves immediately, and reverts to its original day if the save actually fails.
 
 It reads `/api/ideas` itself instead of sharing the Content tab's state — lifting that up to `page.js` would couple two tabs that otherwise know nothing about each other, over one cheap list. The tradeoff is that its copy could go stale, so it refetches every time the tab is opened rather than only on mount: every tab stays mounted for the whole session (see the comment in `page.js`), so a mount-only fetch would show whatever was scheduled when the app first loaded and never notice a date set since. This is purely for keeping a content calendar of what's scheduled when — it doesn't drive any research or generation the way `planned_date` does over on Planning.
 

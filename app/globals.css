@@ -458,6 +458,15 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   background: var(--wine-soft);
 }
 
+/* Shown while a dragged card is over this cell, so dropping it somewhere
+   has a visible target before letting go - same tint as .today on
+   purpose, "here's where this lands" reads the same whichever put it
+   there. */
+.planning-calendar-cell.drag-over {
+  border-color: var(--wine);
+  background: var(--wine-soft);
+}
+
 .planning-calendar-daynum {
   font-family: 'IBM Plex Mono', monospace;
   font-size: 11px;
@@ -479,6 +488,24 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 }
 
 .planning-calendar-pill:hover { opacity: .8; }
+
+/* Any pill the caller made draggable (onDropItem given) gets the grab
+   cursor - the only visible cue that dragging it does anything, since
+   there's no separate "drag handle" UI. */
+.planning-calendar-pill[draggable="true"] { cursor: grab; }
+.planning-calendar-pill[draggable="true"]:active { cursor: grabbing; }
+
+/* Marked done without being deleted (see the Calendar tab's edit form) -
+   struck through and dimmed rather than removed, so "done" stays visible
+   as its own state instead of just vanishing like a delete would. */
+.planning-calendar-pill.completed {
+  opacity: .55;
+}
+
+.planning-calendar-pill.completed .planning-calendar-pill-label,
+.planning-calendar-pill.completed .planning-calendar-pill-label-btn {
+  text-decoration: line-through;
+}
 
 /* The standalone Calendar tab's pills are labels, not buttons (no detail
    panel to open into) - so they drop the pointer and the hover response
@@ -535,7 +562,26 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex: 1;
+  min-width: 0;
 }
+
+/* Same label look as the plain span above, but a real button - used when
+   a note can be opened for editing (see the Calendar tab), so its title
+   is clickable without looking any different from a note that isn't. */
+.planning-calendar-pill-label-btn {
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.planning-calendar-pill-label-btn:hover { text-decoration: underline; }
+.planning-calendar-pill.completed .planning-calendar-pill-label-btn:hover { text-decoration: underline line-through; }
 
 /* Pushed to the pill's right edge and only inked on hover - present when
    wanted, not a row of x's competing with the titles. */
@@ -1209,6 +1255,60 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 }
 
 .style-lightbox-close:hover { border-color: var(--wine); color: var(--wine); }
+
+/* Editing a calendar note - same overlay/centered-card pattern as the
+   style lightbox above, own classnames since this one holds a form
+   rather than an image. */
+.calendar-edit-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 100;
+}
+
+.calendar-edit-modal {
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+  background: var(--bg-raised);
+  border-radius: 10px;
+  padding: 20px;
+  box-shadow: var(--shadow);
+}
+
+.calendar-edit-modal h3 {
+  margin: 0 0 16px;
+}
+
+.calendar-edit-complete-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 14px 0;
+}
+
+.calendar-edit-complete-row label {
+  margin: 0;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.calendar-edit-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.calendar-edit-actions-right {
+  display: flex;
+  gap: 8px;
+}
 
 /* Deliberately not .rationale (13px, muted --ink-soft) - a food/activity
    pick is the actual answer to the button someone clicked, not a

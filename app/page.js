@@ -13,8 +13,9 @@ import MonthlySpend from "./components/MonthlySpend";
 const TABS = [
   { key: "discovery", label: "Discovery" },
   { key: "planning", label: "Planning" },
+  { key: "trip-calendar", label: "Trip Calendar" },
   { key: "content", label: "Content" },
-  { key: "calendar", label: "Calendar" },
+  { key: "content-calendar", label: "Content Calendar" },
   { key: "reel-voiceover", label: "Reel Voiceover" },
   { key: "profile", label: "Profile" },
 ];
@@ -112,18 +113,24 @@ export default function Shell() {
         <div className="tab-panel" hidden={activeTab !== "content"}>
           <ContentTab />
         </div>
-        {/* `active` is passed rather than read from context because
-            CalendarTab needs to know when it's been opened, not just
-            that it exists - it refetches then, so a date set over on
-            Content shows up here without a page reload. */}
-        <div className="tab-panel" hidden={activeTab !== "calendar"}>
-          <CalendarTab active={activeTab === "calendar"} />
+        {/* `active`/`kind` are passed rather than read from context because
+            CalendarTab needs to know when it's been opened, not just that
+            it exists - it refetches then, so a date set over on Content or
+            Planning shows up here without a page reload. Two separate
+            instances, one per kind, placed next to the tab each one's data
+            comes from - Trip Calendar after Planning, Content Calendar
+            after Content. */}
+        <div className="tab-panel" hidden={activeTab !== "content-calendar"}>
+          <CalendarTab kind="content" active={activeTab === "content-calendar"} />
         </div>
         <div className="tab-panel" hidden={activeTab !== "discovery"}>
           <DiscoveryTab />
         </div>
         <div className="tab-panel" hidden={activeTab !== "planning"}>
           <PlanningTab />
+        </div>
+        <div className="tab-panel" hidden={activeTab !== "trip-calendar"}>
+          <CalendarTab kind="trip" active={activeTab === "trip-calendar"} />
         </div>
         <div className="tab-panel" hidden={activeTab !== "reel-voiceover"}>
           <ReelVoiceoverTab />
