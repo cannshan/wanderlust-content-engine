@@ -99,6 +99,11 @@ export default function ContentTab() {
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState("");
   const [activeTab, setActiveTab] = useState("tiktok");
+  // Which of YouTube's 3 title options is selected. Deliberately not
+  // persisted with the saved idea - this is a pick-one-and-paste-it
+  // choice at upload time, not a field of the post - so it resets to the
+  // model's own best-first ordering whenever the shown result changes.
+  const [chosenTitleIndex, setChosenTitleIndex] = useState(0);
   const [savedIdeas, setSavedIdeas] = useState([]);
   const [savedIdeasLoading, setSavedIdeasLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -617,6 +622,21 @@ export default function ContentTab() {
   }
 
   const platform = result?.platforms?.[activeTab];
+  // YouTube comes back with 3 title options to choose between. Older saved
+  // results predate that and have a single `title` string, so they're
+  // normalised to a one-item list here rather than special-cased in the
+  // markup - a saved idea from before this change still renders, it just
+  // has nothing to pick between.
+  const platformTitles = Array.isArray(platform?.titles)
+    ? platform.titles.filter((t) => typeof t === "string" && t.trim())
+    : platform?.title
+    ? [platform.title]
+    : [];
+  // Clamped rather than reset in an effect: switching to a platform or a
+  // saved idea with fewer titles than the last pick would otherwise leave
+  // the index pointing past the end, and "Copy title" would copy
+  // undefined. Falling back to 0 lands on the model's own best-first pick.
+  const titleIndex = chosenTitleIndex < platformTitles.length ? chosenTitleIndex : 0;
   // The idea currently on screen, if it's actually been saved - source of
   // truth for its planned date (see updatePlannedDate) rather than
   // stashing a copy of it on `result` itself, so it always reflects
@@ -673,6 +693,39 @@ export default function ContentTab() {
             onChange={(e) => update("location", e.target.value)}
           />
         </div>
+
+        {/* Sits with Location rather than down in the result, because
+            scheduling is part of thinking about the post, not part of
+            reading its output. Only renders for an idea that's actually
+            been saved - there's no saved_ideas row to hang a date on
+            until then, so a brand-new idea simply doesn't show it. */}
+        {savedIdeaForResult && (
+          <div className="field">
+            <label htmlFor="plannedDate">Planned date (optional)</label>
+            <div style={{ display: "flex", gap: 6 }}>
+              <input
+                id="plannedDate"
+                type="date"
+                value={savedIdeaForResult.planned_date || ""}
+                onChange={(e) => updatePlannedDate(savedIdeaForResult.id, e.target.value || null)}
+                style={{ flex: 1 }}
+              />
+              {savedIdeaForResult.planned_date && (
+                <button
+                  type="button"
+                  className="btn-ghost"
+                  style={{ flexShrink: 0 }}
+                  onClick={() => updatePlannedDate(savedIdeaForResult.id, null)}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+            <p className="hint" style={{ marginTop: 6 }}>
+              Set a date to have this show up on the calendar above.
+            </p>
+          </div>
+        )}
 
         <div className="field">
           <label htmlFor="storyBeat">Story beat / detail (optional)</label>
@@ -898,34 +951,6 @@ export default function ContentTab() {
             </button>
           </div>
 
-          {savedIdeaForResult && (
-            <div className="field" style={{ marginTop: 12, marginBottom: 20 }}>
-              <label htmlFor="plannedDate">Planned date (optional)</label>
-              <div style={{ display: "flex", gap: 6 }}>
-                <input
-                  id="plannedDate"
-                  type="date"
-                  value={savedIdeaForResult.planned_date || ""}
-                  onChange={(e) => updatePlannedDate(savedIdeaForResult.id, e.target.value || null)}
-                  style={{ flex: 1 }}
-                />
-                {savedIdeaForResult.planned_date && (
-                  <button
-                    type="button"
-                    className="btn-ghost"
-                    style={{ flexShrink: 0 }}
-                    onClick={() => updatePlannedDate(savedIdeaForResult.id, null)}
-                  >
-                    Clear
-                  </button>
-                )}
-              </div>
-              <p className="hint" style={{ marginTop: 6 }}>
-                Set a date to have this show up on the calendar above.
-              </p>
-            </div>
-          )}
-
           {result.stylingTip && (
             <div className="field" style={{ marginBottom: 20 }}>
               <label>Styling tip (same for every platform)</label>
@@ -970,11 +995,29 @@ export default function ContentTab() {
 
           {platform && (
             <>
-              {platform.title && (
+              {platformTitles.length > 0 && (
                 <div className="field">
-                  <label>Title</label>
-                  <div className="description-box">{platform.title}</div>
-                  <button className="btn-ghost" onClick={() => copy(platform.title, "title")}>
+                  <label>{platformTitles.length > 1 ? "Title (pick one)" : "Title"}</label>
+                  {/* A lone title (every result saved before YouTube
+                      started returning 3) is output to read, not a choice
+                      to make - rendering it as a selected option would
+                      dress up a result that never had alternatives. */}
+                  {platformTitles.length === 1 ? (
+                    <div className="description-box">{platformTitles[0]}</div>
+                  ) : (
+                    platformTitles.map((t, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        className={`title-option ${i === titleIndex ? "active" : ""}`}
+                        onClick={() => setChosenTitleIndex(i)}
+                        aria-pressed={i === titleIndex}
+                      >
+                        {t}
+                      </button>
+                    ))
+                  )}
+                  <button className="btn-ghost" onClick={() => copy(platformTitles[titleIndex], "title")}>
                     {copied === "title" ? "Copied" : "Copy title"}
                   </button>
                 </div>

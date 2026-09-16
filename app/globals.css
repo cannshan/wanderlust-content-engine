@@ -893,6 +893,40 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   margin-bottom: 14px;
 }
 
+/* YouTube comes back with 3 title options. They read as one stacked set
+   of choices rather than three separate boxes: same surface as
+   .description-box so a title still looks like copyable output, but
+   full-width, clickable, and tight against each other, with the selected
+   one carrying the same wine border/tint the other pick-one controls in
+   this app use (.goal-option.active, .category-chip-btn.active). Left
+   text-align because a title is read, not labelled. */
+.title-option {
+  display: block;
+  width: 100%;
+  text-align: left;
+  white-space: pre-wrap;
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 1.6;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 6px;
+  cursor: pointer;
+}
+
+.title-option:hover { border-color: var(--wine); }
+
+.title-option.active {
+  border-color: var(--wine);
+  background: var(--wine-soft);
+}
+
+/* The set as a whole still owes the copy button below it the same gap a
+   single .description-box left behind. */
+.title-option:last-of-type { margin-bottom: 14px; }
+
 .chipset { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
 
 .chip {

@@ -12,6 +12,12 @@ The research and design plan behind this (algorithm rules, caption-formula break
 
 The tool decides on its own whether a topic reads better as flowing narrative or an itinerary-style bullet list, and only tags a business/venue handle if you mentioned one in your notes — neither needs its own form field.
 
+### YouTube titles
+
+A YouTube Short carries a real title, and unlike a TikTok/Instagram caption it's indexed, searchable metadata — so YouTube (and only YouTube) comes back with **3 title options to pick between**, shown as a selectable stack above the description with "Copy title" copying whichever is selected. They're required to be three genuinely different angles on the same video — one leading with the specific thing itself, one with the surprise/contrast, one with the place or the question a viewer would actually search — not one title reworded three times, and all three have to be equally honest about what the video actually shows; none is allowed to be more clickable by overstating it. They come back best-first, so the first is selected by default and doing nothing is a real choice.
+
+The pick is deliberately not saved with the idea — it's a copy-it-at-upload-time decision, not a field of the post — so reopening a saved idea starts back at the first option. Ideas generated before this existed have a single title and simply render it as output, with nothing to choose.
+
 ## Nearby filming ideas
 
 Once a result exists, a "Find nearby ideas" section appears below it. Pick a category (foodie, restaurants, hiking, speakeasies/bars, museums, or "All categories") and it does two separate live searches for real places within roughly a 10-mile drive of the same location — worth filming the same day as the primary idea. Results split into two lists:
@@ -246,7 +252,7 @@ Each saved idea can be tagged with one free-text category (a season, a client, a
 
 ### Scheduling saved ideas (Calendar)
 
-Each saved idea can also get an optional planned date, set from the "Planned date" field on its card once it's been saved (the field only shows up after saving — there's no real row to attach a date to before then). The 📅 Calendar button next to "Content" above the form opens a full-width month view (`PlanningCalendar.js`, shared with — and originally built for — the Planning tab before the calendar moved here) showing every scheduled idea as a pill on its date; clicking a pill loads that idea's full result back into the main panel, same as clicking it in the sidebar. This is purely for keeping a content calendar of what's scheduled when — it doesn't drive any research or generation the way `planned_date` does over on Planning.
+Each saved idea can also get an optional planned date, set from the "Planned date" field directly under Location in the form (scheduling is part of thinking about a post, not part of reading its output). The field only shows up for an idea that's actually been saved — there's no real row to attach a date to before then, so a brand-new idea doesn't show it at all. The 📅 Calendar button next to "Content" above the form opens a full-width month view (`PlanningCalendar.js`, shared with — and originally built for — the Planning tab before the calendar moved here) showing every scheduled idea as a pill on its date; clicking a pill loads that idea's full result back into the main panel, same as clicking it in the sidebar. This is purely for keeping a content calendar of what's scheduled when — it doesn't drive any research or generation the way `planned_date` does over on Planning.
 
 ### Saving searches from the Discovery tab
 
