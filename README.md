@@ -91,16 +91,22 @@ create table planning_items (
   research jsonb,
   researched_at timestamptz,
   menu_links text[],
-  planned_date date
+  planned_date date,
+  estimated_cost_usd numeric,
+  estimated_cost_note text
 );
 
 -- if the table already existed without these columns:
 -- alter table planning_items add column if not exists category text;
 -- alter table planning_items add column if not exists menu_links text[];
 -- alter table planning_items add column if not exists planned_date date;
+-- alter table planning_items add column if not exists estimated_cost_usd numeric;
+-- alter table planning_items add column if not exists estimated_cost_note text;
 ```
 
 **Planned date** - an optional date on each item (a plain `<input type="date">` in its detail card), used only to ground "Research this place"'s "Happening around \<date\>" search above - not tied to any calendar view here. `planned_date` is a plain date, not a timestamp, since a planning item is planned *for* a day, not a specific time. The month calendar itself lives on the Content tab now (see below), scheduling saved content ideas rather than places to go.
+
+**Estimate cost** - a button in each item's card (top right, next to "In Planning") that has Claude search for real, current pricing for that exact place and estimate a total US dollar cost **for two people** - an admission price, a typical bill for two at a restaurant/bar, a rental/tour fee, whatever actually applies; genuinely free things (a public trail, a scenic viewpoint) come back as $0 rather than a padded guess. Grounded in a live search the same way every other price-shaped question in this app is (`analyzeRestaurant`'s menu prices, `suggestForPlace`'s food picks) - never invented. `estimateItemCost` in `lib/claude.js`, `POST /api/planning-items/[id]/estimate-cost`. Persisted on the item's own row (`estimated_cost_usd`/`estimated_cost_note`) rather than held as ephemeral state, both so it survives a refresh and so the **Trip Calendar** (see the Calendar section below) can sum every item scheduled on the same day into a per-day total for two, shown at the top of that day's cell. Logged under its own `estimateItemCost` feature name in `api_cost_logs`, same as every other real Claude call in this app - it'll show up as its own line in both spend badges' breakdown.
 
 ## Reel Voiceover tab
 
@@ -298,6 +304,8 @@ A note can now be opened for editing (title and date) from its pill on the Conte
 ### Two calendars: Content and Trip
 
 `CalendarTab.js` backs two separate top-level tabs rather than one Calendar tab with a toggle — a fixed `kind` prop (`"content"` or `"trip"`) picks which, and page.js mounts one of each, always alongside the tab its data actually comes from: **Trip Calendar** right after **Planning** (every Planning tab item with a planned date — read-only here since editing what the place *is* still belongs on the Planning tab, only its date is changeable, and only by dragging it to a different day), and **Content Calendar** right after **Content** (unchanged — saved ideas with a planned date, plus notes created here). The two never mix: a planning item never shows on the Content Calendar, and a saved idea/note never shows on the Trip Calendar.
+
+**Per-day cost totals (Trip Calendar only):** any day with one or more scheduled items carrying an `estimated_cost_usd` (see "Estimate cost" in the Planning tab section above) shows a small total at the top of that day's cell — every costed item's estimate summed together, still for two people (a day with a $150 dinner and a $40 tour shows $190). A day with no costed items shows no total at all, rather than a $0 that would look like a real answer. Content Calendar never shows this — saved ideas and notes have no cost estimate to sum.
 
 ### Dragging cards to reschedule
 

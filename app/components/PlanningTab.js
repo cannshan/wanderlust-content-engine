@@ -101,6 +101,11 @@ export default function PlanningTab() {
   // mode: "style"), so it gets its own state rather than overloading
   // researchState with unrelated fields.
   const [styleState, setStyleState] = useState({});
+  // Same shape again, for "Estimate cost" - only tracks loading/error
+  // here, since the result itself (estimated_cost_usd/_note) is
+  // persisted straight onto the item's own row (see estimateCost below),
+  // not held separately the way research/style results are.
+  const [costState, setCostState] = useState({});
   // The one style link card clicked open for a bigger look, or null.
   // Clicking a card used to navigate straight to its source blog - she
   // just wants to see the outfit photo itself larger, not read someone's
@@ -350,6 +355,36 @@ export default function PlanningTab() {
     }
   }
 
+  // Unlike research/whatToWear, the result isn't held in its own state
+  // map - it's saved straight onto the item's row server-side (see
+  // /api/planning-items/[id]/estimate-cost), so updating `items` here is
+  // both the "show the new estimate" step and the "make it available for
+  // the Trip Calendar's per-day totals to sum" step at once.
+  async function estimateCost(item) {
+    setCostState((s) => ({ ...s, [item.id]: { loading: true, error: null } }));
+    try {
+      const res = await fetch(`/api/planning-items/${item.id}/estimate-cost`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          name: item.name,
+          placeCategory: item.place_category,
+          area: item.area,
+          searchLocation: item.search_location,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Couldn't estimate a cost for this place.");
+      setItems((list) => list.map((i) => (i.id === item.id ? data.item : i)));
+      setCostState((s) => ({ ...s, [item.id]: { loading: false, error: null } }));
+    } catch (err) {
+      setCostState((s) => ({
+        ...s,
+        [item.id]: { loading: false, error: err.message || "Couldn't estimate a cost for this place." },
+      }));
+    }
+  }
+
   // item.menu_links (persisted) seeds the draft the first time it's
   // needed; after that, whatever's actually been typed wins. Always at
   // least one (empty) input, same as ContentTab's own version.
@@ -429,6 +464,7 @@ export default function PlanningTab() {
   function renderPlannedCard(item) {
     const state = researchState[item.id] || {};
     const style = styleState[item.id] || {};
+    const cost = costState[item.id] || {};
     const r = item.research;
     return (
       <>
@@ -453,9 +489,16 @@ export default function PlanningTab() {
               </div>
             )}
           </div>
-          <button type="button" className="btn-ghost place-save-btn" disabled>
-            In Planning
-          </button>
+          <div className="place-cost-corner">
+            {item.estimated_cost_usd != null && (
+              <span className="saved-chip cost-chip" title={item.estimated_cost_note || undefined}>
+                💰 ${item.estimated_cost_usd.toFixed(2)} for 2
+              </span>
+            )}
+            <button type="button" className="btn-ghost place-save-btn" disabled>
+              In Planning
+            </button>
+          </div>
         </div>
 
         <div className="field" style={{ marginTop: 12, marginBottom: 8 }}>
@@ -571,6 +614,13 @@ export default function PlanningTab() {
           <button type="button" className="btn-ghost" disabled={!!style.loading} onClick={() => whatToWear(item)}>
             {style.loading ? "Looking…" : style.styleSuggestion ? "What to Wear (again)" : "What to Wear"}
           </button>
+          <button type="button" className="btn-ghost" disabled={!!cost.loading} onClick={() => estimateCost(item)}>
+            {cost.loading
+              ? "Estimating…"
+              : item.estimated_cost_usd != null
+                ? "Estimate cost (again)"
+                : "Estimate cost for 2"}
+          </button>
         </div>
 
         {state.error && (
@@ -581,6 +631,11 @@ export default function PlanningTab() {
         {style.error && (
           <p className="hint" style={{ color: "var(--bad)", marginTop: 6 }}>
             {style.error}
+          </p>
+        )}
+        {cost.error && (
+          <p className="hint" style={{ color: "var(--bad)", marginTop: 6 }}>
+            {cost.error}
           </p>
         )}
 

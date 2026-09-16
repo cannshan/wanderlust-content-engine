@@ -66,10 +66,19 @@ export default function PlanningCalendar({
   // rather than re-reading dataTransfer's payload beyond the bare id, so
   // the caller always gets the same object shape it originally handed in.
   const itemsById = {};
+  // Same per-day grouping, summed instead of listed - only a Trip
+  // Calendar item (a planning_items row) ever carries
+  // estimated_cost_usd (see "Estimate cost" in PlanningTab.js), so this
+  // naturally stays empty for the Content Calendar's saved ideas/notes
+  // without needing a separate flag to say which calendar this is.
+  const costByDate = {};
   for (const item of items) {
     itemsById[item.id] = item;
     if (!item.planned_date) continue;
     (itemsByDate[item.planned_date] ||= []).push(item);
+    if (typeof item.estimated_cost_usd === "number") {
+      costByDate[item.planned_date] = (costByDate[item.planned_date] || 0) + item.estimated_cost_usd;
+    }
   }
 
   function handleDragStart(e, item) {
@@ -157,7 +166,19 @@ export default function PlanningCalendar({
               }}
               onDrop={(e) => handleDrop(e, key)}
             >
-              <span className="planning-calendar-daynum">{day}</span>
+              <div className="planning-calendar-daynum-row">
+                <span className="planning-calendar-daynum">{day}</span>
+                {/* Every costed item that day summed together, still for
+                    two people - see the comment on costByDate above.
+                    Never shown as $0.00 for a day with no costed items;
+                    that would look like a real answer rather than
+                    "nothing to add up here". */}
+                {costByDate[key] != null && (
+                  <span className="planning-calendar-day-cost" title={`Estimated for ${itemsByDate[key].length > 1 ? "everything" : "this"} planned that day, for two`}>
+                    💰 ${costByDate[key].toFixed(2)}
+                  </span>
+                )}
+              </div>
               {/* Three shapes, decided per item rather than per calendar:
                   a real record with somewhere to open into is a button; a
                   plain scheduling note gets an edit affordance (and a

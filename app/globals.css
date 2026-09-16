@@ -480,10 +480,30 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   background: var(--wine-soft);
 }
 
+.planning-calendar-daynum-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px;
+}
+
 .planning-calendar-daynum {
   font-family: 'IBM Plex Mono', monospace;
   font-size: 11px;
   color: var(--ink-faint);
+}
+
+/* The Trip Calendar's per-day total (see costByDate in
+   PlanningCalendar.js) - amber like the cost estimate chip it's summed
+   from, so the two visually read as the same kind of number. */
+.planning-calendar-day-cost {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--amber);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .planning-calendar-pill {
@@ -616,6 +636,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 @media (max-width: 640px) {
   .planning-calendar-cell { min-height: 50px; }
   .planning-calendar-pill { font-size: 10px; }
+  .planning-calendar-day-cost { font-size: 9px; }
 }
 
 .category-chip {
@@ -1204,6 +1225,25 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 .place-link:hover { color: var(--wine); text-decoration: underline; }
 
 .place-save-btn { flex-shrink: 0; }
+
+/* Stacks the cost estimate chip above the "In Planning" button so both
+   stay anchored to the card's top-right corner, same spot the button
+   alone used to occupy - .place-row's own flex row puts this whole
+   column as the second item next to .place-info. */
+.place-cost-corner {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.cost-chip {
+  background: var(--amber-soft);
+  color: var(--amber);
+  border-color: transparent;
+  white-space: nowrap;
+}
 
 .place-suggest-row {
   display: flex;

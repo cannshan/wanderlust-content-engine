@@ -405,11 +405,6 @@ export default function DiscoveryTab() {
                 onAddToPlanning={addToPlanning}
               />
             </div>
-
-            <p className="hint" style={{ marginTop: 16 }}>
-              Areas/towns are whatever a search result happens to state — sanity-check before building a trip
-              around one, same as everywhere else in this app that relies on live search instead of a maps API.
-            </p>
           </div>
         )}
       </div>
