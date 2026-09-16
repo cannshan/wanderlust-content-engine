@@ -429,13 +429,24 @@ If you set this table up before raw responses were logged, run this once to add 
 alter table api_cost_logs add column if not exists raw_response text;
 ```
 
+If you set this table up before real usage was split from your own testing, run this once to add that column:
+
+```sql
+alter table api_cost_logs add column if not exists is_local boolean;
+```
+
+`is_local` is written by `logUsage()` (`lib/claude.js`) from the request's own `Host` header - `true` for a call made from `localhost`/`127.0.0.1` (whatever port), `false` for a call made against a real deployed hostname, `null` for any row logged before this column existed. This is what separates "what did testing this app cost me" from "what did someone actually using it cost" - see the two badges below.
+
 Without this table, cost/timing tracking just falls back to the console-only `[cost]` lines - same degrade-gracefully rule as everywhere else Supabase is optional in this app.
 
-`GET /api/cost-logs` (optionally `?limit=`, default 500, max 2000; `?since=<ISO timestamp>` to filter to rows at or after that time) returns the raw rows plus a `byFeature` summary (call count, total cost, average cost per call, average duration) sorted by total spend - open it directly in a browser, or point any tool at it, to see what's actually being spent (and how long it's taking) without querying Supabase directly. Rows leave out `raw_response` by default (see the comment in `app/api/cost-logs/route.js`) - add `?includeRaw=1` to get it back, e.g. when tracking down a specific bad Discovery/Nearby result.
+`GET /api/cost-logs` (optionally `?limit=`, default 500, max 2000; `?since=<ISO timestamp>` to filter to rows at or after that time; `?source=remote|local|all` to filter by `is_local`, default `all`) returns the filtered rows plus a `byFeature` summary (call count, total cost, average cost per call, average duration) sorted by total spend, and a `totals`/`counts` object breaking the *unfiltered* set down into `remote`/`local`/`unknown`/`all` regardless of `?source=` - so a caller can show the three-way split without a second request. Open it directly in a browser, or point any tool at it, to see what's actually being spent (and how long it's taking) without querying Supabase directly. Rows leave out `raw_response` by default (see the comment in `app/api/cost-logs/route.js`) - add `?includeRaw=1` to get it back, e.g. when tracking down a specific bad Discovery/Nearby result.
 
-A small "`<Tier>` · this month: $X.XX" badge in the top bar (`app/components/MonthlySpend.js`) shows a running total since the 1st of the current calendar month, refreshed every 60 seconds - reads the same `/api/cost-logs?since=` endpoint, and renders nothing at all if the table isn't configured yet rather than showing an error.
+**Two spend badges, same component (`app/components/MonthlySpend.js`), picked by hostname:**
 
-The badge is gated on hostname, not a manual flag - there's one shared `DASHBOARD_PASSWORD` for this app, no separate owner login, and this isn't something the person actually using the deployed app should ever see. It shows automatically on `localhost`/`127.0.0.1` (any port - local dev only) and stays hidden on every deployed hostname, unconditionally, for anyone visiting it on any device.
+- On `localhost`/`127.0.0.1` (any port - your own dev machine only): the developer badge - "`<Tier>` · this month: $X.XX" since the 1st of the current calendar month, against the current tier's cap, with a source toggle (Real use / Testing / All) and a click-to-open by-feature breakdown. Defaults to the "Real use" (remote-only) bucket, so a morning of local testing doesn't make the number look scarier than what an actual customer costs.
+- On any real deployed hostname: a visitor-facing badge - "This week: $X.XX", **remote usage only** (your own `localhost` testing is never mixed into what a real visitor sees), resetting every Sunday rather than the 1st - a plain weekly read, not tied to the monthly billing-cycle cap the developer badge checks against. Click it for the same by-feature breakdown, just without the source toggle (there's nothing to switch - it's always remote).
+
+Both refresh every 60 seconds and render nothing at all if the table isn't configured yet, or before the hostname is known client-side, rather than showing an error or a placeholder.
 
 **Pricing tiers and budget cap (built, not yet enforced):** `lib/budget.js` exports a `TIERS` config -
 

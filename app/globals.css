@@ -91,6 +91,19 @@ input, select, textarea {
   width: 100%;
 }
 
+/* The text-input treatment above (full-width block, padded border) was
+   never meant for a checkbox - it was the only rule any input got, so a
+   checkbox inherited it wholesale and rendered as an oversized empty box
+   instead of a checkbox (see the Calendar tab's "Mark as completed"). */
+input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  padding: 0;
+  border-radius: 4px;
+  accent-color: var(--wine);
+}
+
 input:focus, select:focus, textarea:focus, button:focus-visible {
   outline: 2px solid var(--wine);
   outline-offset: 1px;
@@ -748,6 +761,44 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   height: 100%;
   border-radius: 2px;
   transition: width 0.3s ease;
+}
+
+/* The visitor-facing weekly badge's breakdown dropdown (see
+   MonthlySpend.js) - same floating-card shape as the developer badge's
+   own dropdown, just as real classes instead of inline styles since this
+   one has no per-render dynamic values to compute. */
+.monthly-spend-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 40;
+  width: 280px;
+  max-height: 70vh;
+  overflow-y: auto;
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  padding: 12px;
+}
+
+.monthly-spend-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11.5px;
+}
+
+.monthly-spend-table th {
+  font-weight: 500;
+  color: var(--ink-faint);
+  text-align: left;
+  padding: 3px 0;
+}
+
+.monthly-spend-table td {
+  padding: 4px 6px 4px 0;
+  border-top: 1px solid var(--line);
+  word-break: break-word;
 }
 
 .topbar .eyebrow {
