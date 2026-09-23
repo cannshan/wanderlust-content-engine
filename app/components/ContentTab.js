@@ -1163,12 +1163,6 @@ export default function ContentTab() {
         <div className="field">
           <label htmlFor="reelVideo">Already filmed it? Upload the finished reel (optional)</label>
           <input id="reelVideo" type="file" accept="video/*" onChange={handleReelVideoChange} />
-          <p className="hint" style={{ marginTop: 6 }}>
-            Processed entirely in your browser, never uploaded as a file — only a handful of still frames
-            are sent. Give it the finished video and the caption, title and cover text are written about
-            what's actually on screen, in the order it happens, instead of the idea above. Skip it and
-            everything works exactly as before.
-          </p>
           {reelVideoFileError && (
             <p className="hint" style={{ marginTop: 6, color: "var(--bad)" }}>{reelVideoFileError}</p>
           )}
@@ -1606,7 +1600,7 @@ export default function ContentTab() {
             <label>Who to tag</label>
             <p className="hint" style={{ marginBottom: 10 }}>
               The 3–5 accounts most likely to reshare this — the place itself, whoever really owns it, the
-              local tourism board, feature accounts — best first. About 25¢ (it searches the web).
+              local tourism board, feature accounts — best first.
             </p>
             <button type="button" className="btn-ghost" onClick={findWhoToTag} disabled={tagLoading}>
               {tagLoading ? "Finding accounts…" : result.tagSuggestions ? "Check again" : "🏷️ Who to tag in this post"}
