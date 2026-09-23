@@ -2,8 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { useCategorizedItems } from "../../lib/useCategorizedItems";
+import { useDraftAutosave, useWarnBeforeLeaving } from "../../lib/useDraftAutosave";
 import { CategoryFilterRow, CategorizePanel } from "./CategoryUI";
 import { AddToPlanningPicker } from "./PlanningPicker";
+
+// Browser-only autosave (see useDraftAutosave below). Bump the version if
+// the saved shape ever changes in a way an older draft can't be read into.
+const PLANNING_DRAFT_STORAGE_KEY = "wwwPlanningDraft";
+const PLANNING_DRAFT_VERSION = 1;
 
 // The `area` field is free text from a live search, not a guaranteed
 // clean "Town, State" - it can come back as a full descriptive aside, e.g.
@@ -156,6 +162,46 @@ export default function PlanningTab() {
   useEffect(() => {
     loadItems();
   }, []);
+
+  // Autosave (lib/useDraftAutosave.js). "Research this place" and
+  // "Estimate cost" results are already saved onto each item's own row,
+  // so they're safe - this covers the paid results that otherwise only
+  // live on screen: What to Wear looks and the search bar's results, plus
+  // which item was open and the half-typed focus fields. Only finished
+  // What to Wear results are kept, never a loading/error state.
+  useDraftAutosave(
+    PLANNING_DRAFT_STORAGE_KEY,
+    {
+      version: PLANNING_DRAFT_VERSION,
+      selectedId,
+      searchQuery,
+      searchResults,
+      searchFocusDrafts,
+      focusDrafts,
+      styleResults: Object.fromEntries(
+        Object.entries(styleState)
+          .filter(([, st]) => st?.styleSuggestion || st?.styleLinks?.length)
+          .map(([id, st]) => [id, { styleSuggestion: st.styleSuggestion || null, styleLinks: st.styleLinks || [] }])
+      ),
+    },
+    (draft) => {
+      if (draft.version !== PLANNING_DRAFT_VERSION) return;
+      if (draft.selectedId) setSelectedId(draft.selectedId);
+      setSearchQuery(draft.searchQuery || "");
+      if (Array.isArray(draft.searchResults)) setSearchResults(draft.searchResults);
+      if (draft.searchFocusDrafts) setSearchFocusDrafts(draft.searchFocusDrafts);
+      if (draft.focusDrafts) setFocusDrafts(draft.focusDrafts);
+      if (draft.styleResults) {
+        setStyleState(
+          Object.fromEntries(
+            Object.entries(draft.styleResults).map(([id, st]) => [id, { loading: false, error: null, ...st }])
+          )
+        );
+      }
+    }
+  );
+  const anyLoading = (stateMap) => Object.values(stateMap).some((st) => st?.loading);
+  useWarnBeforeLeaving(searchLoading || anyLoading(researchState) || anyLoading(styleState) || anyLoading(costState));
 
   async function loadItems() {
     setLoading(true);

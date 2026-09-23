@@ -1606,41 +1606,6 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   color: var(--ink);
 }
 
-.tweak-input-row {
-  display: flex;
-  gap: 8px;
-  align-items: stretch;
-}
-
-.tweak-input-row textarea { flex: 1; min-width: 0; }
-
-.tweak-mic {
-  flex-shrink: 0;
-  width: 46px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--bg-raised);
-  font-size: 18px;
-  cursor: pointer;
-}
-
-.tweak-mic:hover { border-color: var(--wine); }
-
-.tweak-mic.listening {
-  border-color: var(--wine);
-  background: var(--wine-soft);
-  color: var(--wine);
-  animation: tweak-pulse 1.2s ease-in-out infinite;
-}
-
-@keyframes tweak-pulse {
-  50% { box-shadow: 0 0 0 4px var(--wine-soft); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .tweak-mic.listening { animation: none; }
-}
-
 .tweak-all {
   display: flex;
   align-items: center;

@@ -30,7 +30,7 @@ The pick is deliberately not saved with the idea — it's a copy-it-at-upload-ti
 
 ### Tweak this (talk to it, and it learns)
 
-Under every generated description is a **Tweak this** box: say what's off in plain words — *"this is good, but the trail is 2 miles, not 5"*, *"less emoji"*, *"don't call it a hidden gem"* — and `/api/refine` (`refinePost` in `lib/claude.js`) edits just that part and leaves the rest word-for-word. On browsers that support speech recognition (Chrome, Edge, Safari) there's a 🎤 button to say it out loud instead; the phone keyboard's own dictation works in the box everywhere else.
+Under every generated description is a **Tweak this** box: say what's off in plain words — *"this is good, but the trail is 2 miles, not 5"*, *"less emoji"*, *"don't call it a hidden gem"* — and `/api/refine` (`refinePost` in `lib/claude.js`) edits just that part and leaves the rest word-for-word.
 
 - **No new searching.** A tweak reuses what the generation already researched — the location-tag research, restaurant/menu research and the footage rundown are kept with the result (and with the saved idea, under `_research` in its `results` blob) and sent back in. Leah was there, so her correction is treated as the truth rather than re-checked. One call per platform, no searches — about 6¢ each, measured live.
 - **Fix it everywhere.** "Fix it on every platform" is on by default, since a wrong fact is wrong in every caption. Turn it off for a platform-specific style note.

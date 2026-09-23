@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { PLATFORM_LABELS, PLATFORM_ORDER, CATEGORY_OPTIONS, MAX_VIDEO_FILE_BYTES } from "../../lib/constants";
 import { extractVideoFrames } from "../../lib/videoFrames";
 import { useCategorizedItems } from "../../lib/useCategorizedItems";
+import { useDraftAutosave, useWarnBeforeLeaving } from "../../lib/useDraftAutosave";
 import { CategoryFilterRow, CategorizePanel } from "./CategoryUI";
 import PlanningCalendar from "./PlanningCalendar";
 
@@ -117,6 +118,12 @@ function fileToBase64(file) {
   });
 }
 
+// Browser-only autosave of the Content tab (see useDraftAutosave below).
+// Bump the version if the saved shape ever changes in a way an
+// older draft can't be read back into.
+const CONTENT_DRAFT_STORAGE_KEY = "wwwContentDraft";
+const CONTENT_DRAFT_VERSION = 1;
+
 const initialForm = {
   idea: "",
   location: "",
@@ -183,9 +190,6 @@ export default function ContentTab() {
   // rule - never saved without her say-so.
   const [pendingLesson, setPendingLesson] = useState(null);
   const [lessonState, setLessonState] = useState(""); // "" | "saving" | "saved" | "error"
-  const [speechSupported, setSpeechSupported] = useState(false);
-  const [listening, setListening] = useState(false);
-  const recognitionRef = useRef(null);
 
   // Latest result, readable from inside a slow async call that started
   // against an older one (see newRunId).
@@ -194,13 +198,39 @@ export default function ContentTab() {
     resultRef.current = result;
   }, [result]);
 
-  // Detected after mount (window doesn't exist during server render).
-  // Chrome/Edge/Safari support it; where it doesn't exist, the mic button
-  // just doesn't show - the phone keyboard's own dictation still works in
-  // the text box either way.
-  useEffect(() => {
-    setSpeechSupported(!!(window.SpeechRecognition || window.webkitSpeechRecognition));
-  }, []);
+  // Autosave (lib/useDraftAutosave.js): everything on screen that cost
+  // money to generate - the result, including tweaks and Who to tag, plus
+  // nearby ideas - and the form that produced it. The uploaded reel and
+  // menu files can't be kept (browsers don't allow restoring a picked
+  // file); everything they produced is inside the result.
+  useDraftAutosave(
+    CONTENT_DRAFT_STORAGE_KEY,
+    {
+      version: CONTENT_DRAFT_VERSION,
+      form,
+      selectedPlatforms,
+      extras,
+      isRestaurant,
+      restaurantName,
+      menuLinks,
+      result,
+      nearbyResult,
+      activeTab,
+    },
+    (draft) => {
+      if (draft.version !== CONTENT_DRAFT_VERSION) return;
+      if (draft.form) setForm({ ...initialForm, ...draft.form });
+      if (draft.selectedPlatforms) setSelectedPlatforms(draft.selectedPlatforms);
+      if (draft.extras) setExtras(draft.extras);
+      setIsRestaurant(!!draft.isRestaurant);
+      setRestaurantName(draft.restaurantName || "");
+      if (Array.isArray(draft.menuLinks) && draft.menuLinks.length) setMenuLinks(draft.menuLinks);
+      if (draft.result) setResult(draft.result);
+      if (draft.nearbyResult) setNearbyResult(draft.nearbyResult);
+      if (draft.activeTab) setActiveTab(draft.activeTab);
+    }
+  );
+  useWarnBeforeLeaving(loading || !!tagLoading || tweakLoading || nearbyLoading);
 
   // The month calendar (PlanningCalendar.js, moved here from the Planning
   // tab - places to go don't need a content calendar, but scheduling when
@@ -267,7 +297,12 @@ export default function ContentTab() {
       const res = await fetch("/api/ideas");
       if (res.ok) {
         const data = await res.json();
-        setSavedIdeas(data.ideas || []);
+        const ideas = data.ideas || [];
+        setSavedIdeas(ideas);
+        // An autosaved result can point at a saved idea that's since been
+        // deleted (here or on another device) - un-stick its "Saved" button
+        // rather than showing it as saved when it no longer exists.
+        setResult((r) => (r?.savedId && !ideas.some((i) => i.id === r.savedId) ? { ...r, savedId: null } : r));
       }
     } catch {
       // Sidebar just stays empty/stale - saving/generating still works.
@@ -719,7 +754,6 @@ export default function ContentTab() {
   }
 
   function resetTweakAndTagState() {
-    recognitionRef.current?.stop();
     setTweakText("");
     setTweakError("");
     setTweakUndo([]);
@@ -865,7 +899,6 @@ export default function ContentTab() {
     const snapshot = resultRef.current;
     const feedback = tweakText.trim();
     if (!snapshot || !feedback || tweakLoading) return;
-    recognitionRef.current?.stop();
 
     // A factual fix ("that's not true") is wrong on every platform, so by
     // default it goes to all of them; a platform-specific style note can
@@ -941,35 +974,6 @@ export default function ContentTab() {
       setLessonState("saved");
     } catch {
       setLessonState("error");
-    }
-  }
-
-  function toggleListening() {
-    if (listening) {
-      recognitionRef.current?.stop();
-      return;
-    }
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) return;
-    const recognition = new SpeechRecognition();
-    recognition.lang = "en-US";
-    recognition.interimResults = true;
-    recognition.continuous = true;
-    // Appends to whatever's already typed rather than replacing it.
-    const typedSoFar = tweakText.trim() ? `${tweakText.trim()} ` : "";
-    recognition.onresult = (event) => {
-      let spoken = "";
-      for (let i = 0; i < event.results.length; i++) spoken += event.results[i][0].transcript;
-      setTweakText(typedSoFar + spoken.trim());
-    };
-    recognition.onend = () => setListening(false);
-    recognition.onerror = () => setListening(false);
-    recognitionRef.current = recognition;
-    try {
-      recognition.start();
-      setListening(true);
-    } catch {
-      setListening(false);
     }
   }
 
@@ -1403,33 +1407,19 @@ export default function ContentTab() {
                   Say what's off in plain words — it edits just that part, using the research it already did (no
                   new searching).
                 </p>
-                <div className="tweak-input-row">
-                  <textarea
-                    id="tweakText"
-                    rows={2}
-                    placeholder="This is good, but the trail is 2 miles, not 5 — fix that"
-                    value={tweakText}
-                    onChange={(e) => setTweakText(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                        e.preventDefault();
-                        applyTweak();
-                      }
-                    }}
-                  />
-                  {speechSupported && (
-                    <button
-                      type="button"
-                      className={`tweak-mic ${listening ? "listening" : ""}`}
-                      onClick={toggleListening}
-                      aria-pressed={listening}
-                      aria-label={listening ? "Stop listening" : "Speak your tweak"}
-                      title={listening ? "Stop listening" : "Speak your tweak"}
-                    >
-                      {listening ? "■" : "🎤"}
-                    </button>
-                  )}
-                </div>
+                <textarea
+                  id="tweakText"
+                  rows={2}
+                  placeholder="This is good, but the trail is 2 miles, not 5 — fix that"
+                  value={tweakText}
+                  onChange={(e) => setTweakText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                      e.preventDefault();
+                      applyTweak();
+                    }
+                  }}
+                />
                 {(result.attempted || []).filter((p) => result.platforms?.[p]).length > 1 && (
                   <label className="tweak-all">
                     <input

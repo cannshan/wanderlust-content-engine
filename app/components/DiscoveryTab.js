@@ -3,8 +3,14 @@
 import { useState, useEffect } from "react";
 import { CATEGORY_OPTIONS } from "../../lib/constants";
 import { useCategorizedItems } from "../../lib/useCategorizedItems";
+import { useDraftAutosave, useWarnBeforeLeaving } from "../../lib/useDraftAutosave";
 import { CategoryFilterRow, CategorizePanel } from "./CategoryUI";
 import { AddToPlanningPicker } from "./PlanningPicker";
+
+// Browser-only autosave (see useDraftAutosave below). Bump the version if
+// the saved shape ever changes in a way an older draft can't be read into.
+const DISCOVERY_DRAFT_STORAGE_KEY = "wwwDiscoveryDraft";
+const DISCOVERY_DRAFT_VERSION = 1;
 
 // A Google Maps search link rather than trying to have the model cite an
 // exact source URL for each place - that would mean trusting a citation
@@ -141,13 +147,54 @@ export default function DiscoveryTab() {
     loadPlanningItems();
   }, []);
 
+  // Autosave (lib/useDraftAutosave.js): a Discovery search is the most
+  // expensive thing in the app, and until "Save this search" is pressed
+  // its results otherwise only live on screen - so the last search and
+  // the form behind it survive a refresh or a closed tab.
+  useDraftAutosave(
+    DISCOVERY_DRAFT_STORAGE_KEY,
+    {
+      version: DISCOVERY_DRAFT_VERSION,
+      location,
+      categories,
+      focus,
+      date,
+      result,
+      resultLocation,
+      resultCategories,
+      resultFocus,
+      resultDate,
+      currentSavedSearchId,
+    },
+    (draft) => {
+      if (draft.version !== DISCOVERY_DRAFT_VERSION) return;
+      setLocation(draft.location || "");
+      if (Array.isArray(draft.categories) && draft.categories.length) setCategories(draft.categories);
+      setFocus(draft.focus || "");
+      setDate(draft.date || "");
+      if (draft.result) {
+        setResult(draft.result);
+        setResultLocation(draft.resultLocation || "");
+        setResultCategories(draft.resultCategories || ["all"]);
+        setResultFocus(draft.resultFocus || "");
+        setResultDate(draft.resultDate || "");
+        setCurrentSavedSearchId(draft.currentSavedSearchId || null);
+      }
+    }
+  );
+  useWarnBeforeLeaving(loading);
+
   async function loadSavedSearches() {
     setSavedSearchesLoading(true);
     try {
       const res = await fetch("/api/discovery-searches");
       if (res.ok) {
         const data = await res.json();
-        setSavedSearches(data.searches || []);
+        const searches = data.searches || [];
+        setSavedSearches(searches);
+        // An autosaved result can point at a saved search that's since
+        // been deleted - un-stick its "Saved" state if so.
+        setCurrentSavedSearchId((id) => (id && !searches.some((s) => s.id === id) ? null : id));
       }
     } catch {
       // List just stays empty/stale - searching still works.
