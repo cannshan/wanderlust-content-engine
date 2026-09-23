@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { PLATFORM_LABELS, PLATFORM_ORDER, CATEGORY_OPTIONS, MAX_VIDEO_FILE_BYTES } from "../../lib/constants";
 import { extractVideoFrames } from "../../lib/videoFrames";
 import { useCategorizedItems } from "../../lib/useCategorizedItems";
@@ -44,6 +44,58 @@ function descriptionWithTags(platform) {
   return platform.hashtags?.length > 0
     ? `${platform.description}\n\n${platform.hashtags.join(" ")}`
     : platform.description;
+}
+
+// Everything that gets persisted as a saved idea's `results` blob. The
+// platform-agnostic extras ride along under reserved underscore keys
+// rather than needing their own saved_ideas columns - none of them can
+// collide with a real platform key. _research is what the generation
+// already looked up (location-tag and restaurant research), kept so a
+// later "Tweak this" on a reloaded idea can reuse it instead of searching
+// again; _tag_suggestions is the "Who to tag" result, kept so it isn't
+// paid for twice.
+function resultsBlob(r) {
+  return {
+    ...r.platforms,
+    _styling_tip: r.stylingTip ?? null,
+    _footage_scene_summary: r.footageSceneSummary ?? null,
+    _research: r.research ?? null,
+    _tag_suggestions: r.tagSuggestions ?? null,
+  };
+}
+
+// Tells apart two different results that happen to be for the same idea,
+// so a slow "Who to tag"/"Tweak this" call that finishes after she's
+// already moved on to another idea doesn't write into the wrong one.
+function newRunId() {
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+const TAG_HOW_LABELS = {
+  collab_invite: "Invite as a Collab (Instagram)",
+  photo_tag: "Tag them on the reel",
+  caption_mention: "@mention in the caption",
+};
+
+// A few well-matched tags beat a wall of them.
+const MAX_TAG_ACCOUNTS = 5;
+const REPOST_ODDS_RANK = { high: 0, medium: 1, low: 2 };
+
+// The handle check (findTagSuggestions in lib/claude.js) runs quietly: a
+// handle nothing could confirm is dropped rather than shown with a warning,
+// an account left with no usable handle is dropped, and the rest are
+// ordered by likely reach (the model's repost odds, then its own best-first
+// order) and capped. Done at display time rather than on the server so
+// lists saved before this change show the same way.
+function tagAccountsToShow(tagSuggestions) {
+  const usable = (check) => (check && check.status !== "unverified" ? check : null);
+  return (tagSuggestions?.accounts || [])
+    .map((a, i) => ({ ...a, instagram: usable(a.instagram), tiktok: usable(a.tiktok), order: i }))
+    .filter((a) => a.instagram || a.tiktok)
+    .sort(
+      (x, y) => (REPOST_ODDS_RANK[x.repostOdds] ?? 3) - (REPOST_ODDS_RANK[y.repostOdds] ?? 3) || x.order - y.order
+    )
+    .slice(0, MAX_TAG_ACCOUNTS);
 }
 
 // A place can have separate food/drink/dessert menus, or a seasonal one
@@ -113,6 +165,42 @@ export default function ContentTab() {
   const [nearbyLoading, setNearbyLoading] = useState(false);
   const [nearbyResult, setNearbyResult] = useState(null);
   const [nearbyError, setNearbyError] = useState("");
+  const [tagLoading, setTagLoading] = useState(false);
+  const [tagError, setTagError] = useState("");
+  const [copiedHandles, setCopiedHandles] = useState("");
+
+  // "Tweak this" - plain-language feedback on a generated post.
+  const [tweakText, setTweakText] = useState("");
+  const [tweakAllPlatforms, setTweakAllPlatforms] = useState(true);
+  const [tweakLoading, setTweakLoading] = useState(false);
+  const [tweakError, setTweakError] = useState("");
+  // Earlier versions of result.platforms, newest last, so a tweak that
+  // made things worse can be undone. Client-only on purpose - the saved
+  // idea keeps the latest version plus a log of what was asked for (see
+  // `refinements` below), not every intermediate draft.
+  const [tweakUndo, setTweakUndo] = useState([]);
+  // A lasting preference the last tweak revealed, offered as a Profile
+  // rule - never saved without her say-so.
+  const [pendingLesson, setPendingLesson] = useState(null);
+  const [lessonState, setLessonState] = useState(""); // "" | "saving" | "saved" | "error"
+  const [speechSupported, setSpeechSupported] = useState(false);
+  const [listening, setListening] = useState(false);
+  const recognitionRef = useRef(null);
+
+  // Latest result, readable from inside a slow async call that started
+  // against an older one (see newRunId).
+  const resultRef = useRef(null);
+  useEffect(() => {
+    resultRef.current = result;
+  }, [result]);
+
+  // Detected after mount (window doesn't exist during server render).
+  // Chrome/Edge/Safari support it; where it doesn't exist, the mic button
+  // just doesn't show - the phone keyboard's own dictation still works in
+  // the text box either way.
+  useEffect(() => {
+    setSpeechSupported(!!(window.SpeechRecognition || window.webkitSpeechRecognition));
+  }, []);
 
   // The month calendar (PlanningCalendar.js, moved here from the Planning
   // tab - places to go don't need a content calendar, but scheduling when
@@ -216,16 +304,7 @@ export default function ContentTab() {
         body: JSON.stringify({
           ...result.formSnapshot,
           platforms: result.attempted,
-          // The styling tip and the video scene summary are both
-          // platform-agnostic (no per-platform tab of their own), so they
-          // ride along inside the results blob under reserved keys rather
-          // than needing their own saved_ideas columns - neither can
-          // collide with a real platform key.
-          results: {
-            ...result.platforms,
-            _styling_tip: result.stylingTip ?? null,
-            _footage_scene_summary: result.footageSceneSummary ?? null,
-          },
+          results: resultsBlob(result),
         }),
       });
       if (res.ok) {
@@ -243,6 +322,8 @@ export default function ContentTab() {
     const {
       _styling_tip: stylingTip,
       _footage_scene_summary: footageSceneSummary,
+      _research: research,
+      _tag_suggestions: tagSuggestions,
       ...platformResults
     } = saved.results || {};
 
@@ -277,7 +358,11 @@ export default function ContentTab() {
     setReelVideoUrl("");
     setNearbyResult(null);
     setNearbyError("");
+    resetTweakAndTagState();
     setResult({
+      runId: newRunId(),
+      research: research ?? null,
+      tagSuggestions: tagSuggestions ?? null,
       platforms: platformResults,
       errors: {},
       attempted: saved.platforms,
@@ -491,6 +576,7 @@ export default function ContentTab() {
     // search no longer applies to it.
     setNearbyResult(null);
     setNearbyError("");
+    resetTweakAndTagState();
 
     // Neither the restaurant check nor the location-tag search varies by
     // platform (a menu and a place's real-world popularity don't change
@@ -617,6 +703,7 @@ export default function ContentTab() {
       );
     } else {
       setResult({
+        runId: newRunId(),
         platforms,
         errors,
         attempted: platformsToGenerate,
@@ -624,9 +711,266 @@ export default function ContentTab() {
         savedId: null,
         stylingTip,
         footageSceneSummary,
+        research: { locationContext, restaurantContext },
+        tagSuggestions: null,
       });
     }
     setLoading(false);
+  }
+
+  function resetTweakAndTagState() {
+    recognitionRef.current?.stop();
+    setTweakText("");
+    setTweakError("");
+    setTweakUndo([]);
+    setPendingLesson(null);
+    setLessonState("");
+    setTagError("");
+  }
+
+  // Keeps an already-saved idea in sync after a tweak or a tag lookup, so
+  // reopening it later shows the latest version. Same best-effort rule as
+  // every other write here - an unsaved result just lives on screen.
+  async function persistResults(next) {
+    if (!next?.savedId) return;
+    try {
+      await fetch(`/api/ideas/${next.savedId}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ results: resultsBlob(next) }),
+      });
+      setSavedIdeas((list) => list.map((s) => (s.id === next.savedId ? { ...s, results: resultsBlob(next) } : s)));
+    } catch {
+      // The on-screen version is still right; only the saved copy lags.
+    }
+  }
+
+  async function findWhoToTag() {
+    const current = resultRef.current;
+    if (!current?.formSnapshot || tagLoading) return;
+    const { runId } = current;
+    setTagLoading(true);
+    setTagError("");
+    try {
+      // The Instagram caption (or whichever platform came back first) -
+      // the tagging suggestions don't vary by platform, but reading the
+      // actual caption lets them match what the post really says.
+      const firstPlatform = PLATFORM_ORDER.find((p) => current.platforms?.[p]);
+      const res = await fetch("/api/tag-suggestions", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          idea: current.formSnapshot.idea,
+          location: current.formSnapshot.location,
+          storyBeat: current.formSnapshot.storyBeat,
+          restaurantName: current.formSnapshot.restaurantName,
+          footageContext: current.footageSceneSummary?.join("\n") || null,
+          description: firstPlatform ? current.platforms[firstPlatform].description : null,
+        }),
+      });
+      const raw = await res.text();
+      let data;
+      try {
+        data = JSON.parse(raw);
+      } catch {
+        throw new Error("Request timed out or failed before completing. Try again.");
+      }
+      if (!res.ok) throw new Error(data.error || "Couldn't find accounts to tag.");
+
+      const latest = resultRef.current;
+      if (latest?.runId === runId) {
+        const next = { ...latest, tagSuggestions: data };
+        setResult(next);
+        persistResults(next);
+      }
+    } catch (err) {
+      setTagError(err.message || "Couldn't find accounts to tag.");
+    }
+    setTagLoading(false);
+  }
+
+  // Only handles with real evidence behind them go into the copied list -
+  // an unverified one has to be checked and typed by hand, on purpose.
+  function trustedHandles(network) {
+    return tagAccountsToShow(result?.tagSuggestions)
+      .map((a) => a[network])
+      .filter(Boolean)
+      .map((c) => `@${c.handle}`);
+  }
+
+  function copyTrustedHandles(network) {
+    const handles = trustedHandles(network);
+    if (handles.length === 0) return;
+    copy(handles.join(" "), `handles-${network}`);
+  }
+
+  // Sends one platform's current post plus her feedback to /api/refine and
+  // returns the updated platform object. The research the generation
+  // already did travels along in `context`, so nothing is searched again.
+  async function tweakOnePlatform(snapshot, platformKey, feedback) {
+    const p = snapshot.platforms[platformKey];
+    const res = await fetch("/api/refine", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        platform: platformKey,
+        lengthSeconds: snapshot.formSnapshot.lengthSeconds,
+        feedback,
+        current: {
+          description: p.description,
+          hashtags: p.hashtags,
+          cover_text: p.cover_text,
+          titles: p.titles,
+          title: p.title,
+        },
+        priorFeedback: (p.refinements || []).map((r) => r.feedback),
+        context: {
+          idea: snapshot.formSnapshot.idea,
+          location: snapshot.formSnapshot.location,
+          storyBeat: snapshot.formSnapshot.storyBeat,
+          notes: snapshot.formSnapshot.notes,
+          footageContext: snapshot.footageSceneSummary?.join("\n") || null,
+          locationContext: snapshot.research?.locationContext || null,
+          restaurantContext: snapshot.research?.restaurantContext || null,
+        },
+      }),
+    });
+    const raw = await res.text();
+    let data;
+    try {
+      data = JSON.parse(raw);
+    } catch {
+      throw new Error("Request timed out or failed before completing. Try again.");
+    }
+    if (!res.ok) throw new Error(data.error || "Couldn't apply that tweak.");
+
+    return {
+      updated: {
+        ...p,
+        description: data.description,
+        hashtags: data.hashtags,
+        cover_text: data.coverText,
+        ...(data.titles ? { titles: data.titles } : {}),
+        ...(data.hashtagRationale ? { hashtag_rationale: data.hashtagRationale } : {}),
+        refinements: [
+          ...(p.refinements || []),
+          { feedback, summary: data.changeSummary, at: new Date().toISOString() },
+        ],
+      },
+      lesson: data.lesson,
+    };
+  }
+
+  async function applyTweak() {
+    const snapshot = resultRef.current;
+    const feedback = tweakText.trim();
+    if (!snapshot || !feedback || tweakLoading) return;
+    recognitionRef.current?.stop();
+
+    // A factual fix ("that's not true") is wrong on every platform, so by
+    // default it goes to all of them; a platform-specific style note can
+    // be kept to just the one on screen.
+    const available = (snapshot.attempted || []).filter((p) => snapshot.platforms?.[p]);
+    const targets = (tweakAllPlatforms ? available : [activeTab]).filter((p) => available.includes(p));
+    if (targets.length === 0) return;
+
+    setTweakLoading(true);
+    setTweakError("");
+    setPendingLesson(null);
+    setLessonState("");
+
+    const outcomes = await Promise.allSettled(targets.map((p) => tweakOnePlatform(snapshot, p, feedback)));
+
+    const latest = resultRef.current;
+    if (latest?.runId !== snapshot.runId) {
+      setTweakLoading(false);
+      return;
+    }
+
+    const platforms = { ...latest.platforms };
+    const failed = [];
+    let lesson = "";
+    outcomes.forEach((outcome, i) => {
+      const p = targets[i];
+      if (outcome.status === "fulfilled") {
+        platforms[p] = outcome.value.updated;
+        // The on-screen platform's lesson wins if more than one came back.
+        if (outcome.value.lesson && (!lesson || p === activeTab)) lesson = outcome.value.lesson;
+      } else {
+        failed.push(`${PLATFORM_LABELS[p]}: ${outcome.reason?.message || "failed"}`);
+      }
+    });
+
+    if (failed.length < targets.length) {
+      setTweakUndo((stack) => [...stack.slice(-9), latest.platforms]);
+      const next = { ...latest, platforms };
+      setResult(next);
+      persistResults(next);
+      setTweakText("");
+      if (lesson) setPendingLesson(lesson);
+    }
+    if (failed.length) setTweakError(failed.join(" · "));
+    setTweakLoading(false);
+  }
+
+  function undoTweak() {
+    const latest = resultRef.current;
+    if (!latest || tweakUndo.length === 0) return;
+    const previous = tweakUndo[tweakUndo.length - 1];
+    setTweakUndo((stack) => stack.slice(0, -1));
+    setPendingLesson(null);
+    const next = { ...latest, platforms: previous };
+    setResult(next);
+    persistResults(next);
+  }
+
+  // "Learning over time": a kept lesson becomes a normal Profile rule, which
+  // every future generation already follows (buildSystemPrompt in
+  // lib/voiceProfile.js) and which she can edit or delete there like any
+  // other rule.
+  async function rememberLesson() {
+    if (!pendingLesson || lessonState === "saving") return;
+    setLessonState("saving");
+    try {
+      const res = await fetch("/api/profile-instructions", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ text: pendingLesson }),
+      });
+      if (!res.ok) throw new Error();
+      setLessonState("saved");
+    } catch {
+      setLessonState("error");
+    }
+  }
+
+  function toggleListening() {
+    if (listening) {
+      recognitionRef.current?.stop();
+      return;
+    }
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) return;
+    const recognition = new SpeechRecognition();
+    recognition.lang = "en-US";
+    recognition.interimResults = true;
+    recognition.continuous = true;
+    // Appends to whatever's already typed rather than replacing it.
+    const typedSoFar = tweakText.trim() ? `${tweakText.trim()} ` : "";
+    recognition.onresult = (event) => {
+      let spoken = "";
+      for (let i = 0; i < event.results.length; i++) spoken += event.results[i][0].transcript;
+      setTweakText(typedSoFar + spoken.trim());
+    };
+    recognition.onend = () => setListening(false);
+    recognition.onerror = () => setListening(false);
+    recognitionRef.current = recognition;
+    try {
+      recognition.start();
+      setListening(true);
+    } catch {
+      setListening(false);
+    }
   }
 
   function copy(text, label) {
@@ -656,6 +1000,7 @@ export default function ContentTab() {
   // stashing a copy of it on `result` itself, so it always reflects
   // savedIdeas' current state.
   const savedIdeaForResult = result?.savedId ? savedIdeas.find((s) => s.id === result.savedId) : null;
+  const tagAccounts = tagAccountsToShow(result?.tagSuggestions);
 
   return (
     <>
@@ -1058,6 +1403,114 @@ export default function ContentTab() {
                 {copied === "description" ? "Copied" : "Copy description"}
               </button>
 
+              <div className="tweak-box">
+                <label htmlFor="tweakText">Tweak this</label>
+                <p className="hint" style={{ margin: "2px 0 8px" }}>
+                  Say what's off in plain words — it edits just that part, using the research it already did (no
+                  new searching).
+                </p>
+                <div className="tweak-input-row">
+                  <textarea
+                    id="tweakText"
+                    rows={2}
+                    placeholder="This is good, but the trail is 2 miles, not 5 — fix that"
+                    value={tweakText}
+                    onChange={(e) => setTweakText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                        e.preventDefault();
+                        applyTweak();
+                      }
+                    }}
+                  />
+                  {speechSupported && (
+                    <button
+                      type="button"
+                      className={`tweak-mic ${listening ? "listening" : ""}`}
+                      onClick={toggleListening}
+                      aria-pressed={listening}
+                      aria-label={listening ? "Stop listening" : "Speak your tweak"}
+                      title={listening ? "Stop listening" : "Speak your tweak"}
+                    >
+                      {listening ? "■" : "🎤"}
+                    </button>
+                  )}
+                </div>
+                {(result.attempted || []).filter((p) => result.platforms?.[p]).length > 1 && (
+                  <label className="tweak-all">
+                    <input
+                      type="checkbox"
+                      checked={tweakAllPlatforms}
+                      onChange={(e) => setTweakAllPlatforms(e.target.checked)}
+                    />
+                    Fix it on every platform (leave on for anything factual)
+                  </label>
+                )}
+                <div className="tweak-actions">
+                  <button
+                    type="button"
+                    className="btn-ghost"
+                    onClick={applyTweak}
+                    disabled={tweakLoading || !tweakText.trim()}
+                  >
+                    {tweakLoading ? "Tweaking…" : "Apply tweak"}
+                  </button>
+                  {tweakUndo.length > 0 && !tweakLoading && (
+                    <button type="button" className="btn-ghost" onClick={undoTweak}>
+                      Undo last tweak
+                    </button>
+                  )}
+                </div>
+                {tweakError && <div className="error-banner" style={{ marginTop: 10 }}>{tweakError}</div>}
+
+                {pendingLesson && (
+                  <div className="lesson-box">
+                    {lessonState === "saved" ? (
+                      <p>
+                        ✓ Saved to your Profile rules — every future post will follow it. Edit or remove it any
+                        time on the Profile tab.
+                      </p>
+                    ) : (
+                      <>
+                        <p>
+                          <strong>Remember this for future posts?</strong>
+                          <br />“{pendingLesson}”
+                        </p>
+                        <div className="tweak-actions">
+                          <button
+                            type="button"
+                            className="btn-ghost"
+                            onClick={rememberLesson}
+                            disabled={lessonState === "saving"}
+                          >
+                            {lessonState === "saving" ? "Saving…" : "Remember"}
+                          </button>
+                          <button type="button" className="btn-ghost" onClick={() => setPendingLesson(null)}>
+                            No, just this post
+                          </button>
+                        </div>
+                        {lessonState === "error" && (
+                          <p className="hint" style={{ color: "var(--bad)" }}>
+                            Couldn't save it — add it by hand on the Profile tab.
+                          </p>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {platform.refinements?.length > 0 && (
+                  <ul className="tweak-log">
+                    {platform.refinements.map((r, i) => (
+                      <li key={i}>
+                        <span className="tweak-log-ask">“{r.feedback}”</span>
+                        {r.summary && <span className="tweak-log-change">{r.summary}</span>}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
               {platform.hashtag_rationale && (
                 <div className="field" style={{ marginTop: 16 }}>
                   <label>Hashtags</label>
@@ -1149,9 +1602,76 @@ export default function ContentTab() {
             </>
           )}
 
+          <div className="field" style={{ marginTop: 28, paddingTop: 24, borderTop: "1px solid var(--line)" }}>
+            <label>Who to tag</label>
+            <p className="hint" style={{ marginBottom: 10 }}>
+              The 3–5 accounts most likely to reshare this — the place itself, whoever really owns it, the
+              local tourism board, feature accounts — best first. About 25¢ (it searches the web).
+            </p>
+            <button type="button" className="btn-ghost" onClick={findWhoToTag} disabled={tagLoading}>
+              {tagLoading ? "Finding accounts…" : result.tagSuggestions ? "Check again" : "🏷️ Who to tag in this post"}
+            </button>
+            {tagError && <div className="error-banner" style={{ marginTop: 12 }}>{tagError}</div>}
+
+            {result.tagSuggestions && (
+              <div style={{ marginTop: 16 }}>
+                {result.tagSuggestions.ownershipNote && (
+                  <p className="rationale" style={{ marginBottom: 14 }}>{result.tagSuggestions.ownershipNote}</p>
+                )}
+                {tagAccounts.length === 0 && (
+                  <p className="hint">Couldn't confirm any accounts for this one.</p>
+                )}
+                <div className="tag-list">
+                  {tagAccounts.map((a, i) => (
+                    <div className="tag-account" key={i}>
+                      <div className="tag-account-head">
+                        <strong>
+                          {i + 1}. {a.name}
+                        </strong>
+                      </div>
+                      {[
+                        ["instagram", "Instagram", (h) => `https://www.instagram.com/${h}/`],
+                        ["tiktok", "TikTok", (h) => `https://www.tiktok.com/@${h}`],
+                      ].map(([key, label, profileUrl]) =>
+                        a[key] ? (
+                          <div className="tag-handle-row" key={key}>
+                            <span className="tag-network">{label}</span>
+                            <a href={profileUrl(a[key].handle)} target="_blank" rel="noopener noreferrer" className="place-link">
+                              @{a[key].handle}
+                            </a>
+                          </div>
+                        ) : null
+                      )}
+                      {a.why && <p className="tag-why">{a.why}</p>}
+                      <p className="hint" style={{ margin: 0 }}>
+                        How: {TAG_HOW_LABELS[a.how]}
+                        {a.featureHashtag ? ` · they feature posts using ${a.featureHashtag}` : ""}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+                <div className="tweak-actions" style={{ marginTop: 12 }}>
+                  {[
+                    ["instagram", "Instagram"],
+                    ["tiktok", "TikTok"],
+                  ]
+                    .filter(([network]) => trustedHandles(network).length > 0)
+                    .map(([network, label]) => (
+                      <button key={network} type="button" className="btn-ghost" onClick={() => copyTrustedHandles(network)}>
+                        {copied === `handles-${network}` ? "Copied" : `Copy ${label} handles`}
+                      </button>
+                    ))}
+                </div>
+                <p className="hint" style={{ marginTop: 8 }}>
+                  Only accounts whose handle could be confirmed are listed.
+                </p>
+              </div>
+            )}
+          </div>
+
           <div
             className="field"
-            style={{ marginTop: 28, paddingTop: 24, borderTop: "1px solid var(--border)" }}
+            style={{ marginTop: 28, paddingTop: 24, borderTop: "1px solid var(--line)" }}
           >
             <label>Nearby filming ideas (same trip, ~10 miles)</label>
             <p className="hint" style={{ marginBottom: 10 }}>

@@ -39,6 +39,16 @@ export async function PATCH(req, { params }) {
     // scheduled for a day, not a specific time.
     updates.planned_date = typeof body.plannedDate === "string" && body.plannedDate ? body.plannedDate : null;
   }
+  if ("results" in body) {
+    // The whole generated-results blob, replaced wholesale - sent after a
+    // "Tweak this" edit or a "Who to tag" lookup on an idea that's already
+    // saved, so the saved copy stays the latest version instead of the
+    // one from before the change.
+    if (!body.results || typeof body.results !== "object" || Array.isArray(body.results)) {
+      return NextResponse.json({ error: "results must be an object." }, { status: 400 });
+    }
+    updates.results = body.results;
+  }
 
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ error: "Nothing to update." }, { status: 400 });

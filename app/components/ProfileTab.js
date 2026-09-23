@@ -14,7 +14,7 @@ function captionTitle(caption) {
   return firstLine.length > 70 ? firstLine.slice(0, 70).trim() + "…" : firstLine;
 }
 
-export default function ProfileTab() {
+export default function ProfileTab({ active }) {
   const [instructions, setInstructions] = useState([]);
   const [instructionsLoading, setInstructionsLoading] = useState(true);
   const [newInstruction, setNewInstruction] = useState("");
@@ -43,12 +43,21 @@ export default function ProfileTab() {
   const [draggedCaptionId, setDraggedCaptionId] = useState(null);
 
   useEffect(() => {
-    loadInstructions();
     loadCaptions();
   }, []);
 
+  // Refetched every time the tab is opened, not just on mount - a rule can
+  // now also be added from the Content tab (a "Remember this" lesson from
+  // Tweak this), and every tab stays mounted all session, so a mount-only
+  // fetch would never show it. Same pattern as CalendarTab's `active`.
+  useEffect(() => {
+    if (active) loadInstructions();
+  }, [active]);
+
   async function loadInstructions() {
-    setInstructionsLoading(true);
+    // Only the first load shows "Loading…" - a refetch on reopening the
+    // tab swaps the list in place instead of flashing it away.
+    if (instructions.length === 0) setInstructionsLoading(true);
     try {
       const res = await fetch("/api/profile-instructions");
       if (res.ok) {

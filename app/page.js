@@ -7,6 +7,7 @@ import CalendarTab from "./components/CalendarTab";
 import DiscoveryTab from "./components/DiscoveryTab";
 import PlanningTab from "./components/PlanningTab";
 import ReelVoiceoverTab from "./components/ReelVoiceoverTab";
+import StoriesTab from "./components/StoriesTab";
 import ProfileTab from "./components/ProfileTab";
 import MonthlySpend from "./components/MonthlySpend";
 
@@ -17,6 +18,7 @@ const TABS = [
   { key: "content", label: "Content" },
   { key: "content-calendar", label: "Content Calendar" },
   { key: "reel-voiceover", label: "Reel Voiceover" },
+  { key: "stories", label: "Stories" },
   { key: "profile", label: "Profile" },
 ];
 
@@ -135,8 +137,11 @@ export default function Shell() {
         <div className="tab-panel" hidden={activeTab !== "reel-voiceover"}>
           <ReelVoiceoverTab />
         </div>
+        <div className="tab-panel" hidden={activeTab !== "stories"}>
+          <StoriesTab />
+        </div>
         <div className="tab-panel" hidden={activeTab !== "profile"}>
-          <ProfileTab />
+          <ProfileTab active={activeTab === "profile"} />
         </div>
       </div>
     </div>

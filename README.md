@@ -28,6 +28,27 @@ A YouTube Short carries a real title, and unlike a TikTok/Instagram caption it's
 
 The pick is deliberately not saved with the idea — it's a copy-it-at-upload-time decision, not a field of the post — so reopening a saved idea starts back at the first option. Ideas generated before this existed have a single title and simply render it as output, with nothing to choose.
 
+### Tweak this (talk to it, and it learns)
+
+Under every generated description is a **Tweak this** box: say what's off in plain words — *"this is good, but the trail is 2 miles, not 5"*, *"less emoji"*, *"don't call it a hidden gem"* — and `/api/refine` (`refinePost` in `lib/claude.js`) edits just that part and leaves the rest word-for-word. On browsers that support speech recognition (Chrome, Edge, Safari) there's a 🎤 button to say it out loud instead; the phone keyboard's own dictation works in the box everywhere else.
+
+- **No new searching.** A tweak reuses what the generation already researched — the location-tag research, restaurant/menu research and the footage rundown are kept with the result (and with the saved idea, under `_research` in its `results` blob) and sent back in. Leah was there, so her correction is treated as the truth rather than re-checked. One call per platform, no searches — about 6¢ each, measured live.
+- **Fix it everywhere.** "Fix it on every platform" is on by default, since a wrong fact is wrong in every caption. Turn it off for a platform-specific style note.
+- **Undo** reverts the last tweak. Each post keeps a short log of what was asked for, so later tweaks don't undo earlier ones.
+- **Learning over time.** When feedback reveals a lasting preference rather than a one-off fact about this post, the app offers it back as a rule — *"Remember this for future posts? 'Never describe a place as a hidden gem.'"* One tap saves it to the Profile tab's rules, which every future generation already follows. Nothing is saved without that tap, so a one-off correction can't quietly become permanent; saved rules can be edited or deleted on the Profile tab like any other.
+
+If the idea was already saved, tweaks update the saved copy too. No database changes are needed for any of this.
+
+## Who to tag
+
+Below each result, **🏷️ Who to tag in this post** (`/api/tag-suggestions`, `findTagSuggestions` in `lib/claude.js`) researches the accounts most likely to reshare it — the venue itself, whoever actually owns or operates it, the local/state tourism board, established feature accounts for the niche, and any brand clearly in the footage — with a reason, realistic repost odds, and the best way to tag each (Instagram Collab invite, a tag on the reel, or an @ in the caption). It verifies ownership rather than assuming it from the name: if a hotel isn't really part of the chain you'd guess, it says so.
+
+Every handle is checked by the server, never taken on the model's word — quietly, with no badges. A handle counts as confirmed if the business's own website links it (if the site links a different single handle, or Claude didn't know it, the site's one is used), if [Wikidata](https://www.wikidata.org)'s public record of an organization's official Instagram/TikTok username matches it (a reverse lookup, so a lookalike never matches — this covers some big brands whose websites block automated visits, like Omni Hotels; coverage is partial, e.g. Visit Maine isn't listed), or if the profile link itself appeared in the web search's results. Anything that can't be confirmed is simply left out, as is any account left with no usable handle. The rest are ordered by likely reach (Claude's repost odds, then its own best-first order) and capped at 5, numbered. This filtering happens at display time, so lists saved before it existed show the same way.
+
+"Copy Instagram/TikTok handles" copies what's listed. Results are saved with the idea (`_tag_suggestions`), so they're not paid for twice.
+
+**Full web search, about 20-30¢ a press** (measured live: 18¢ and 28¢). Quality over cost, by choice: up to 5 searches cover the venue, who really owns it, the town and state/province tourism boards, and feature accounts, and the profile links those searches return are what let the quiet check confirm handles like @visitmaine, whose website blocks automated checks. Cheaper versions were built and dropped because each missed something: no search (~3¢) didn't know small or new places at all (for "Rocco Dessert Bar" it missed the venue entirely; it's really Rococo Ice Cream & Dessert Bar, in Kennebunk), and one search (~7¢) found the venue but couldn't confirm the tourism boards. The newer `web_search_20260209` tool cost more (38¢), so the basic tool is used. The verification itself is free (plain website and Wikidata reads).
+
 ## Nearby filming ideas
 
 Once a result exists, a "Find nearby ideas" section appears below it. Pick a category (foodie, restaurants, hiking, speakeasies/bars, museums, or "All categories") and it does two separate live searches for real places within roughly a 10-mile drive of the same location — worth filming the same day as the primary idea. Results split into two lists:
@@ -130,6 +151,18 @@ The Reel Voiceover tab has a second mode for footage that hasn't been edited yet
 The actual cutting and stitching happens entirely in the browser too, via [`ffmpeg.wasm`](https://ffmpegwasm.netlify.app/) (`lib/assembleReel.js`) - raw clips never get uploaded anywhere, same as everywhere else video touches this app. Each selected segment gets trimmed and re-encoded to a consistent 1080×1920 canvas (so takes with different resolutions/codecs still concatenate cleanly), then stream-copy-concatenated into the final file. This is real client-side video encoding with no hardware acceleration, so processing time depends heavily on the device and how much footage is involved - budget a few minutes for a full reel's worth on a normal laptop, possibly longer on an older device or phone.
 
 This is deliberately a different, cheaper capability than AI-generating brand-new video: Claude has no video-generation model at all (nor does any part of the Anthropic API) - this only ever *edits footage that was actually filmed*, choosing what to keep and in what order, never inventing a shot that doesn't exist in the uploads.
+
+## Stories tab
+
+Turns a finished reel into a set of Instagram Story clips, each with one short line of text on it — the "reel chopped into stories with a sentence on each" format a lot of creators use to push a new reel.
+
+1. Upload the reel (plus optional what/where, and anything you want the stories to say). It's sampled into up to 24 small frames in the browser — the video itself never leaves the device.
+2. `/api/stories-plan` (`planStoriesFromReel` in `lib/claude.js`) picks 3-6 segments at natural scene changes and writes a line for each: a specific hook first, one new beat per slide in the order it happens, and a last slide pointing to the full reel or asking a question. It also picks top/middle/bottom for the text so it doesn't sit on a face or the dish. Your Profile rules apply here too.
+3. Each slide shows a preview (a frame from that segment with the text drawn on it). Edit any line, move it, or delete a slide. Clear a line to get that clip with no text.
+4. **Make story clips** cuts each segment out and burns the text in, in the browser with ffmpeg.wasm (`lib/storyClips.js`, sharing the core `lib/assembleReel.js` loads). Clips are 1080×1920 with the original audio. The text is drawn with a `<canvas>` and laid over the video, so the preview and the final clip use the same drawing code, emoji included. Text stays clear of the areas Instagram's own UI covers at the top and bottom.
+5. Download each clip, or on a phone, **Save all to Photos / share** opens the native share sheet.
+
+Like the reel assembler, this is real on-device video encoding: a minute or two for a typical reel on a laptop, longer on a phone.
 
 ## Profile tab
 
@@ -509,6 +542,9 @@ The easiest path is [Vercel](https://vercel.com) (built by the makers of Next.js
 - `app/components/ReelVoiceoverTab.js` + `app/api/reel-voiceover/` + `lib/videoFrames.js` — the Reel Voiceover tab's "already edited" mode - see "Reel Voiceover tab" above.
 - `app/api/reel-footage/` — reads an uploaded reel on the Content tab and reports what's actually in it, so the caption can be written about the real video. Shares `lib/videoFrames.js` with the Reel Voiceover tab but writes no script of its own.
 - `app/api/reel-edit-plan/` + `lib/assembleReel.js` — the "raw clips - assemble for me" mode - see "Raw clips" above.
+- `app/components/StoriesTab.js` + `app/api/stories-plan/` + `lib/storyClips.js` — the Stories tab - see "Stories tab" above.
+- `app/api/refine/` — Content's "Tweak this" - see above.
+- `app/api/tag-suggestions/` — Content's "Who to tag" - see above.
 - `lib/useCategorizedItems.js` + `app/components/CategoryUI.js` — the shared categorize/filter behavior behind saved ideas, saved searches, and Planning items.
 - `lib/constants.js` — shared platform/category constants used across all three tabs.
 - `lib/voiceProfile.js` — Leah's decoded caption formula, 14 real sample captions, and the per-platform algorithm/location-tag rules used to ground generated copy.
