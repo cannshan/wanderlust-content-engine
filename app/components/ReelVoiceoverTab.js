@@ -6,6 +6,7 @@ import { assembleReel } from "../../lib/assembleReel";
 import { PLATFORM_LABELS, PLATFORM_ORDER, MAX_VIDEO_FILE_BYTES } from "../../lib/constants";
 import { useCategorizedItems } from "../../lib/useCategorizedItems";
 import { CategoryFilterRow, CategorizePanel } from "./CategoryUI";
+import { useDraftAutosave, useWarnBeforeLeaving } from "../../lib/useDraftAutosave";
 
 const MAX_CLIPS = 20;
 
@@ -27,6 +28,11 @@ function formatBytes(bytes) {
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)}KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
 }
+
+// Browser-only autosave (see useDraftAutosave below). Bump the version if
+// the saved shape ever changes in a way an older draft can't be read into.
+const VOICEOVER_DRAFT_STORAGE_KEY = "wwwVoiceoverDraft";
+const VOICEOVER_DRAFT_VERSION = 1;
 
 function formatSavedDate(iso) {
   return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
@@ -95,7 +101,13 @@ export default function ReelVoiceoverTab() {
       const res = await fetch("/api/saved-voiceovers");
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        setSavedVoiceovers(data.voiceovers || []);
+        const voiceovers = data.voiceovers || [];
+        setSavedVoiceovers(voiceovers);
+        // An autosaved result can point at a saved voiceover that's since
+        // been deleted - un-stick its "Saved" state if so.
+        const stillSaved = (r) => (r?.savedId && !voiceovers.some((v) => v.id === r.savedId) ? { ...r, savedId: null } : r);
+        setResult(stillSaved);
+        setAssembleResult(stillSaved);
         setSavedVoiceoversError("");
       } else {
         setSavedVoiceoversError(data.error || "Couldn't load saved voiceovers.");
@@ -180,6 +192,37 @@ export default function ReelVoiceoverTab() {
   }
 
   const activeSavedId = mode === "assemble" ? assembleResult?.savedId : result?.savedId;
+
+  // Autosave (lib/useDraftAutosave.js): the written script and footage
+  // rundown for both modes, plus the form, survive a refresh or a closed
+  // tab. The uploaded video/clips can't be kept (a browser never restores
+  // a picked file), and neither can the assembled raw-clips video - it's a
+  // blob that only exists in this page - so a restored raw-clips result
+  // shows its script with the "assemble again for the video" note.
+  useDraftAutosave(
+    VOICEOVER_DRAFT_STORAGE_KEY,
+    {
+      version: VOICEOVER_DRAFT_VERSION,
+      mode,
+      idea,
+      location,
+      notes,
+      platform,
+      result,
+      assembleResult: assembleResult ? { ...assembleResult, videoUrl: null } : null,
+    },
+    (draft) => {
+      if (draft.version !== VOICEOVER_DRAFT_VERSION) return;
+      if (draft.mode === "single" || draft.mode === "assemble") setMode(draft.mode);
+      setIdea(draft.idea || "");
+      setLocation(draft.location || "");
+      setNotes(draft.notes || "");
+      if (draft.platform) setPlatform(draft.platform);
+      if (draft.result) setResult(draft.result);
+      if (draft.assembleResult) setAssembleResult({ ...draft.assembleResult, videoUrl: null });
+    }
+  );
+  useWarnBeforeLeaving(loading || assembleLoading);
 
   function handleFileChange(e) {
     const file = e.target.files?.[0] || null;
