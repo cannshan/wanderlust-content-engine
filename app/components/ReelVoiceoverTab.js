@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { extractVideoFrames, MAX_FRAMES } from "../../lib/videoFrames";
 import { assembleReel } from "../../lib/assembleReel";
 import { PLATFORM_LABELS, PLATFORM_ORDER, MAX_VIDEO_FILE_BYTES } from "../../lib/constants";
+import { useCategorizedItems } from "../../lib/useCategorizedItems";
+import { CategoryFilterRow, CategorizePanel } from "./CategoryUI";
 
 const MAX_CLIPS = 20;
 
@@ -24,6 +26,10 @@ const ASSEMBLE_JPEG_QUALITY = 0.5;
 function formatBytes(bytes) {
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)}KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+}
+
+function formatSavedDate(iso) {
+  return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
 function assembleButtonLabel(progress, loading) {
@@ -66,6 +72,114 @@ export default function ReelVoiceoverTab() {
   const [assembleResult, setAssembleResult] = useState(null);
   const [assembleCopied, setAssembleCopied] = useState(false);
   const assembleVideoUrlRef = useRef("");
+
+  // "Saved voiceovers" sidebar - same pattern as the Content tab's saved
+  // ideas: a written script (and the footage rundown it came from), kept so
+  // it can be reopened without paying to write it again. `savedId` on a
+  // result marks it as the saved one. The video is never stored - in raw
+  // clips mode the assembled reel only exists in the browser that made it.
+  const [savedVoiceovers, setSavedVoiceovers] = useState([]);
+  const [savedVoiceoversLoading, setSavedVoiceoversLoading] = useState(true);
+  const [savedVoiceoversError, setSavedVoiceoversError] = useState("");
+  const [savingVoiceover, setSavingVoiceover] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const voiceoversHook = useCategorizedItems(savedVoiceovers, setSavedVoiceovers, "/api/saved-voiceovers");
+
+  useEffect(() => {
+    loadSavedVoiceovers();
+  }, []);
+
+  async function loadSavedVoiceovers() {
+    setSavedVoiceoversLoading(true);
+    try {
+      const res = await fetch("/api/saved-voiceovers");
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setSavedVoiceovers(data.voiceovers || []);
+        setSavedVoiceoversError("");
+      } else {
+        setSavedVoiceoversError(data.error || "Couldn't load saved voiceovers.");
+      }
+    } catch {
+      setSavedVoiceoversError("Couldn't load saved voiceovers.");
+    }
+    setSavedVoiceoversLoading(false);
+  }
+
+  // saveMode: which result is being saved ("single" or "assemble") - each
+  // mode keeps its own result, and each gets its own Save button.
+  async function saveVoiceover(saveMode) {
+    const current = saveMode === "assemble" ? assembleResult : result;
+    if (!current || current.savedId || savingVoiceover) return;
+    setSavingVoiceover(true);
+    setSaveError("");
+    try {
+      const input = current.input || { idea, location, notes, platform };
+      const title = input.idea?.trim() || current.voiceoverScript.split(/\s+/).slice(0, 10).join(" ") || "Voiceover";
+      const res = await fetch("/api/saved-voiceovers", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          title,
+          mode: saveMode,
+          idea: input.idea,
+          location: input.location,
+          notes: input.notes,
+          platform: input.platform,
+          sceneSummary: current.sceneSummary,
+          voiceoverScript: current.voiceoverScript,
+          totalDurationSeconds: current.totalDurationSeconds,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Couldn't save this voiceover.");
+      setSavedVoiceovers((list) => [data.voiceover, ...list]);
+      const markSaved = (r) => (r === current ? { ...r, savedId: data.voiceover.id } : r);
+      if (saveMode === "assemble") setAssembleResult(markSaved);
+      else setResult(markSaved);
+    } catch (err) {
+      setSaveError(err.message || "Couldn't save this voiceover.");
+    }
+    setSavingVoiceover(false);
+  }
+
+  function loadSavedVoiceover(v) {
+    const input = { idea: v.idea || "", location: v.location || "", notes: v.notes || "", platform: v.platform || "tiktok" };
+    setIdea(input.idea);
+    setLocation(input.location);
+    setNotes(input.notes);
+    setPlatform(input.platform);
+    setSaveError("");
+    const restored = {
+      sceneSummary: v.scene_summary || [],
+      voiceoverScript: v.voiceover_script,
+      input,
+      savedId: v.id,
+    };
+    if (v.mode === "assemble") {
+      setMode("assemble");
+      setAssembleError("");
+      // No video - it was never stored. The result card says so.
+      setAssembleResult({ ...restored, totalDurationSeconds: Number(v.total_duration_seconds) || 0, videoUrl: null });
+    } else {
+      setMode("single");
+      setError("");
+      setResult(restored);
+    }
+  }
+
+  async function deleteSavedVoiceover(id) {
+    setSavedVoiceovers((list) => list.filter((v) => v.id !== id));
+    setResult((r) => (r?.savedId === id ? { ...r, savedId: null } : r));
+    setAssembleResult((r) => (r?.savedId === id ? { ...r, savedId: null } : r));
+    try {
+      await fetch(`/api/saved-voiceovers/${id}`, { method: "DELETE" });
+    } catch {
+      // Already gone from the list; a failed delete just reappears on reload.
+    }
+  }
+
+  const activeSavedId = mode === "assemble" ? assembleResult?.savedId : result?.savedId;
 
   function handleFileChange(e) {
     const file = e.target.files?.[0] || null;
@@ -119,7 +233,7 @@ export default function ReelVoiceoverTab() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Couldn't write a voiceover for this reel.");
-      setResult(data);
+      setResult({ ...data, input: { idea: idea.trim(), location: location.trim(), notes: notes.trim(), platform } });
     } catch (err) {
       setError(err.message || "Couldn't write a voiceover for this reel.");
     }
@@ -217,6 +331,7 @@ export default function ReelVoiceoverTab() {
         voiceoverScript: planData.voiceoverScript,
         totalDurationSeconds: planData.totalDurationSeconds,
         videoUrl,
+        input: { idea: idea.trim(), location: location.trim(), notes: notes.trim(), platform },
       });
     } catch (err) {
       setAssembleError(err.message || "Couldn't put together an edit from these clips.");
@@ -382,7 +497,16 @@ export default function ReelVoiceoverTab() {
           <div className="result card">
             <div className="result-head">
               <h3 style={{ fontSize: 16 }}>Result</h3>
+              <button
+                type="button"
+                className="btn-ghost"
+                onClick={() => saveVoiceover("single")}
+                disabled={savingVoiceover || !!result.savedId}
+              >
+                {result.savedId ? "Saved" : savingVoiceover ? "Saving…" : "Save this voiceover"}
+              </button>
             </div>
+            {saveError && <div className="error-banner">{saveError}</div>}
 
             {result.sceneSummary?.length > 0 && (
               <div className="field" style={{ marginBottom: 20 }}>
@@ -412,18 +536,36 @@ export default function ReelVoiceoverTab() {
           <div className="result card">
             <div className="result-head">
               <h3 style={{ fontSize: 16 }}>Result</h3>
+              <button
+                type="button"
+                className="btn-ghost"
+                onClick={() => saveVoiceover("assemble")}
+                disabled={savingVoiceover || !!assembleResult.savedId}
+              >
+                {assembleResult.savedId ? "Saved" : savingVoiceover ? "Saving…" : "Save this voiceover"}
+              </button>
             </div>
+            {saveError && <div className="error-banner">{saveError}</div>}
 
             <div className="field" style={{ marginBottom: 20 }}>
               <label>Assembled reel (~{Math.round(assembleResult.totalDurationSeconds)}s)</label>
-              <video src={assembleResult.videoUrl} controls style={{ width: "100%", borderRadius: 8, maxHeight: 400 }} />
-              <a className="btn-ghost" href={assembleResult.videoUrl} download="reel.mp4" style={{ display: "inline-block", marginTop: 10, textDecoration: "none" }}>
-                Download video
-              </a>
-              <p className="hint" style={{ marginTop: 8 }}>
-                Not right? There's no in-place editor here — just tweak the clips above (remove one, add another)
-                and assemble again.
-              </p>
+              {assembleResult.videoUrl ? (
+                <>
+                  <video src={assembleResult.videoUrl} controls style={{ width: "100%", borderRadius: 8, maxHeight: 400 }} />
+                  <a className="btn-ghost" href={assembleResult.videoUrl} download="reel.mp4" style={{ display: "inline-block", marginTop: 10, textDecoration: "none" }}>
+                    Download video
+                  </a>
+                  <p className="hint" style={{ marginTop: 8 }}>
+                    Not right? There's no in-place editor here — just tweak the clips above (remove one, add another)
+                    and assemble again.
+                  </p>
+                </>
+              ) : (
+                <p className="hint" style={{ marginTop: 4 }}>
+                  The assembled video isn't saved — only the script and the edit rundown are. Upload the same clips
+                  above and assemble again to get the video.
+                </p>
+              )}
             </div>
 
             {assembleResult.sceneSummary?.length > 0 && (
@@ -447,6 +589,66 @@ export default function ReelVoiceoverTab() {
           </div>
         )}
       </div>
+
+      <aside className="sidebar">
+        <h3 style={{ fontSize: 14, marginBottom: 12 }}>Saved voiceovers</h3>
+
+        <CategoryFilterRow
+          allCategories={voiceoversHook.allCategories}
+          categoryFilter={voiceoversHook.categoryFilter}
+          onFilter={voiceoversHook.setCategoryFilter}
+        />
+
+        {savedVoiceoversLoading && <p className="hint">Loading…</p>}
+        {!savedVoiceoversLoading && savedVoiceoversError && <p className="hint">{savedVoiceoversError}</p>}
+        {!savedVoiceoversLoading && !savedVoiceoversError && savedVoiceovers.length === 0 && (
+          <p className="hint">Nothing saved yet. Write a voiceover and hit "Save this voiceover" to keep it.</p>
+        )}
+        {!savedVoiceoversLoading && savedVoiceovers.length > 0 && voiceoversHook.filteredItems.length === 0 && (
+          <p className="hint">Nothing saved under "{voiceoversHook.categoryFilter}" yet.</p>
+        )}
+        <div className="saved-list">
+          {voiceoversHook.filteredItems.map((v) => (
+            <div key={v.id} className={`saved-item ${activeSavedId === v.id ? "active" : ""}`}>
+              <div className="saved-item-row">
+                <button type="button" className="saved-item-main" onClick={() => loadSavedVoiceover(v)}>
+                  <div className="saved-item-idea">{v.title}</div>
+                  <div className="saved-item-chips">
+                    {v.category && <span className="saved-chip category-chip">{v.category}</span>}
+                    {v.platform && <span className="saved-chip">{PLATFORM_LABELS[v.platform] || v.platform}</span>}
+                    <span className="saved-chip">{v.mode === "assemble" ? "Raw clips" : "Edited reel"}</span>
+                    <span className="saved-chip">{formatSavedDate(v.created_at)}</span>
+                  </div>
+                </button>
+                <div className="saved-item-actions">
+                  <button type="button" className="saved-item-categorize" onClick={() => voiceoversHook.toggleCategorize(v.id)}>
+                    Categorize
+                  </button>
+                  <button
+                    type="button"
+                    className="saved-item-delete"
+                    onClick={() => deleteSavedVoiceover(v.id)}
+                    aria-label="Delete saved voiceover"
+                  >
+                    ×
+                  </button>
+                </div>
+              </div>
+
+              {voiceoversHook.categorizingId === v.id && (
+                <CategorizePanel
+                  item={v}
+                  allCategories={voiceoversHook.allCategories}
+                  newCategoryDraft={voiceoversHook.newCategoryDraft}
+                  onDraftChange={voiceoversHook.setNewCategoryDraft}
+                  onApply={voiceoversHook.applyCategory}
+                  onSubmitNew={voiceoversHook.submitNewCategory}
+                />
+              )}
+            </div>
+          ))}
+        </div>
+      </aside>
     </div>
   );
 }

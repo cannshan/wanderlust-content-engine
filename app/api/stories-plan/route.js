@@ -7,7 +7,9 @@ import { checkBudget, BUDGET_LIMIT_MESSAGE } from "../../../lib/budget";
 // never reaches this route - the Stories tab extracts small JPEG frames
 // in-browser (lib/videoFrames.js) and only sends those; the actual cutting
 // and text overlay happen client-side afterward (lib/storyClips.js).
-export const maxDuration = 120;
+// A real 1-minute reel took ~61s just to hit the old token ceiling, so this
+// leaves room for the full plan on longer reels.
+export const maxDuration = 180;
 
 export async function POST(req) {
   let body;

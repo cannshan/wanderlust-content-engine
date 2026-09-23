@@ -164,6 +164,43 @@ Turns a finished reel into a set of Instagram Story clips, each with one short l
 
 Like the reel assembler, this is real on-device video encoding: a minute or two for a typical reel on a laptop, longer on a phone.
 
+### Saved stories and saved voiceovers
+
+The Stories and Reel Voiceover tabs each have a right-hand sidebar that works like the Content tab's **Saved ideas**: save a result, reopen it later without paying to generate it again, categorize it, delete it. A saved story keeps its slides (cuts, lines, text positions, a small preview thumbnail per slide) and edits made after reopening it are written back to it; a saved voiceover keeps the script and the footage rundown. Videos are never stored - the reel for Stories and the assembled reel for raw-clips voiceovers only ever exist in the browser - so a reopened one asks for the same reel/clips again to make the clips or video.
+
+Run this once in Supabase's SQL Editor:
+
+```sql
+create table saved_stories (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  title text not null,
+  idea text,
+  location text,
+  notes text,
+  source_file jsonb,
+  duration_seconds numeric,
+  scene_summary jsonb,
+  slides jsonb not null,
+  category text
+);
+
+create table saved_voiceovers (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  title text not null,
+  mode text not null,
+  idea text,
+  location text,
+  notes text,
+  platform text,
+  scene_summary jsonb,
+  voiceover_script text not null,
+  total_duration_seconds numeric,
+  category text
+);
+```
+
 ## Profile tab
 
 Two editable lists that feed into every Claude call that writes or searches for content - Content tab generation (TikTok/Instagram/YouTube), Reel Voiceover, and (see below) the Discovery tab's own searches:
@@ -543,6 +580,8 @@ The easiest path is [Vercel](https://vercel.com) (built by the makers of Next.js
 - `app/api/reel-footage/` — reads an uploaded reel on the Content tab and reports what's actually in it, so the caption can be written about the real video. Shares `lib/videoFrames.js` with the Reel Voiceover tab but writes no script of its own.
 - `app/api/reel-edit-plan/` + `lib/assembleReel.js` — the "raw clips - assemble for me" mode - see "Raw clips" above.
 - `app/components/StoriesTab.js` + `app/api/stories-plan/` + `lib/storyClips.js` — the Stories tab - see "Stories tab" above.
+- `app/api/saved-stories/` + `app/api/saved-voiceovers/` — the Saved stories / Saved voiceovers sidebars - see above.
+- `lib/useDraftAutosave.js` — browser-only autosave of paid results on the Content, Discovery, Planning and Stories tabs.
 - `app/api/refine/` — Content's "Tweak this" - see above.
 - `app/api/tag-suggestions/` — Content's "Who to tag" - see above.
 - `lib/useCategorizedItems.js` + `app/components/CategoryUI.js` — the shared categorize/filter behavior behind saved ideas, saved searches, and Planning items.
