@@ -72,6 +72,40 @@ Same integrity rule as everywhere else: a place only gets listed with real searc
 
 Deliberately just a discovery/triage step now, not the place work happens: each result has one action, **Add to Planning**, which opens a small inline picker to file it under an existing Planning category or type a brand new one on the spot (or skip categorizing for now) - see the Planning tab below for what happens next. The old per-place Foodie/Explore Advice, Clothes to Wear, and Suggest Both buttons (plus the separate "Save" bookmark and its own sidebar lists) were removed from here - that depth of research and styling now lives on the Planning tab instead, once a place has actually been decided as worth planning around, rather than offered speculatively on every result. The sidebar is just **Saved searches** now, to reload a past result.
 
+## Collab Search tab
+
+Type an area (and optionally narrow by business type — stays, restaurants, bars & wineries, experiences, tourism boards, local brands — or add a focus like "glamping") and it finds businesses there that are **publicly asking creators to collaborate**: a collab/influencer page or form on their own site, a creator or ambassador program, or a bio inviting collab requests. The example that prompted it: [Montagne Le Maelström](https://montagnelemaelstrom.com) in Lac-Beauport, Québec, whose homepage links a "Collaborer avec Montagne le Maelström" Google Form. Being popular, or having worked with an influencer once, doesn't count.
+
+`/api/collab-search` → `findCollabOpportunities` in `lib/claude.js`: up to 6 web searches (in the local language too, e.g. French in Québec), then the server checks every lead the same way Who to tag checks handles — never on the model's word:
+
+- **Linked from their website** — the business's own homepage links the collab page/form/email. If Claude found the business but not the link, the homepage is read and its collab link is used.
+- **Collab page checked** — the collab page itself loads and reads as one (its title, address or headings say collab/influencer/creator/partnership, or its text is creator-specific).
+- **Found in search** (weaker, amber badge) — the page came back in a real search result but couldn't be read directly.
+
+Anything with none of these is dropped.
+
+**Chain hotels:** whenever Stays are included, one search always goes to which big-chain hotels are in the area. Hilton's [brand-wide influencer form](https://stories.hilton.com/influencer-inquiries) covers every Hilton brand (Hampton, Home2, Homewood, Hilton Garden Inn, DoubleTree…), so up to 3 of the area's most notable Hilton hotels are listed with it. That form is given to Claude as a known fact (`CHAIN_CREATOR_FORMS` in `lib/claude.js`) — without it, a Fort Wayne search found the downtown Hilton but ran out of searches before confirming the form, and left hotels out. The page is still checked on every run. As of September 2026, Marriott, IHG, Hyatt (outside its Playa all-inclusives), Choice, Wyndham and Best Western had no official brand-wide form; the "Marriott/Hyatt influencer programs" search turns up are third-party affiliate listings.
+
+**Cost: about 28¢ a search, ~50 seconds** (measured, Banff). The 6 searches themselves are only 6¢; most of the rest is the model re-reading the search results it has gathered each time it searches again. Prompt caching (`cache_control` on the request) bills those re-reads at a tenth of the price, which took a Banff run from 38¢ to 28¢. What's left is mostly the one-time cost of taking in ~70K tokens of search results. Influencer-directory sites (Collabstr, Modash and similar) are blocked from the searches, since they list creators rather than businesses asking for them.
+
+**Restaurants rarely show up**, and that's accurate: independent restaurants almost never post a public collab form. They find creators through apps like Mustard, Nibble or Invyted, or by DM. "Partnership" on its own is treated as weak, since it also matches corporate sponsorship and RFP pages (Marble Mountain's homepage has both kinds of link side by side).
+
+Each lead shows what they offer and ask for (only when stated), an **Open collab page** / **Email** button, their Instagram, and an outreach status (Not contacted → Pitched → Replied → Booked, or Not a fit). Results autosave in the browser like Discovery's; **Save this search** keeps them in the sidebar, and status changes on a saved search are written back to it.
+
+Saving needs one table (search itself works without it):
+
+```sql
+create table saved_collab_searches (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  location text not null,
+  types text[] not null,
+  focus text,
+  results jsonb not null,
+  category text
+);
+```
+
 ## Planning tab
 
 The working set of places actually being planned around - everything sent here via Discovery's "Add to Planning," or found directly with the Planning tab's own search bar.

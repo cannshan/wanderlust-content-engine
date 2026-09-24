@@ -1765,3 +1765,36 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   display: inline-block;
   text-decoration: none;
 }
+
+/* ---- Collab Search tab ---- */
+.collab-lead-pass { opacity: .55; }
+
+.collab-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.collab-apply {
+  width: auto;
+  display: inline-block;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.btn-primary.collab-apply { padding: 7px 14px; font-size: 13px; }
+
+.collab-status {
+  margin-left: auto;
+  width: auto;
+  font-size: 12.5px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--bg-raised);
+  color: var(--ink);
+}
+
+@media (max-width: 560px) {
+  .collab-status { margin-left: 0; }
+}

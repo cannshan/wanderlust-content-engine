@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import ContentTab from "./components/ContentTab";
 import CalendarTab from "./components/CalendarTab";
 import DiscoveryTab from "./components/DiscoveryTab";
+import CollabSearchTab from "./components/CollabSearchTab";
 import PlanningTab from "./components/PlanningTab";
 import ReelVoiceoverTab from "./components/ReelVoiceoverTab";
 import StoriesTab from "./components/StoriesTab";
@@ -19,6 +20,7 @@ const TABS = [
   { key: "content-calendar", label: "Content Calendar" },
   { key: "reel-voiceover", label: "Reel Voiceover" },
   { key: "stories", label: "Stories" },
+  { key: "collab-search", label: "Collab Search" },
   { key: "profile", label: "Profile" },
 ];
 
@@ -127,6 +129,9 @@ export default function Shell() {
         </div>
         <div className="tab-panel" hidden={activeTab !== "discovery"}>
           <DiscoveryTab />
+        </div>
+        <div className="tab-panel" hidden={activeTab !== "collab-search"}>
+          <CollabSearchTab />
         </div>
         <div className="tab-panel" hidden={activeTab !== "planning"}>
           <PlanningTab />
