@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useCategorizedItems } from "../../lib/useCategorizedItems";
-import { useDraftAutosave, useWarnBeforeLeaving } from "../../lib/useDraftAutosave";
+import { useDraftAutosave, useWarnBeforeLeaving, confirmClear } from "../../lib/useDraftAutosave";
 import { CategoryFilterRow, CategorizePanel } from "./CategoryUI";
 
 // Browser-only autosave, same as Discovery - bump the version if the saved
@@ -216,6 +216,20 @@ export default function CollabSearchTab() {
     setSavingSearch(false);
   }
 
+  // Back to a blank form - the autosave then saves the blank page too.
+  function clearPage() {
+    if (!confirmClear(result && !currentSavedSearchId)) return;
+    setLocation("");
+    setTypes(["all"]);
+    setFocus("");
+    setResult(null);
+    setResultLocation("");
+    setResultTypes(["all"]);
+    setResultFocus("");
+    setCurrentSavedSearchId(null);
+    setError("");
+  }
+
   function loadSavedSearch(saved) {
     setLocation(saved.location);
     setTypes(saved.types?.length ? saved.types : ["all"]);
@@ -296,9 +310,14 @@ export default function CollabSearchTab() {
 
           {error && <div className="error-banner">{error}</div>}
 
-          <button className="btn-primary" disabled={loading || !location.trim()}>
-            {loading ? "Searching… (about a minute)" : "Find collabs"}
-          </button>
+          <div className="form-actions">
+            <button className="btn-primary" disabled={loading || !location.trim()}>
+              {loading ? "Searching… (about a minute)" : "Find collabs"}
+            </button>
+            <button type="button" className="btn-ghost btn-clear" onClick={clearPage} disabled={loading}>
+              Clear
+            </button>
+          </div>
         </form>
 
         {result && (

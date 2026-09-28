@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { PLATFORM_LABELS, PLATFORM_ORDER, CATEGORY_OPTIONS, MAX_VIDEO_FILE_BYTES } from "../../lib/constants";
 import { extractVideoFrames } from "../../lib/videoFrames";
 import { useCategorizedItems } from "../../lib/useCategorizedItems";
-import { useDraftAutosave, useWarnBeforeLeaving } from "../../lib/useDraftAutosave";
+import { useDraftAutosave, useWarnBeforeLeaving, confirmClear } from "../../lib/useDraftAutosave";
 import { CategoryFilterRow, CategorizePanel } from "./CategoryUI";
 import PlanningCalendar from "./PlanningCalendar";
 
@@ -154,6 +154,7 @@ export default function ContentTab() {
   const [reelVideoFile, setReelVideoFile] = useState(null);
   const [reelVideoUrl, setReelVideoUrl] = useState("");
   const [reelVideoFileError, setReelVideoFileError] = useState("");
+  const reelVideoInputRef = useRef(null);
   const [videoProgress, setVideoProgress] = useState(null);
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
@@ -753,6 +754,33 @@ export default function ContentTab() {
     setLoading(false);
   }
 
+  // Back to a blank form - the autosave then saves the blank page too.
+  // Nearby ideas are never part of a saved idea, so they count as unsaved.
+  function clearPage() {
+    if (!confirmClear((result && !result.savedId) || nearbyResult)) return;
+    setForm(initialForm);
+    setSelectedPlatforms({ tiktok: true, instagram: true, youtube: true });
+    setExtras({ music: false, styling: false });
+    setIsRestaurant(false);
+    setRestaurantName("");
+    setMenuLinks([""]);
+    setMenuFiles([]);
+    setMenuFileError("");
+    if (reelVideoUrl) URL.revokeObjectURL(reelVideoUrl);
+    setReelVideoFile(null);
+    setReelVideoUrl("");
+    setReelVideoFileError("");
+    if (reelVideoInputRef.current) reelVideoInputRef.current.value = "";
+    setResult(null);
+    setError("");
+    setActiveTab("tiktok");
+    setChosenTitleIndex(0);
+    setNearbyCategories(["all"]);
+    setNearbyResult(null);
+    setNearbyError("");
+    resetTweakAndTagState();
+  }
+
   function resetTweakAndTagState() {
     setTweakText("");
     setTweakError("");
@@ -1166,7 +1194,7 @@ export default function ContentTab() {
 
         <div className="field">
           <label htmlFor="reelVideo">Already filmed it? Upload the finished reel (optional)</label>
-          <input id="reelVideo" type="file" accept="video/*" onChange={handleReelVideoChange} />
+          <input id="reelVideo" ref={reelVideoInputRef} type="file" accept="video/*" onChange={handleReelVideoChange} />
           {reelVideoFileError && (
             <p className="hint" style={{ marginTop: 6, color: "var(--bad)" }}>{reelVideoFileError}</p>
           )}
@@ -1302,13 +1330,23 @@ export default function ContentTab() {
 
         {error && <div className="error-banner">{error}</div>}
 
-        <button className="btn-primary" disabled={loading || platformsToGenerate.length === 0}>
-          {videoProgress
-            ? `Watching your reel… (${videoProgress.done}/${videoProgress.total || "?"})`
-            : loading
-            ? "Writing…"
-            : "Generate Content"}
-        </button>
+        <div className="form-actions">
+          <button className="btn-primary" disabled={loading || platformsToGenerate.length === 0}>
+            {videoProgress
+              ? `Watching your reel… (${videoProgress.done}/${videoProgress.total || "?"})`
+              : loading
+              ? "Writing…"
+              : "Generate Content"}
+          </button>
+          <button
+            type="button"
+            className="btn-ghost btn-clear"
+            onClick={clearPage}
+            disabled={loading || tagLoading || tweakLoading || nearbyLoading}
+          >
+            Clear
+          </button>
+        </div>
       </form>
 
       {result && (

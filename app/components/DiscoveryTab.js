@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { CATEGORY_OPTIONS } from "../../lib/constants";
 import { useCategorizedItems } from "../../lib/useCategorizedItems";
-import { useDraftAutosave, useWarnBeforeLeaving } from "../../lib/useDraftAutosave";
+import { useDraftAutosave, useWarnBeforeLeaving, confirmClear } from "../../lib/useDraftAutosave";
 import { CategoryFilterRow, CategorizePanel } from "./CategoryUI";
 import { AddToPlanningPicker } from "./PlanningPicker";
 
@@ -324,6 +324,24 @@ export default function DiscoveryTab() {
     setSavingSearch(false);
   }
 
+  // Back to a blank form - the autosave then saves the blank page too.
+  function clearPage() {
+    if (!confirmClear(result && !currentSavedSearchId)) return;
+    setLocation("");
+    setCategories(["all"]);
+    setFocus("");
+    setDate("");
+    setResult(null);
+    setResultLocation("");
+    setResultCategories(["all"]);
+    setResultFocus("");
+    setResultDate("");
+    setCurrentSavedSearchId(null);
+    setError("");
+    setPickerKey(null);
+    setNewCategoryDraft("");
+  }
+
   function loadSavedSearch(saved) {
     setLocation(saved.location);
     setCategories(saved.categories?.length ? saved.categories : ["all"]);
@@ -409,9 +427,14 @@ export default function DiscoveryTab() {
 
           {error && <div className="error-banner">{error}</div>}
 
-          <button className="btn-primary" disabled={loading || !location.trim()}>
-            {loading ? "Searching…" : "Find things to do"}
-          </button>
+          <div className="form-actions">
+            <button className="btn-primary" disabled={loading || !location.trim()}>
+              {loading ? "Searching…" : "Find things to do"}
+            </button>
+            <button type="button" className="btn-ghost btn-clear" onClick={clearPage} disabled={loading}>
+              Clear
+            </button>
+          </div>
         </form>
 
         {result && (

@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { extractVideoFrames } from "../../lib/videoFrames";
 import { drawStoryOverlay, ensureStoryFontLoaded, renderStoryClips } from "../../lib/storyClips";
 import { MAX_VIDEO_FILE_BYTES } from "../../lib/constants";
-import { useDraftAutosave, useWarnBeforeLeaving } from "../../lib/useDraftAutosave";
+import { useDraftAutosave, useWarnBeforeLeaving, confirmClear } from "../../lib/useDraftAutosave";
 import { useCategorizedItems } from "../../lib/useCategorizedItems";
 import { CategoryFilterRow, CategorizePanel } from "./CategoryUI";
 
@@ -297,6 +297,24 @@ export default function StoriesTab() {
     });
   }
 
+  // Back to a blank form - the autosave then saves the blank page too.
+  function clearPage() {
+    if (!confirmClear(plan && !plan.savedId)) return;
+    if (videoUrl) URL.revokeObjectURL(videoUrl);
+    setVideoFile(null);
+    setVideoUrl("");
+    setFileError("");
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    setIdea("");
+    setLocation("");
+    setNotes("");
+    setError("");
+    setPlan(null);
+    lastSyncedSlidesRef.current = null;
+    clearClips();
+    setRenderError("");
+  }
+
   function handleFileChange(e) {
     const file = e.target.files?.[0] || null;
     if (videoUrl) URL.revokeObjectURL(videoUrl);
@@ -485,9 +503,19 @@ export default function StoriesTab() {
 
           {error && <div className="error-banner">{error}</div>}
 
-          <button className="btn-primary" disabled={!videoFile || loading}>
-            {buttonLabel}
-          </button>
+          <div className="form-actions">
+            <button className="btn-primary" disabled={!videoFile || loading}>
+              {buttonLabel}
+            </button>
+            <button
+              type="button"
+              className="btn-ghost btn-clear"
+              onClick={clearPage}
+              disabled={loading || !!renderProgress || savingStory}
+            >
+              Clear
+            </button>
+          </div>
         </form>
 
         {plan && (

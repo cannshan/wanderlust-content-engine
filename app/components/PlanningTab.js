@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useCategorizedItems } from "../../lib/useCategorizedItems";
-import { useDraftAutosave, useWarnBeforeLeaving } from "../../lib/useDraftAutosave";
+import { useDraftAutosave, useWarnBeforeLeaving, confirmClear } from "../../lib/useDraftAutosave";
 import { CategoryFilterRow, CategorizePanel } from "./CategoryUI";
 import { AddToPlanningPicker } from "./PlanningPicker";
 
@@ -240,6 +240,31 @@ export default function PlanningTab() {
       setSearchError(err.message || "Couldn't search for that.");
     }
     setSearchLoading(false);
+  }
+
+  // Clears the search and everything typed or looked up on screen - never
+  // the planning list itself, which is already saved. The autosave then
+  // saves the blank page too. What to Wear looks aren't stored on the item,
+  // so those count as unsaved along with the search results.
+  function clearPage() {
+    const hasStyleResults = Object.values(styleState).some((st) => st?.styleSuggestion || st?.styleLinks?.length);
+    if (!confirmClear(searchResults?.length > 0 || hasStyleResults)) return;
+    setSearchQuery("");
+    setSearchError("");
+    setSearchResults(null);
+    setSearchPickerKey(null);
+    setSearchNewCategoryDraft("");
+    setSearchFocusDrafts({});
+    setSelectedId(null);
+    setResearchState({});
+    setFocusDrafts({});
+    setStyleState({});
+    setCostState({});
+    setMenuLinksDrafts({});
+    setMenuFiles({});
+    setMenuFileErrors({});
+    setEditingCostId(null);
+    setCostEditError("");
   }
 
   function toggleSearchPicker(key) {
@@ -923,6 +948,20 @@ export default function PlanningTab() {
                 disabled={searchLoading || !searchQuery.trim()}
               >
                 {searchLoading ? "Searching…" : "Search"}
+              </button>
+              <button
+                type="button"
+                className="btn-ghost btn-clear"
+                onClick={clearPage}
+                disabled={
+                  searchLoading ||
+                  !!pendingResultKey ||
+                  anyLoading(researchState) ||
+                  anyLoading(styleState) ||
+                  anyLoading(costState)
+                }
+              >
+                Clear
               </button>
             </div>
           </div>

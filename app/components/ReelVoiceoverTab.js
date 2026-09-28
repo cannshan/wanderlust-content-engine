@@ -6,7 +6,7 @@ import { assembleReel } from "../../lib/assembleReel";
 import { PLATFORM_LABELS, PLATFORM_ORDER, MAX_VIDEO_FILE_BYTES } from "../../lib/constants";
 import { useCategorizedItems } from "../../lib/useCategorizedItems";
 import { CategoryFilterRow, CategorizePanel } from "./CategoryUI";
-import { useDraftAutosave, useWarnBeforeLeaving } from "../../lib/useDraftAutosave";
+import { useDraftAutosave, useWarnBeforeLeaving, confirmClear } from "../../lib/useDraftAutosave";
 
 const MAX_CLIPS = 20;
 
@@ -68,6 +68,7 @@ export default function ReelVoiceoverTab() {
   const [result, setResult] = useState(null);
   const [copied, setCopied] = useState(false);
   const objectUrlRef = useRef("");
+  const videoInputRef = useRef(null);
 
   // "Raw clips - assemble for me" mode.
   const [clips, setClips] = useState([]);
@@ -223,6 +224,33 @@ export default function ReelVoiceoverTab() {
     }
   );
   useWarnBeforeLeaving(loading || assembleLoading);
+
+  // Back to a blank form in both modes - the autosave then saves the blank
+  // page too. The raw-clips video is never stored, so losing it counts as
+  // unsaved even when its script was saved.
+  function clearPage() {
+    const losesAssembled = assembleResult && (!assembleResult.savedId || assembleResult.videoUrl);
+    if (!confirmClear((result && !result.savedId) || losesAssembled)) return;
+    setIdea("");
+    setLocation("");
+    setNotes("");
+    setPlatform("tiktok");
+    if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
+    objectUrlRef.current = "";
+    setVideoFile(null);
+    setVideoUrl("");
+    setFileError("");
+    if (videoInputRef.current) videoInputRef.current.value = "";
+    setError("");
+    setResult(null);
+    setClips([]);
+    setClipsError("");
+    setAssembleError("");
+    if (assembleVideoUrlRef.current) URL.revokeObjectURL(assembleVideoUrlRef.current);
+    assembleVideoUrlRef.current = "";
+    setAssembleResult(null);
+    setSaveError("");
+  }
 
   function handleFileChange(e) {
     const file = e.target.files?.[0] || null;
@@ -419,7 +447,7 @@ export default function ReelVoiceoverTab() {
             <>
               <div className="field">
                 <label htmlFor="reelFile">Upload the reel</label>
-                <input id="reelFile" type="file" accept="video/*" onChange={handleFileChange} />
+                <input id="reelFile" ref={videoInputRef} type="file" accept="video/*" onChange={handleFileChange} />
                 <p className="hint" style={{ marginTop: 6 }}>
                   Processed entirely in your browser — the video file itself is never uploaded, only a handful of
                   still frames pulled from it.
@@ -521,19 +549,29 @@ export default function ReelVoiceoverTab() {
           {mode === "single" && error && <div className="error-banner">{error}</div>}
           {mode === "assemble" && assembleError && <div className="error-banner">{assembleError}</div>}
 
-          {mode === "single" ? (
-            <button className="btn-primary" disabled={!videoFile || loading}>
-              {progress
-                ? `Watching your reel… (${progress.done}/${progress.total || "?"})`
-                : loading
-                ? "Writing voiceover…"
-                : "Write voiceover from this reel"}
+          <div className="form-actions">
+            {mode === "single" ? (
+              <button className="btn-primary" disabled={!videoFile || loading}>
+                {progress
+                  ? `Watching your reel… (${progress.done}/${progress.total || "?"})`
+                  : loading
+                  ? "Writing voiceover…"
+                  : "Write voiceover from this reel"}
+              </button>
+            ) : (
+              <button className="btn-primary" disabled={clips.length === 0 || assembleLoading}>
+                {assembleButtonLabel(assembleProgress, assembleLoading)}
+              </button>
+            )}
+            <button
+              type="button"
+              className="btn-ghost btn-clear"
+              onClick={clearPage}
+              disabled={loading || assembleLoading || savingVoiceover}
+            >
+              Clear
             </button>
-          ) : (
-            <button className="btn-primary" disabled={clips.length === 0 || assembleLoading}>
-              {assembleButtonLabel(assembleProgress, assembleLoading)}
-            </button>
-          )}
+          </div>
         </form>
 
         {mode === "single" && result && (

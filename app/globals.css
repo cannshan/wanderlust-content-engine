@@ -997,6 +997,12 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 }
 .btn-ghost:hover { border-color: var(--wine); color: var(--wine); }
 
+/* A form's main button with the tab's Clear button beside it. */
+.form-actions { display: flex; gap: 8px; }
+.form-actions .btn-primary { flex: 1; width: auto; }
+.btn-clear { flex-shrink: 0; padding: 0 16px; font-size: 13.5px; }
+.btn-clear:disabled { opacity: .5; cursor: default; border-color: var(--line); color: var(--ink-soft); }
+
 .error-banner {
   background: var(--bad-soft);
   color: var(--bad);
