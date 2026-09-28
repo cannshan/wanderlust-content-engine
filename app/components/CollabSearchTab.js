@@ -36,7 +36,12 @@ const PROOF_LABELS = {
   official_site: { text: "Linked from their website", className: "live" },
   page_checked: { text: "Collab page checked", className: "live" },
   in_search: { text: "Found in search", className: "estimated" },
+  // Only TikTok bios can be read server-side; Instagram's are behind a login.
+  bio_checked: { text: "TikTok bio invites collabs", className: "live" },
+  bio_unchecked: { text: "Bio not checked", className: "estimated" },
 };
+
+const NETWORK_LABELS = { instagram: "Instagram", tiktok: "TikTok" };
 
 const OUTREACH_STATUSES = [
   { key: "new", label: "Not contacted" },
@@ -284,8 +289,8 @@ export default function CollabSearchTab() {
               ))}
             </div>
             <p className="hint" style={{ marginTop: 6 }}>
-              Finds places publicly asking creators to collab — a form or page on their site, a creator program, or a bio
-              inviting collab requests.
+              Finds places publicly asking creators to collab — a form or page on their site, a creator program, or an
+              Instagram/TikTok bio inviting collabs.
             </p>
           </div>
 
@@ -325,6 +330,7 @@ export default function CollabSearchTab() {
                 const proof = PROOF_LABELS[l.apply?.status];
                 const applyUrl = l.apply?.url;
                 const isEmail = applyUrl?.startsWith("mailto:");
+                const bioNetwork = NETWORK_LABELS[l.apply?.network];
                 return (
                   <div className={`tag-account collab-lead ${l.status === "pass" ? "collab-lead-pass" : ""}`} key={`${l.name}-${i}`}>
                     <div className="tag-account-head">
@@ -353,6 +359,17 @@ export default function CollabSearchTab() {
                         Their site links: <strong>“{l.apply.linkText}”</strong>
                       </p>
                     )}
+                    {l.apply?.bioText && (
+                      <p className="hint" style={{ margin: "4px 0" }}>
+                        Their bio: <strong>“{l.apply.bioText}”</strong>
+                      </p>
+                    )}
+                    {l.apply?.status === "bio_unchecked" && (
+                      <p className="hint" style={{ margin: "4px 0" }}>
+                        Seen in search, but {bioNetwork} doesn't let the app open their bio to confirm it. Take a look
+                        before messaging.
+                      </p>
+                    )}
                     {(l.offer || l.requirements) && (
                       <p className="hint" style={{ margin: "4px 0" }}>
                         {l.offer && (
@@ -373,7 +390,7 @@ export default function CollabSearchTab() {
                     <div className="collab-actions">
                       {applyUrl && (
                         <a className="btn-primary collab-apply" href={applyUrl} target="_blank" rel="noopener noreferrer">
-                          {isEmail ? `Email ${applyUrl.slice(7)}` : "Open collab page"}
+                          {isEmail ? `Email ${applyUrl.slice(7)}` : bioNetwork ? `DM on ${bioNetwork}` : "Open collab page"}
                         </a>
                       )}
                       {l.evidenceUrl && l.evidenceUrl !== applyUrl && (
@@ -381,7 +398,7 @@ export default function CollabSearchTab() {
                           Source
                         </a>
                       )}
-                      {l.instagram && (
+                      {l.instagram && l.apply?.network !== "instagram" && (
                         <a
                           className="btn-ghost collab-apply"
                           href={`https://www.instagram.com/${l.instagram}/`}
@@ -389,6 +406,16 @@ export default function CollabSearchTab() {
                           rel="noopener noreferrer"
                         >
                           @{l.instagram}
+                        </a>
+                      )}
+                      {l.tiktok && l.apply?.network !== "tiktok" && (
+                        <a
+                          className="btn-ghost collab-apply"
+                          href={`https://www.tiktok.com/@${l.tiktok}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          TikTok @{l.tiktok}
                         </a>
                       )}
                       <select

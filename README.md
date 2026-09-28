@@ -74,13 +74,16 @@ Deliberately just a discovery/triage step now, not the place work happens: each 
 
 ## Collab Search tab
 
-Type an area (and optionally narrow by business type — stays, restaurants, bars & wineries, experiences, tourism boards, local brands — or add a focus like "glamping") and it finds businesses there that are **publicly asking creators to collaborate**: a collab/influencer page or form on their own site, a creator or ambassador program, or a bio inviting collab requests. The example that prompted it: [Montagne Le Maelström](https://montagnelemaelstrom.com) in Lac-Beauport, Québec, whose homepage links a "Collaborer avec Montagne le Maelström" Google Form. Being popular, or having worked with an influencer once, doesn't count.
+Type an area (and optionally narrow by business type — stays, restaurants, bars & wineries, experiences, tourism boards, local brands — or add a focus like "glamping") and it finds businesses there that are **publicly asking creators to collaborate**: a collab/influencer page or form on their own site, a creator or ambassador program (including a hotel chain's brand-wide form), or an Instagram/TikTok bio inviting collabs. The example that prompted it: [Montagne Le Maelström](https://montagnelemaelstrom.com) in Lac-Beauport, Québec, whose homepage links a "Collaborer avec Montagne le Maelström" Google Form. Being popular, or having worked with an influencer once, doesn't count.
 
 `/api/collab-search` → `findCollabOpportunities` in `lib/claude.js`: up to 6 web searches (in the local language too, e.g. French in Québec), then the server checks every lead the same way Who to tag checks handles — never on the model's word:
 
 - **Linked from their website** — the business's own homepage links the collab page/form/email. If Claude found the business but not the link, the homepage is read and its collab link is used.
 - **Collab page checked** — the collab page itself loads and reads as one (its title, address or headings say collab/influencer/creator/partnership, or its text is creator-specific).
 - **Found in search** (weaker, amber badge) — the page came back in a real search result but couldn't be read directly.
+
+- **TikTok bio invites collabs** — the server reads the TikTok profile's bio itself (TikTok profile pages include it without a login) and it mentions collabs, partnerships, creators and so on. The bio is shown as proof. Any lead with a TikTok handle gets this check for free, even if Claude didn't mention the bio.
+- **Bio not checked** (amber) — an Instagram bio Claude saw in search. Instagram shows nothing to anyone not logged in, so the app can't open it; the lead is kept only if that exact profile came back in a real search result. The button opens the profile so Leah can look before messaging.
 
 Anything with none of these is dropped.
 
