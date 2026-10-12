@@ -64,6 +64,10 @@ export async function PATCH(req, { params }) {
   if ("address" in body) {
     updates.address = typeof body.address === "string" ? body.address.trim().slice(0, 200) || null : null;
   }
+  if ("website" in body) {
+    updates.website =
+      typeof body.website === "string" && /^https?:\/\//i.test(body.website.trim()) ? body.website.trim().slice(0, 300) : null;
+  }
   if ("estimatedCostNote" in body) {
     updates.estimated_cost_note =
       typeof body.estimatedCostNote === "string" ? body.estimatedCostNote.trim().slice(0, 300) || null : null;

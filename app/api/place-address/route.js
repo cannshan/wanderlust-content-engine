@@ -4,10 +4,11 @@ import { checkBudget, BUDGET_LIMIT_MESSAGE } from "../../../lib/budget";
 import { getSupabase } from "../../../lib/supabase";
 
 // The map's "Find exact spot" button (PlacesMap.js): one paid search for a
-// place's street address, saved wherever the place lives so it's only
-// ever looked up once - a planning item's own address column, or the
-// place inside a saved Discovery search's results. Fires only from that
-// button, never automatically.
+// place's street address - and, from the same search, its website (for
+// the card photo) - saved wherever the place lives so it's only ever
+// looked up once: a planning item's own columns, or the place inside a
+// saved Discovery search's results. Fires only from that button, never
+// automatically.
 export const maxDuration = 60;
 
 const BUCKETS = ["popular", "interesting", "hidden"];
@@ -31,22 +32,28 @@ export async function POST(req) {
     return NextResponse.json({ error: BUDGET_LIMIT_MESSAGE }, { status: 429 });
   }
 
-  const address = await findPlaceAddress({ name, area, near });
-  if (address === null) {
+  const found = await findPlaceAddress({ name, area, near });
+  if (found === null) {
     return NextResponse.json({ error: "Couldn't look that up. Try again." }, { status: 500 });
   }
-  if (!address) return NextResponse.json({ address: null });
+  const { address, website } = found;
+  if (!address && !website) return NextResponse.json({ address: null, website: null });
 
   const supabase = getSupabase();
   let item = null;
 
   if (supabase && planningItemId) {
-    const { data, error } = await supabase
-      .from("planning_items")
-      .update({ address })
-      .eq("id", planningItemId)
-      .select()
-      .single();
+    const updates = {};
+    if (address) updates.address = address;
+    if (website) updates.website = website;
+    let { data, error } = await supabase.from("planning_items").update(updates).eq("id", planningItemId).select().single();
+    // Before the website column was added (README) - keep the address.
+    if (error && website && /website/i.test(error.message)) {
+      delete updates.website;
+      if (Object.keys(updates).length) {
+        ({ data, error } = await supabase.from("planning_items").update(updates).eq("id", planningItemId).select().single());
+      }
+    }
     if (error) console.error("[place-address] couldn't save to planning item:", error.message);
     else item = data;
   }
@@ -60,7 +67,9 @@ export async function POST(req) {
     if (!error && saved?.results?.[bucket]) {
       const results = {
         ...saved.results,
-        [bucket]: saved.results[bucket].map((p) => (p.name === name ? { ...p, address } : p)),
+        [bucket]: saved.results[bucket].map((p) =>
+          p.name === name ? { ...p, ...(address && { address }), ...(website && { website }) } : p
+        ),
       };
       const { error: updateError } = await supabase
         .from("saved_searches")
@@ -70,5 +79,5 @@ export async function POST(req) {
     }
   }
 
-  return NextResponse.json({ address, item });
+  return NextResponse.json({ address: address || null, website: website || null, item });
 }

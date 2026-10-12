@@ -56,35 +56,38 @@ export async function POST(req, { params }) {
     return NextResponse.json({ error: "Couldn't put together research for this place. Try again." }, { status: 500 });
   }
 
-  const { address, ...researchFields } = research;
-  const updates = {
-    research: researchFields,
-    researched_at: new Date().toISOString(),
-    // Menu links persist on the item (like a saved idea's own menu
-    // links) so they don't need retyping next time - the uploaded
-    // file itself never does, same "only ever used inline for the one
-    // request that reads it" rule as everywhere else in this app.
-    menu_links: trimmedMenuLinks.length ? trimmedMenuLinks : null,
-  };
-  // A street address the research's searches turned up pins the item
-  // exactly on the Planning map. Only fills a gap - never overwrites one
-  // already saved (e.g. from "Find exact spot").
-  if (address) updates.address = address;
+  const { address, website, ...researchFields } = research;
+  let { data, error } = await supabase
+    .from("planning_items")
+    .update({
+      research: researchFields,
+      researched_at: new Date().toISOString(),
+      // Menu links persist on the item (like a saved idea's own menu
+      // links) so they don't need retyping next time - the uploaded
+      // file itself never does, same "only ever used inline for the one
+      // request that reads it" rule as everywhere else in this app.
+      menu_links: trimmedMenuLinks.length ? trimmedMenuLinks : null,
+    })
+    .eq("id", id)
+    .select()
+    .single();
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  let query = supabase.from("planning_items").update(updates).eq("id", id);
-  if (address) query = query.is("address", null);
-  let { data, error } = await query.select().maybeSingle();
-  // Already had an address (so the filtered update matched nothing), or
-  // the address column doesn't exist yet (README) - save the research
-  // without it.
-  if (!error && !data && address) {
-    delete updates.address;
-    ({ data, error } = await supabase.from("planning_items").update(updates).eq("id", id).select().single());
-  } else if (error && address && /address/i.test(error.message)) {
-    delete updates.address;
-    ({ data, error } = await supabase.from("planning_items").update(updates).eq("id", id).select().single());
+  // A street address (map pin) or website (card photo) the research's
+  // searches turned up fills a gap on the item - never overwrites one
+  // already saved (e.g. from "Find exact spot"). Best-effort: a missing
+  // column (README) or a filled field just leaves the item as it is.
+  for (const [column, value] of [["address", address], ["website", website]]) {
+    if (!value || data[column]) continue;
+    const filled = await supabase
+      .from("planning_items")
+      .update({ [column]: value })
+      .eq("id", id)
+      .is(column, null)
+      .select()
+      .maybeSingle();
+    if (filled.data) data = filled.data;
   }
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ item: data });
 }

@@ -7,6 +7,8 @@ import { useCategorizedItems } from "../../lib/useCategorizedItems";
 import { useDraftAutosave, useWarnBeforeLeaving, confirmClear } from "../../lib/useDraftAutosave";
 import { CategoryFilterRow, CategorizePanel } from "./CategoryUI";
 import { AddToPlanningPicker } from "./PlanningPicker";
+import PlaceThumb from "./PlaceThumb";
+import { usePlaceImages } from "../../lib/usePlaceImages";
 
 // Browser-only autosave (see useDraftAutosave below). Bump the version if
 // the saved shape ever changes in a way an older draft can't be read into.
@@ -60,35 +62,39 @@ function PlaceList({
   newCategoryDraft,
   onDraftChange,
   onAddToPlanning,
+  images,
 }) {
   if (places.length === 0) {
     return <p className="hint">{emptyHint}</p>;
   }
   return (
-    <ul className="shotlist">
+    <ul className="shotlist place-list">
       {places.map((place, i) => {
         const key = `${resultLocation}::${place.name}`;
         const inPlanning = planningKeys.has(key);
         return (
           <li key={i}>
             <div className="place-row">
+              <PlaceThumb imageUrl={images[`${bucket}::${place.name}`]} hints={[place.category, place.name]} />
               <div className="place-info">
-                <a href={mapsSearchUrl(place.name, place.area)} target="_blank" rel="noopener noreferrer" className="place-link">
+                <a href={mapsSearchUrl(place.name, place.address || place.area)} target="_blank" rel="noopener noreferrer" className="place-link">
                   <strong>{place.name}</strong>
                 </a>
                 {place.category ? ` — ${place.category}` : ""}
                 {place.area ? ` (${place.area})` : ""}
                 <br />
                 {place.why}
+                <div>
+                  <button
+                    type="button"
+                    className="btn-ghost place-save-btn"
+                    disabled={inPlanning}
+                    onClick={() => onTogglePicker(key)}
+                  >
+                    {inPlanning ? "In Planning" : "Add to Planning"}
+                  </button>
+                </div>
               </div>
-              <button
-                type="button"
-                className="btn-ghost place-save-btn"
-                disabled={inPlanning}
-                onClick={() => onTogglePicker(key)}
-              >
-                {inPlanning ? "In Planning" : "Add to Planning"}
-              </button>
             </div>
 
             {pickerKey === key && (
@@ -159,6 +165,23 @@ export default function DiscoveryTab() {
     a.localeCompare(b)
   );
 
+  // Card photos (free - see lib/placeImage.js): the place's own website
+  // preview, its Wikimedia photo, or the site OpenStreetMap lists for it.
+  const placeImages = usePlaceImages(
+    result
+      ? BUCKET_PINS.flatMap(({ bucket }) =>
+          (result[bucket] || []).map((p) => ({
+            key: `${bucket}::${p.name}`,
+            name: p.name,
+            area: p.area,
+            near: resultLocation,
+            address: p.address,
+            website: p.website,
+          }))
+        )
+      : []
+  );
+
   // Every place in the current result, colored by bucket, for the map.
   // Memoized on the result itself so the map doesn't redraw its pins on
   // unrelated re-renders (typing in the form, opening a picker).
@@ -189,15 +212,16 @@ export default function DiscoveryTab() {
           });
           const data = await res.json();
           if (!res.ok) throw new Error(data.error || "Couldn't look that up.");
-          if (data.address) {
-            const withAddress = (r) => ({
+          if (data.address || data.website) {
+            const found = { ...(data.address && { address: data.address }), ...(data.website && { website: data.website }) };
+            const withFound = (r) => ({
               ...r,
-              [bucket]: (r[bucket] || []).map((p) => (p.name === place.name ? { ...p, address: data.address } : p)),
+              [bucket]: (r[bucket] || []).map((p) => (p.name === place.name ? { ...p, ...found } : p)),
             });
-            setResult((r) => (r ? withAddress(r) : r));
+            setResult((r) => (r ? withFound(r) : r));
             if (currentSavedSearchId) {
               setSavedSearches((list) =>
-                list.map((s) => (s.id === currentSavedSearchId && s.results ? { ...s, results: withAddress(s.results) } : s))
+                list.map((s) => (s.id === currentSavedSearchId && s.results ? { ...s, results: withFound(s.results) } : s))
               );
             }
           }
@@ -348,6 +372,7 @@ export default function DiscoveryTab() {
           why: place.why || null,
           angle: place.angle || null,
           address: place.address || null,
+          website: place.website || null,
           bucket,
           searchLocation: resultLocation,
           category: category || null,
@@ -561,6 +586,7 @@ export default function DiscoveryTab() {
                 newCategoryDraft={newCategoryDraft}
                 onDraftChange={setNewCategoryDraft}
                 onAddToPlanning={addToPlanning}
+                images={placeImages}
               />
             </div>
 
@@ -580,6 +606,7 @@ export default function DiscoveryTab() {
                 newCategoryDraft={newCategoryDraft}
                 onDraftChange={setNewCategoryDraft}
                 onAddToPlanning={addToPlanning}
+                images={placeImages}
               />
             </div>
 
@@ -599,6 +626,7 @@ export default function DiscoveryTab() {
                 newCategoryDraft={newCategoryDraft}
                 onDraftChange={setNewCategoryDraft}
                 onAddToPlanning={addToPlanning}
+                images={placeImages}
               />
             </div>
             </>

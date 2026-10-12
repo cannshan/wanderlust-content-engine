@@ -6,6 +6,8 @@ import { useCategorizedItems } from "../../lib/useCategorizedItems";
 import { useDraftAutosave, useWarnBeforeLeaving, confirmClear } from "../../lib/useDraftAutosave";
 import { CategoryFilterRow, CategorizePanel } from "./CategoryUI";
 import { AddToPlanningPicker } from "./PlanningPicker";
+import PlaceThumb from "./PlaceThumb";
+import { usePlaceImages } from "../../lib/usePlaceImages";
 
 // Browser-only autosave (see useDraftAutosave below). Bump the version if
 // the saved shape ever changes in a way an older draft can't be read into.
@@ -182,6 +184,26 @@ export default function PlanningTab() {
   const categorizedHook = useCategorizedItems(items, setItems, "/api/planning-items");
   const selected = items.find((i) => i.id === selectedId) || null;
 
+  // Card photos from each place's own website (see usePlaceImages) -
+  // saved places and the current search results alike.
+  const placeImages = usePlaceImages([
+    ...items.map((i) => ({
+      key: i.id,
+      name: i.name,
+      area: shortArea(i.area),
+      near: mapNear(i),
+      address: i.address,
+      website: i.website,
+    })),
+    ...(searchResults || []).map((p) => ({
+      key: `search::${p.name}`,
+      name: p.name,
+      area: p.area,
+      address: p.address,
+      website: p.website,
+    })),
+  ]);
+
   const [showMap, setShowMap] = useState(false);
   // The map follows the sidebar's category filter, so "Maine trip" shows
   // just that trip's pins.
@@ -211,7 +233,9 @@ export default function PlanningTab() {
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || "Couldn't look that up.");
-            if (data.address) {
+            if (data.item) {
+              setItems((list) => list.map((i) => (i.id === item.id ? data.item : i)));
+            } else if (data.address) {
               setItems((list) => list.map((i) => (i.id === item.id ? { ...i, address: data.address } : i)));
             }
             return data.address;
@@ -358,6 +382,7 @@ export default function PlanningTab() {
         why: place.why || null,
         angle: place.angle || null,
         address: place.address || null,
+        website: place.website || null,
         bucket: null,
         searchLocation: `Search: ${searchQuery.trim()}`,
         category: category || null,
@@ -667,6 +692,7 @@ export default function PlanningTab() {
     const r = item.research;
     return (
       <>
+        <PlaceThumb variant="banner" imageUrl={placeImages[item.id]} alt={item.name} />
         <div className="place-row">
           <div className="place-info">
             <a href={mapsSearchUrl(item.name, item.address || item.area)} target="_blank" rel="noopener noreferrer" className="place-link">
@@ -1124,6 +1150,7 @@ export default function PlanningTab() {
                 return (
                   <li key={i}>
                     <div className="place-row">
+                      <PlaceThumb imageUrl={placeImages[`search::${place.name}`]} hints={[place.category, place.name]} />
                       <div className="place-info">
                         <a href={mapsSearchUrl(place.name, place.area)} target="_blank" rel="noopener noreferrer" className="place-link">
                           <strong>{place.name}</strong>

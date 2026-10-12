@@ -182,6 +182,25 @@ Nominatim's [usage policy](https://operations.osmfoundation.org/policies/nominat
 
 Only a place whose town can't be found either is left off the map, listed underneath with a Google Maps link.
 
+## Place photos
+
+Discovery results, Planning places and search results, and Collab Search leads show a photo, found by `POST /api/place-images` (`lib/placeImage.js`) from free sources only - no Claude call, no paid API - and cached in the browser (`lib/usePlaceImages.js`). In order:
+
+1. **The place's own website's preview image** (`og:image` - what iMessage or Slack shows for the link), when the place has a website: Collab Search leads always carry one, and Discovery, the Planning search/link paste, "Research this place" and "Find exact spot" report the site when a search result showed it (in practice search results are mostly review sites, so this is rarer than you'd hope).
+2. **Its Wikimedia photo**, via the Wikidata id OpenStreetMap lists for it (the Wikidata image, else its Wikipedia article's lead image) - landmarks and parks like Fort Williams Park.
+3. **The preview image of the website OpenStreetMap lists for it** - many restaurants and bars are mapped with their site. Steps 2-3 reuse the map's cached geocoding lookups (now requested with OpenStreetMap's `extratags`).
+4. **A Wikipedia article whose title is exactly the place's name** (Ruby Falls), for well-known places OpenStreetMap doesn't link. A near-miss title never counts, so a restaurant can't get a photo of its city.
+
+Anything else - most small businesses, in practice - gets a teal tile with an emoji for the kind of place (`app/components/PlaceThumb.js`). Wikimedia thumbnails are requested at 500px, one of its standard widths (non-standard widths like 640/800 return 400).
+
+Planning items keep their website in one more column:
+
+```sql
+alter table planning_items add column if not exists website text;
+```
+
+Without it, everything still saves - Planning places just don't get photos.
+
 Optional cache table (the map works without it, just with more first-time lookups):
 
 ```sql

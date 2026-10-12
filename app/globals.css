@@ -2089,3 +2089,48 @@ body::before {
   .top-tabs .tab-btn.other-group { display: none; }
   .top-tabs.single-tab-group { display: none; }
 }
+
+/* ---- Place photos (PlaceThumb.js) ---- */
+
+/* Discovery/Planning result lists as photo cards rather than bullets. */
+.place-list { list-style: none; padding-left: 0; }
+.place-list > li { padding: 10px 0; border-top: 1px solid var(--line); margin: 0; }
+.place-list > li:first-child { border-top: none; padding-top: 2px; }
+.place-list .place-save-btn { margin-top: 8px; }
+
+.place-thumb {
+  flex-shrink: 0;
+  width: 64px;
+  height: 64px;
+  border-radius: 10px;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  /* The fallback tile: brand teal, light to deeper, with a category emoji. */
+  background: linear-gradient(135deg, var(--accent-soft), color-mix(in srgb, var(--brand-teal) 45%, var(--accent-soft)));
+  font-size: 28px;
+}
+.place-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.place-banner {
+  margin: -2px 0 12px;
+  border-radius: 10px;
+  overflow: hidden;
+  aspect-ratio: 16 / 9;
+  max-height: 220px;
+  width: 100%;
+  background: var(--accent-soft);
+}
+.place-banner img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* A collab lead's perk - the line a creator scans for first. */
+.collab-offer {
+  margin: 8px 0 6px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: var(--sunset-soft);
+  color: var(--ink);
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.4;
+}

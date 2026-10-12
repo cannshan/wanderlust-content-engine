@@ -42,7 +42,7 @@ export async function POST(req) {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
-  const { name, placeCategory, area, why, angle, bucket, searchLocation, category, address } = body;
+  const { name, placeCategory, area, why, angle, bucket, searchLocation, category, address, website } = body;
 
   if (!name || !searchLocation) {
     return NextResponse.json({ error: "name and searchLocation are required." }, { status: 400 });
@@ -65,12 +65,17 @@ export async function POST(req) {
     // The street address the search that found this place saw, if any -
     // only used to pin it exactly on the Planning map (lib/geocode.js).
     address: typeof address === "string" && address.trim() ? address.trim().slice(0, 200) : null,
+    // Its own website, if the search saw one - only used to show the
+    // site's preview photo on the place's card (/api/place-images).
+    website: typeof website === "string" && /^https?:\/\//i.test(website.trim()) ? website.trim().slice(0, 300) : null,
   };
 
   let { data, error } = await supabase.from("planning_items").insert(row).select().single();
-  // Before the address column was added (README) - save the place anyway.
-  if (error && /address/i.test(error.message)) {
-    delete row.address;
+  // Before the address/website columns were added (README) - drop
+  // whichever one the database doesn't have and save the place anyway.
+  for (const column of ["website", "address"]) {
+    if (!error || !new RegExp(column, "i").test(error.message)) continue;
+    delete row[column];
     ({ data, error } = await supabase.from("planning_items").insert(row).select().single());
   }
 

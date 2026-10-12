@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { useCategorizedItems } from "../../lib/useCategorizedItems";
 import { useDraftAutosave, useWarnBeforeLeaving, confirmClear } from "../../lib/useDraftAutosave";
 import { CategoryFilterRow, CategorizePanel } from "./CategoryUI";
+import PlaceThumb from "./PlaceThumb";
+import { usePlaceImages } from "../../lib/usePlaceImages";
 
 // Browser-only autosave, same as Discovery - bump the version if the saved
 // shape changes in a way an older draft can't be read into.
@@ -253,6 +255,10 @@ export default function CollabSearchTab() {
   }
 
   const leads = result?.leads || [];
+  // A photo for each lead from its own website (free - see usePlaceImages).
+  const leadImages = usePlaceImages(
+    leads.map((l) => ({ key: `lead::${l.name}`, name: l.name, area: l.town, near: resultLocation, website: l.website }))
+  );
 
   return (
     <div className="layout">
@@ -352,6 +358,7 @@ export default function CollabSearchTab() {
                 const bioNetwork = NETWORK_LABELS[l.apply?.network];
                 return (
                   <div className={`tag-account collab-lead ${l.status === "pass" ? "collab-lead-pass" : ""}`} key={`${l.name}-${i}`}>
+                    <PlaceThumb variant="banner" imageUrl={leadImages[`lead::${l.name}`]} alt={l.name} />
                     <div className="tag-account-head">
                       <strong>
                         {l.website ? (
@@ -389,19 +396,16 @@ export default function CollabSearchTab() {
                         before messaging.
                       </p>
                     )}
-                    {(l.offer || l.requirements) && (
+                    {/* The perk is what a creator scans for first, so it gets its own
+                        highlighted line instead of sharing one with the ask. */}
+                    {l.offer && (
+                      <p className="collab-offer">
+                        <span aria-hidden="true">🎁</span> {l.offer}
+                      </p>
+                    )}
+                    {l.requirements && (
                       <p className="hint" style={{ margin: "4px 0" }}>
-                        {l.offer && (
-                          <>
-                            <strong>Offers:</strong> {l.offer}
-                          </>
-                        )}
-                        {l.offer && l.requirements && " · "}
-                        {l.requirements && (
-                          <>
-                            <strong>Asks for:</strong> {l.requirements}
-                          </>
-                        )}
+                        <strong>Asks for:</strong> {l.requirements}
                       </p>
                     )}
                     {l.fit && <p className="hint" style={{ margin: "4px 0 10px" }}>{l.fit}</p>}
