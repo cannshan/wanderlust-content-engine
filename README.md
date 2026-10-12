@@ -174,7 +174,7 @@ The AI's guess is a starting point, not the final word - clicking the cost chip 
 
 A **🗺 Map** toggle on Discovery results and a **Map** card at the top of the Planning tab (following the sidebar's category filter) show places as pins. Costs nothing: map tiles are [OpenFreeMap](https://openfreemap.org/) (no key, no usage limits, commercial use allowed) and coordinates come from OpenStreetMap's free [Nominatim](https://nominatim.org/) geocoder via `POST /api/geocode` (`lib/geocode.js`). No Claude call is involved.
 
-Nominatim's [usage policy](https://operations.osmfoundation.org/policies/nominatim/) - one request per second, an identifying User-Agent, and results cached on our side - is why lookups go through one rate-limited queue, are cached per browser and per server, and (optionally) in a Supabase table so each place is only ever looked up once. Places OpenStreetMap doesn't know are listed under the map with Google Maps links instead of being guessed. Pins are kept near the searched location, so a same-named place in another state can't show up.
+Nominatim's [usage policy](https://operations.osmfoundation.org/policies/nominatim/) - one request per second, an identifying User-Agent, and results cached on our side - is why lookups go through one rate-limited queue, are cached per browser and per server, and (optionally) in a Supabase table so each place is only ever looked up once. Pins are kept near the searched location, so a same-named place in another state can't show up. Small businesses are often missing from OpenStreetMap (e.g. Le Sainti in Saint-Irénée) - those get a **hollow "approximate" pin** at their town or neighborhood, and the popup says so, rather than a guessed exact spot. Only a place whose town can't be found either is left off the map, listed underneath with a Google Maps link.
 
 Optional cache table (the map works without it, just with more first-time lookups):
 
@@ -184,8 +184,12 @@ create table geocode_cache (
   lat double precision,
   lon double precision,
   bounding_box jsonb,
+  place_type text,
   created_at timestamptz not null default now()
 );
+
+-- if you created it before place_type existed:
+-- alter table geocode_cache add column if not exists place_type text;
 ```
 
 ## Reel Voiceover tab

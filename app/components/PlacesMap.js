@@ -18,7 +18,9 @@ const GEOCODE_BATCH = 8;
 // How far below center a tapped pin is moved, leaving room above it for
 // its popup (the map is 360-420px tall).
 const POPUP_ROOM_PX = 110;
-const CACHE_PREFIX = "wwwGeo2:";
+// Bumped whenever the server's lookup logic changes what a place
+// resolves to, so old per-browser answers (and cached misses) are dropped.
+const CACHE_PREFIX = "wwwGeo3:";
 // New England-ish starting view, only visible for the moment before the
 // first pins land and the map fits to them.
 const DEFAULT_CENTER = [-71.5, 43.5];
@@ -61,7 +63,8 @@ function mapsSearchUrl(name, area) {
 
 // Built with DOM calls rather than an HTML string: name/why come from
 // model output and must never be parsed as markup.
-function popupContent(place) {
+// coord: { lat, lon, approximate?, approxArea? } from /api/geocode.
+function popupContent(place, coord) {
   const root = document.createElement("div");
   root.className = "map-popup";
 
@@ -74,6 +77,13 @@ function popupContent(place) {
     area.className = "map-popup-area";
     area.textContent = place.area;
     root.appendChild(area);
+  }
+
+  if (coord.approximate) {
+    const approx = document.createElement("div");
+    approx.className = "map-popup-approx";
+    approx.textContent = `Approximate - pinned at ${coord.approxArea}, since the exact spot isn't on the free map yet.`;
+    root.appendChild(approx);
   }
 
   if (place.why) {
@@ -238,12 +248,17 @@ export default function PlacesMap({ places, legend }) {
 
     const placed = places.filter((p) => coords[p.key]);
     for (const p of placed) {
-      const { lat, lon } = coords[p.key];
+      const coord = coords[p.key];
+      const { lat, lon } = coord;
+      const color = p.color || "var(--wine)";
       const el = document.createElement("button");
       el.type = "button";
-      el.className = "map-pin";
-      el.style.background = p.color || "var(--wine)";
-      el.setAttribute("aria-label", p.name);
+      // Approximate pins are hollow - same color, so the category still
+      // reads, but visibly "somewhere around here", not a real location.
+      el.className = coord.approximate ? "map-pin map-pin-approx" : "map-pin";
+      if (coord.approximate) el.style.borderColor = color;
+      else el.style.background = color;
+      el.setAttribute("aria-label", coord.approximate ? `${p.name} (approximate)` : p.name);
       // Popups always open above their pin, so move the tapped pin into
       // the lower part of the frame first - near the edge of a phone-
       // sized map the popup would otherwise be clipped.
@@ -253,7 +268,7 @@ export default function PlacesMap({ places, legend }) {
       });
       const marker = new maplibregl.Marker({ element: el })
         .setLngLat([lon, lat])
-        .setPopup(new maplibregl.Popup({ anchor: "bottom", offset: 14, maxWidth: "260px" }).setDOMContent(popupContent(p)))
+        .setPopup(new maplibregl.Popup({ anchor: "bottom", offset: 14, maxWidth: "260px" }).setDOMContent(popupContent(p, coord)))
         .addTo(map);
       markersRef.current.push(marker);
     }
@@ -267,6 +282,7 @@ export default function PlacesMap({ places, legend }) {
 
   const lookingCount = places.filter((p) => coords[p.key] === undefined).length;
   const unplaced = places.filter((p) => coords[p.key] === null);
+  const anyApproximate = places.some((p) => coords[p.key]?.approximate);
 
   return (
     <div className="places-map">
@@ -278,6 +294,12 @@ export default function PlacesMap({ places, legend }) {
               {l.label}
             </span>
           ))}
+          {anyApproximate && (
+            <span className="map-legend-item">
+              <span className="map-legend-dot map-legend-dot-approx" />
+              Approximate spot
+            </span>
+          )}
         </div>
       )}
 
