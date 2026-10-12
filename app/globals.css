@@ -1804,3 +1804,138 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 @media (max-width: 560px) {
   .collab-status { margin-left: 0; }
 }
+
+/* ---- Map view (PlacesMap.js) - Discovery results and the Planning list ---- */
+
+.result-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.view-toggle {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.view-toggle button {
+  background: transparent;
+  border: 0;
+  padding: 6px 12px;
+  font-size: 12.5px;
+  color: var(--ink-soft);
+}
+.view-toggle button + button { border-left: 1px solid var(--line); }
+.view-toggle button.active { background: var(--wine-soft); color: var(--wine); font-weight: 600; }
+.view-toggle button:disabled { opacity: .5; cursor: default; }
+
+.map-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin-bottom: 10px;
+  font-size: 12.5px;
+  color: var(--ink-soft);
+}
+.map-legend-item { display: inline-flex; align-items: center; gap: 6px; }
+.map-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px rgba(0,0,0,.15);
+}
+
+.map-frame {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+}
+.map-canvas { height: 420px; width: 100%; }
+@media (max-width: 640px) {
+  .map-canvas { height: 360px; }
+}
+
+.map-status {
+  position: absolute;
+  left: 50%;
+  top: 10px;
+  transform: translateX(-50%);
+  background: var(--bg-raised);
+  color: var(--ink-soft);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: 12.5px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.map-status-error { color: var(--bad); }
+
+.map-pin {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border-radius: 50%;
+  border: 3px solid #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,.35);
+  cursor: pointer;
+}
+.map-pin:hover { transform: scale(1.15); }
+
+.map-unplaced { margin-top: 10px; }
+
+/* Popup sits on the light map tiles in both themes, so it keeps the
+   light palette's ink rather than following dark mode. */
+.map-popup { font-family: 'Work Sans', ui-sans-serif, system-ui, sans-serif; color: #22252A; }
+.map-popup strong { font-size: 14px; display: block; }
+.map-popup-area { font-size: 12px; color: #5B5F56; margin-top: 2px; }
+.map-popup p { font-size: 12.5px; line-height: 1.45; margin: 6px 0 8px; }
+.map-popup-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.map-popup-actions a { font-size: 12.5px; color: #7A2E3A; font-weight: 600; text-decoration: none; }
+.map-popup-actions button {
+  font-size: 12.5px;
+  background: #7A2E3A;
+  color: #fff;
+  border: 0;
+  border-radius: 6px;
+  padding: 5px 10px;
+}
+.maplibregl-popup-content { border-radius: 10px; padding: 12px 14px; }
+
+/* Planning search: the TikTok/Instagram post a pasted link was read from. */
+.source-post {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin-top: 12px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--ink);
+  text-decoration: none;
+}
+.source-post img {
+  width: 56px;
+  height: 74px;
+  object-fit: cover;
+  border-radius: 6px;
+  flex-shrink: 0;
+  background: var(--line);
+}
+.source-post-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.source-post-label { font-size: 12.5px; font-weight: 600; color: var(--wine); }
+.source-post-caption {
+  font-size: 13px;
+  color: var(--ink-soft);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}

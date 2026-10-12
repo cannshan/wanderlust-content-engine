@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import dynamic from "next/dynamic";
 import { useCategorizedItems } from "../../lib/useCategorizedItems";
 import { useDraftAutosave, useWarnBeforeLeaving, confirmClear } from "../../lib/useDraftAutosave";
 import { CategoryFilterRow, CategorizePanel } from "./CategoryUI";
@@ -10,6 +11,24 @@ import { AddToPlanningPicker } from "./PlanningPicker";
 // the saved shape ever changes in a way an older draft can't be read into.
 const PLANNING_DRAFT_STORAGE_KEY = "wwwPlanningDraft";
 const PLANNING_DRAFT_VERSION = 1;
+
+// Loaded only when the map is opened - see the same note in DiscoveryTab.
+const PlacesMap = dynamic(() => import("./PlacesMap"), {
+  ssr: false,
+  loading: () => <p className="hint">Loading map…</p>,
+});
+
+const PLAN_PINS = {
+  scheduled: { label: "📅 Has a date", color: "var(--wine)" },
+  unscheduled: { label: "No date yet", color: "var(--forest)" },
+};
+
+// Items added from the Planning search bar store "Search: <what was
+// typed>" (or the pasted link) as their search_location - useful
+// provenance, but not a place, so it's no help keeping a map lookup local.
+function mapNear(item) {
+  return item.search_location && !item.search_location.startsWith("Search:") ? item.search_location : null;
+}
 
 // The `area` field is free text from a live search, not a guaranteed
 // clean "Town, State" - it can come back as a full descriptive aside, e.g.
@@ -79,6 +98,10 @@ export default function PlanningTab() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState("");
   const [searchResults, setSearchResults] = useState(null);
+  // When the search was a pasted TikTok/Instagram link: the post that was
+  // read ({ platform, url, author, caption, thumbnailUrl }), shown above
+  // the results so she can see which post the places came from.
+  const [searchSourcePost, setSearchSourcePost] = useState(null);
   // Which search result's category picker is open - keyed by the result's
   // name (unique enough within one result set), one open at a time.
   const [searchPickerKey, setSearchPickerKey] = useState(null);
@@ -159,6 +182,33 @@ export default function PlanningTab() {
   const categorizedHook = useCategorizedItems(items, setItems, "/api/planning-items");
   const selected = items.find((i) => i.id === selectedId) || null;
 
+  const [showMap, setShowMap] = useState(false);
+  // The map follows the sidebar's category filter, so "Maine trip" shows
+  // just that trip's pins.
+  const planMapPlaces = useMemo(
+    () =>
+      categorizedHook.filteredItems.map((item) => {
+        const pin = item.planned_date ? PLAN_PINS.scheduled : PLAN_PINS.unscheduled;
+        return {
+          key: item.id,
+          name: item.name,
+          area: shortArea(item.area),
+          near: mapNear(item),
+          why: item.why,
+          color: pin.color,
+          // The opened card renders below the map and search box - on a
+          // phone that's off screen, so bring it into view.
+          onOpen: () => {
+            setSelectedId(item.id);
+            setTimeout(() => {
+              document.getElementById("planning-selected")?.scrollIntoView({ behavior: "smooth", block: "start" });
+            }, 50);
+          },
+        };
+      }),
+    [categorizedHook.filteredItems]
+  );
+
   useEffect(() => {
     loadItems();
   }, []);
@@ -176,6 +226,7 @@ export default function PlanningTab() {
       selectedId,
       searchQuery,
       searchResults,
+      searchSourcePost,
       searchFocusDrafts,
       focusDrafts,
       styleResults: Object.fromEntries(
@@ -189,6 +240,7 @@ export default function PlanningTab() {
       if (draft.selectedId) setSelectedId(draft.selectedId);
       setSearchQuery(draft.searchQuery || "");
       if (Array.isArray(draft.searchResults)) setSearchResults(draft.searchResults);
+      if (draft.searchSourcePost) setSearchSourcePost(draft.searchSourcePost);
       if (draft.searchFocusDrafts) setSearchFocusDrafts(draft.searchFocusDrafts);
       if (draft.focusDrafts) setFocusDrafts(draft.focusDrafts);
       if (draft.styleResults) {
@@ -223,6 +275,7 @@ export default function PlanningTab() {
     setSearchLoading(true);
     setSearchError("");
     setSearchResults(null);
+    setSearchSourcePost(null);
     // Searching for something new - clear whatever was selected so the
     // main panel shows just the fresh results, not an old selected card
     // sitting there alongside them.
@@ -236,6 +289,7 @@ export default function PlanningTab() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Couldn't search for that.");
       setSearchResults(data.places || []);
+      setSearchSourcePost(data.sourcePost || null);
     } catch (err) {
       setSearchError(err.message || "Couldn't search for that.");
     }
@@ -252,6 +306,7 @@ export default function PlanningTab() {
     setSearchQuery("");
     setSearchError("");
     setSearchResults(null);
+    setSearchSourcePost(null);
     setSearchPickerKey(null);
     setSearchNewCategoryDraft("");
     setSearchFocusDrafts({});
@@ -923,15 +978,35 @@ export default function PlanningTab() {
     <>
       <div className="layout">
       <div className="main">
+        {items.length > 0 && (
+          <div className="card planning-map-card">
+            <div className="result-head" style={{ marginBottom: showMap ? 12 : 0 }}>
+              <h3 style={{ fontSize: 16 }}>
+                🗺 Map
+                {categorizedHook.categoryFilter ? ` · ${categorizedHook.categoryFilter}` : ""}
+              </h3>
+              <button type="button" className="btn-ghost" onClick={() => setShowMap((v) => !v)}>
+                {showMap ? "Hide map" : `Show ${planMapPlaces.length} place${planMapPlaces.length === 1 ? "" : "s"}`}
+              </button>
+            </div>
+            {showMap && planMapPlaces.length > 0 && (
+              <PlacesMap places={planMapPlaces} legend={Object.values(PLAN_PINS)} />
+            )}
+            {showMap && planMapPlaces.length === 0 && (
+              <p className="hint">Nothing in this category to show.</p>
+            )}
+          </div>
+        )}
+
         <form onSubmit={onSearchSubmit} className="card">
           <h3 style={{ margin: 0, marginBottom: 16 }}>Planning</h3>
           <div className="field" style={{ marginBottom: 0 }}>
-            <label htmlFor="planningSearch">Search for any specific place or experience</label>
+            <label htmlFor="planningSearch">Search for a place, or paste a TikTok/Instagram link</label>
             <div style={{ display: "flex", gap: 8 }}>
               <input
                 id="planningSearch"
                 autoComplete="off"
-                placeholder="A restaurant, bar, hike, or landmark"
+                placeholder="A restaurant, hike, landmark - or a TikTok/Instagram link"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => {
@@ -968,8 +1043,35 @@ export default function PlanningTab() {
 
           {searchError && <div className="error-banner" style={{ marginTop: 12 }}>{searchError}</div>}
 
+          {searchSourcePost && (
+            <a
+              className="source-post"
+              href={searchSourcePost.url}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {searchSourcePost.thumbnailUrl && (
+                // Platform CDN image, shown as-is - not worth routing
+                // through next/image for one small thumbnail.
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={searchSourcePost.thumbnailUrl} alt="" referrerPolicy="no-referrer" />
+              )}
+              <span className="source-post-text">
+                <span className="source-post-label">
+                  From {searchSourcePost.author ? `@${searchSourcePost.author}'s` : "this"}{" "}
+                  {searchSourcePost.platform === "tiktok" ? "TikTok" : "Instagram post"} ↗
+                </span>
+                <span className="source-post-caption">{searchSourcePost.caption}</span>
+              </span>
+            </a>
+          )}
+
           {searchResults && searchResults.length === 0 && (
-            <p className="hint" style={{ marginTop: 12 }}>Nothing genuine turned up for that search - try being more specific.</p>
+            <p className="hint" style={{ marginTop: 12 }}>
+              {searchSourcePost
+                ? "Couldn't tell which real place this post is about - try typing the place's name instead."
+                : "Nothing genuine turned up for that search - try being more specific."}
+            </p>
           )}
 
           {searchResults && searchResults.length > 0 && (
@@ -1058,7 +1160,7 @@ export default function PlanningTab() {
         </form>
 
         {selected && !selectedShownInResults && (
-          <div className="card">{renderPlannedCard(selected)}</div>
+          <div className="card" id="planning-selected">{renderPlannedCard(selected)}</div>
         )}
       </div>
 

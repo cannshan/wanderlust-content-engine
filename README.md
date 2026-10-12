@@ -168,6 +168,26 @@ create table planning_items (
 
 The AI's guess is a starting point, not the final word - clicking the cost chip itself turns it into a plain number input (a small ✎ marks it as editable), for the real case of "it estimated $400 for the hotel but we actually paid $200 in advance." Saving a hand-typed value clears `estimated_cost_note` alongside it, since that note explains the AI's own reasoning behind whatever number it originally guessed, and that reasoning no longer describes a number someone just typed in themselves. The same field is also editable from the **Trip Calendar**'s edit modal (see below) - there, the note is only cleared if the cost value was actually changed, so just editing the name or date there doesn't wipe an existing AI explanation for no reason.
 
+**Paste a TikTok/Instagram link** - the Planning search box also takes a link to a public TikTok or Instagram post. The post's caption is read for free (TikTok's public oEmbed endpoint; Instagram's own link-preview tags - no login, no key, `lib/socialLink.js`), then the same `searchForPlace` call works out which real place the post is about and confirms it with a search. Results land in the normal search-result list (Add to Planning / Research / What to Wear), with the post shown above them so it's clear which post they came from. A private or deleted post is caught before any paid search runs. Logged as `searchForPlace(link)` in `api_cost_logs`.
+
+## Map view (Discovery and Planning)
+
+A **🗺 Map** toggle on Discovery results and a **Map** card at the top of the Planning tab (following the sidebar's category filter) show places as pins. Costs nothing: map tiles are [OpenFreeMap](https://openfreemap.org/) (no key, no usage limits, commercial use allowed) and coordinates come from OpenStreetMap's free [Nominatim](https://nominatim.org/) geocoder via `POST /api/geocode` (`lib/geocode.js`). No Claude call is involved.
+
+Nominatim's [usage policy](https://operations.osmfoundation.org/policies/nominatim/) - one request per second, an identifying User-Agent, and results cached on our side - is why lookups go through one rate-limited queue, are cached per browser and per server, and (optionally) in a Supabase table so each place is only ever looked up once. Places OpenStreetMap doesn't know are listed under the map with Google Maps links instead of being guessed. Pins are kept near the searched location, so a same-named place in another state can't show up.
+
+Optional cache table (the map works without it, just with more first-time lookups):
+
+```sql
+create table geocode_cache (
+  query text primary key,
+  lat double precision,
+  lon double precision,
+  bounding_box jsonb,
+  created_at timestamptz not null default now()
+);
+```
+
 ## Reel Voiceover tab
 
 Upload a reel you've already filmed and get back a voiceover script written from what's actually in the footage — not a generic script for the idea, one that follows the real order of events on screen.

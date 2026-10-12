@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
 import { sha256Hex, AUTH_COOKIE } from "./lib/auth";
 
+// public/maplibre/ is the map library's own open-source worker code (see
+// scripts/copy-maplibre-worker.mjs) - nothing private, and the worker
+// loads it outside the normal page request, so it skips the login check
+// like the rest of the static assets.
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|maplibre/).*)"],
 };
 
 const PUBLIC_PATHS = ["/login", "/api/login"];

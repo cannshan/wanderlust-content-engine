@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import dynamic from "next/dynamic";
 import { CATEGORY_OPTIONS } from "../../lib/constants";
 import { useCategorizedItems } from "../../lib/useCategorizedItems";
 import { useDraftAutosave, useWarnBeforeLeaving, confirmClear } from "../../lib/useDraftAutosave";
@@ -11,6 +12,19 @@ import { AddToPlanningPicker } from "./PlanningPicker";
 // the saved shape ever changes in a way an older draft can't be read into.
 const DISCOVERY_DRAFT_STORAGE_KEY = "wwwDiscoveryDraft";
 const DISCOVERY_DRAFT_VERSION = 1;
+
+// The map library is large and browser-only (WebGL), so it's loaded only
+// when someone actually switches a result to the map view.
+const PlacesMap = dynamic(() => import("./PlacesMap"), {
+  ssr: false,
+  loading: () => <p className="hint">Loading map…</p>,
+});
+
+const BUCKET_PINS = [
+  { bucket: "popular", label: "🔥 Popular", color: "var(--wine)" },
+  { bucket: "interesting", label: "✨ Interesting", color: "var(--amber)" },
+  { bucket: "hidden", label: "💎 Hidden gems", color: "var(--forest)" },
+];
 
 // A Google Maps search link rather than trying to have the model cite an
 // exact source URL for each place - that would mean trusting a citation
@@ -116,6 +130,9 @@ export default function DiscoveryTab() {
   const [resultCategories, setResultCategories] = useState(["all"]);
   const [resultFocus, setResultFocus] = useState("");
   const [resultDate, setResultDate] = useState("");
+  // "list" | "map" - how the current result is shown. Not saved with the
+  // search: every result opens as a list.
+  const [resultView, setResultView] = useState("list");
 
   const [savedSearches, setSavedSearches] = useState([]);
   const [savedSearchesLoading, setSavedSearchesLoading] = useState(true);
@@ -141,6 +158,23 @@ export default function DiscoveryTab() {
   const planningCategories = Array.from(new Set(planningItems.map((p) => p.category).filter(Boolean))).sort((a, b) =>
     a.localeCompare(b)
   );
+
+  // Every place in the current result, colored by bucket, for the map.
+  // Memoized on the result itself so the map doesn't redraw its pins on
+  // unrelated re-renders (typing in the form, opening a picker).
+  const mapPlaces = useMemo(() => {
+    if (!result) return [];
+    return BUCKET_PINS.flatMap(({ bucket, color }) =>
+      (result[bucket] || []).map((place) => ({
+        key: `${bucket}::${place.name}`,
+        name: place.name,
+        area: place.area,
+        near: resultLocation,
+        why: place.why,
+        color,
+      }))
+    );
+  }, [result, resultLocation]);
 
   useEffect(() => {
     loadSavedSearches();
@@ -441,9 +475,30 @@ export default function DiscoveryTab() {
           <div className="result card">
             <div className="result-head">
               <h3 style={{ fontSize: 16 }}>Result</h3>
-              <button className="btn-ghost" onClick={saveCurrentSearch} disabled={savingSearch || !!currentSavedSearchId}>
-                {currentSavedSearchId ? "Saved" : savingSearch ? "Saving…" : "Save this search"}
-              </button>
+              <div className="result-head-actions">
+                <div className="view-toggle" role="group" aria-label="Show results as">
+                  <button
+                    type="button"
+                    className={resultView === "list" ? "active" : ""}
+                    aria-pressed={resultView === "list"}
+                    onClick={() => setResultView("list")}
+                  >
+                    List
+                  </button>
+                  <button
+                    type="button"
+                    className={resultView === "map" ? "active" : ""}
+                    aria-pressed={resultView === "map"}
+                    onClick={() => setResultView("map")}
+                    disabled={mapPlaces.length === 0}
+                  >
+                    🗺 Map
+                  </button>
+                </div>
+                <button className="btn-ghost" onClick={saveCurrentSearch} disabled={savingSearch || !!currentSavedSearchId}>
+                  {currentSavedSearchId ? "Saved" : savingSearch ? "Saving…" : "Save this search"}
+                </button>
+              </div>
             </div>
 
             {resultFocus && (
@@ -452,6 +507,12 @@ export default function DiscoveryTab() {
               </p>
             )}
 
+            {resultView === "map" && (
+              <PlacesMap places={mapPlaces} legend={BUCKET_PINS.map(({ label, color }) => ({ label, color }))} />
+            )}
+
+            {resultView === "list" && (
+            <>
             <div style={{ marginBottom: 20 }}>
               <p className="hint" style={{ marginBottom: 8, fontWeight: 600 }}>
                 🔥 Popular
@@ -508,6 +569,8 @@ export default function DiscoveryTab() {
                 onAddToPlanning={addToPlanning}
               />
             </div>
+            </>
+            )}
           </div>
         )}
       </div>
