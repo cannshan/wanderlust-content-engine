@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import MonthlySpend from "./MonthlySpend";
 
 const initialCaptionForm = { platform: "", stats: "", tier: "baseline", why: "", caption: "" };
 
@@ -252,6 +253,14 @@ export default function ProfileTab({ active }) {
   return (
     <div className="layout">
       <div className="main">
+        {/* Moved here from the app header - useful to check now and then,
+            but not the first thing anyone should see when opening the app. */}
+        <div className="card profile-usage">
+          <h3 style={{ marginTop: 0 }}>Usage</h3>
+          <p className="hint">What the app's AI features have cost - tap for the breakdown by feature.</p>
+          <MonthlySpend />
+        </div>
+
         <div className="card">
           <h3 style={{ marginTop: 0 }}>Custom instructions</h3>
           <p className="hint">Instructions the app follows on every generation.</p>

@@ -2023,3 +2023,69 @@ body::before {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* The spend meter's home in the Profile tab - in normal flow there, not
+   pinned to a corner the way it was in the header. Still the containing
+   block for its own breakdown dropdown. */
+.profile-usage .monthly-spend {
+  position: relative;
+  left: auto;
+  bottom: auto;
+  font-size: 13px;
+}
+.profile-usage { margin-bottom: 16px; }
+
+/* ---- Bottom tab bar (phones) - see TAB_GROUPS in page.js ---- */
+
+.bottom-nav { display: none; }
+
+@media (max-width: 700px) {
+  .bottom-nav {
+    display: flex;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    /* Above page content and the map, below modals/lightboxes (100). */
+    z-index: 50;
+    background: var(--bg-raised);
+    border-top: 1px solid var(--line);
+    box-shadow: 0 -6px 18px rgba(30,43,46,.06);
+    /* Clears the iPhone home indicator (viewportFit: "cover" in layout.js). */
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+  }
+
+  .bottom-nav-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    background: none;
+    border: 0;
+    padding: 4px 0;
+    color: var(--ink-faint);
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .bottom-nav-btn svg {
+    padding: 3px 14px;
+    width: 50px;
+    height: 28px;
+    border-radius: 999px;
+    transition: background .15s;
+  }
+
+  .bottom-nav-btn.active { color: var(--accent); }
+  .bottom-nav-btn.active svg { background: var(--accent-soft); }
+
+  /* Room for the bar, so the last card on a page isn't hidden behind it. */
+  .shell { padding-bottom: calc(88px + env(safe-area-inset-bottom)); }
+
+  /* Only the current group's tabs in the top row - two or three, which
+     fit without the sideways scrolling the full row needed. */
+  .top-tabs { justify-content: center; }
+  .top-tabs .tab-btn.other-group { display: none; }
+  .top-tabs.single-tab-group { display: none; }
+}
