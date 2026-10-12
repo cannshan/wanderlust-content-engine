@@ -21,9 +21,9 @@ const PlacesMap = dynamic(() => import("./PlacesMap"), {
 });
 
 const BUCKET_PINS = [
-  { bucket: "popular", label: "🔥 Popular", color: "var(--wine)" },
-  { bucket: "interesting", label: "✨ Interesting", color: "var(--amber)" },
-  { bucket: "hidden", label: "💎 Hidden gems", color: "var(--forest)" },
+  { bucket: "popular", label: "🔥 Popular", color: "var(--pin-teal)" },
+  { bucket: "interesting", label: "✨ Interesting", color: "var(--pin-sunset)" },
+  { bucket: "hidden", label: "💎 Hidden gems", color: "var(--pin-ocean)" },
 ];
 
 // A Google Maps search link rather than trying to have the model cite an

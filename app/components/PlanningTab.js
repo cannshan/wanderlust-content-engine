@@ -19,8 +19,8 @@ const PlacesMap = dynamic(() => import("./PlacesMap"), {
 });
 
 const PLAN_PINS = {
-  scheduled: { label: "📅 Has a date", color: "var(--wine)" },
-  unscheduled: { label: "No date yet", color: "var(--forest)" },
+  scheduled: { label: "📅 Has a date", color: "var(--pin-teal)" },
+  unscheduled: { label: "No date yet", color: "var(--pin-ocean)" },
 };
 
 // Items added from the Planning search bar store "Search: <what was

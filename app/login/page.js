@@ -43,7 +43,11 @@ function LoginForm() {
 
   return (
     <div className="login-shell">
-      <h1 className="login-wordmark">Wander HQ</h1>
+      <h1 className="login-wordmark">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/brand/wordmark.png" alt="Wine Wilderness Wanderlust" width={1022} height={205} className="wordmark-img" />
+        <span className="login-subtitle">Wander HQ</span>
+      </h1>
       <form onSubmit={onSubmit} className="card">
         {error && <div className="error-banner">{error}</div>}
         <div className="field">

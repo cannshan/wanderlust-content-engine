@@ -138,7 +138,7 @@ export default function MonthlySpend() {
     const weekTotal = data.totalCostUsd ?? 0;
     const weekPercent = Math.min(100, (weekTotal / WEEKLY_SPEND_LIMIT_USD) * 100);
     const weekBarColor =
-      weekTotal >= WEEKLY_SPEND_LIMIT_USD ? "var(--bad)" : weekPercent >= 50 ? "var(--amber)" : "var(--forest)";
+      weekTotal >= WEEKLY_SPEND_LIMIT_USD ? "var(--bad)" : weekPercent >= 50 ? "var(--sunset)" : "var(--ocean)";
     return (
       <div className="monthly-spend">
         <button
@@ -202,10 +202,10 @@ export default function MonthlySpend() {
   const shown = source === "all" ? totals.all : source === "local" ? totals.local : totals.remote;
   const percent = Math.min(100, ((shown || 0) / CURRENT_TIER_CAP_USD) * 100);
   // Matches the current tier's cap in lib/budget.js (not yet enforced,
-  // see ENFORCE_BUDGET there) - amber once more than half spent, red once
+  // see ENFORCE_BUDGET there) - orange once more than half spent, red once
   // the cap itself is reached, so this reads as an early warning, not
   // just a number.
-  const barColor = shown >= CURRENT_TIER_CAP_USD ? "var(--bad)" : percent >= 50 ? "var(--amber)" : "var(--forest)";
+  const barColor = shown >= CURRENT_TIER_CAP_USD ? "var(--bad)" : percent >= 50 ? "var(--sunset)" : "var(--ocean)";
   const activeSource = SOURCES.find((s) => s.key === source);
 
   return (

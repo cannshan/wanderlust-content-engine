@@ -1,39 +1,58 @@
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,500&family=Work+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap');
 
+/* Matched to winewildernesswanderlust.com: its signature teal
+   (#5CC4C4, the logo and header band) on a clean off-white, Montserrat
+   throughout, and the real logo artwork as the wordmark (public/brand/).
+   The site's teal is too light to read as text or to carry white button
+   text (2:1 on white), so --accent is a deeper shade of the same teal
+   (5.1:1) and the bright original is --brand-teal, used only for
+   decoration - bands, underlines, pins, focus rings. --ocean and
+   --sunset are the secondary colors (the site's deep-sea blues and its
+   sunset hero photos). --on-accent is the text color that sits on an
+   --accent fill, which flips in dark mode where --accent turns light. */
 :root {
-  --bg: #F4F3EE;
+  --bg: #F4F8F8;
   --bg-raised: #FFFFFF;
-  --ink: #22252A;
-  --ink-soft: #5B5F56;
-  --ink-faint: #8A8D82;
-  --line: #DEDBD0;
-  --wine: #7A2E3A;
-  --wine-soft: #F2E1E4;
-  --forest: #33513F;
-  --forest-soft: #E1EBE2;
-  --amber: #A66A16;
-  --amber-soft: #F5E6CB;
-  --bad: #8A2F2F;
-  --bad-soft: #F4E2E0;
-  --shadow: 0 1px 2px rgba(34,37,42,.06), 0 6px 20px rgba(34,37,42,.05);
+  --ink: #1E2B2E;
+  --ink-soft: #4F6266;
+  --ink-faint: #7D8F93;
+  --line: #D6E5E5;
+  --brand-teal: #5CC4C4;
+  --accent: #1F7A75;
+  --accent-soft: #E1F3F2;
+  --on-accent: #FFFFFF;
+  --ocean: #2F5D8A;
+  --ocean-soft: #E3ECF6;
+  --sunset: #A8522B;
+  --sunset-soft: #FBE9DE;
+  --bad: #9B2C2C;
+  --bad-soft: #F8E3E1;
+  --shadow: 0 1px 2px rgba(30,43,46,.06), 0 6px 20px rgba(30,43,46,.06);
+  /* Map pins sit on the light map tiles in both themes, so they keep the
+     light palette's colors - deliberately not redefined in dark mode. */
+  --pin-teal: #1F7A75;
+  --pin-sunset: #A8522B;
+  --pin-ocean: #2F5D8A;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #1A1C19;
-    --bg-raised: #232520;
-    --ink: #ECE9E1;
-    --ink-soft: #AFAC9F;
-    --ink-faint: #7C7A6E;
-    --line: #38392F;
-    --wine: #E39BA4;
-    --wine-soft: #3A2226;
-    --forest: #93C0A4;
-    --forest-soft: #1F2C22;
-    --amber: #E3A94E;
-    --amber-soft: #3A2C15;
-    --bad: #E1918F;
-    --bad-soft: #3A2426;
+    --bg: #111A1C;
+    --bg-raised: #192427;
+    --ink: #E6EEEE;
+    --ink-soft: #A7B7B9;
+    --ink-faint: #7C8D90;
+    --line: #2A393C;
+    --brand-teal: #5CC4C4;
+    --accent: #7FD6D2;
+    --accent-soft: #163536;
+    --on-accent: #0D2626;
+    --ocean: #8FB3E0;
+    --ocean-soft: #1A2A3B;
+    --sunset: #E9A07A;
+    --sunset-soft: #3A2519;
+    --bad: #E79A97;
+    --bad-soft: #3A2224;
     --shadow: 0 1px 2px rgba(0,0,0,.3), 0 6px 24px rgba(0,0,0,.35);
   }
 }
@@ -43,7 +62,7 @@
 html, body {
   background: var(--bg);
   color: var(--ink);
-  font-family: 'Work Sans', ui-sans-serif, system-ui, sans-serif;
+  font-family: 'Montserrat', ui-sans-serif, system-ui, sans-serif;
   margin: 0;
   line-height: 1.5;
   /* Defensive baseline - the page itself should never scroll
@@ -67,13 +86,16 @@ html, body {
 body.no-scroll { overflow: hidden; }
 
 h1, h2, h3 {
-  font-family: 'Fraunces', Georgia, serif;
-  font-weight: 500;
+  font-family: 'Montserrat', ui-sans-serif, system-ui, sans-serif;
+  font-weight: 600;
+  letter-spacing: -.01em;
   margin: 0;
   text-wrap: balance;
 }
 
-.mono { font-family: 'IBM Plex Mono', ui-monospace, monospace; }
+/* Numbers that should line up (spend figures, costs) - was a monospace
+   font; tabular digits keep the alignment without the code-editor look. */
+.mono { font-variant-numeric: tabular-nums; }
 
 button {
   font-family: inherit;
@@ -101,7 +123,7 @@ input[type="checkbox"] {
   flex-shrink: 0;
   padding: 0;
   border-radius: 4px;
-  accent-color: var(--wine);
+  accent-color: var(--accent);
 }
 
 /* Drops the native up/down spinner on every cost field (the Planning
@@ -119,7 +141,7 @@ input[type="number"] {
 }
 
 input:focus, select:focus, textarea:focus, button:focus-visible {
-  outline: 2px solid var(--wine);
+  outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
 
@@ -254,8 +276,8 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 }
 
 .saved-item.active {
-  border-color: var(--wine);
-  background: var(--wine-soft);
+  border-color: var(--accent);
+  background: var(--accent-soft);
 }
 
 /* The content block owns the card's full width; Categorize/x are lifted
@@ -349,7 +371,8 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   background: transparent;
   border: none;
   color: var(--ink-faint);
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: inherit;
+  font-weight: 600;
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: .03em;
@@ -358,7 +381,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   white-space: nowrap;
 }
 
-.saved-item-categorize:hover { color: var(--wine); }
+.saved-item-categorize:hover { color: var(--accent); }
 
 .saved-item-idea {
   font-size: 13px;
@@ -394,7 +417,8 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 }
 
 .saved-chip {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: inherit;
+  font-weight: 600;
   font-size: 10px;
   color: var(--ink-soft);
   background: var(--bg-raised);
@@ -455,7 +479,8 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 }
 
 .planning-calendar-weekday {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: inherit;
+  font-weight: 600;
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: .04em;
@@ -481,8 +506,8 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 }
 
 .planning-calendar-cell.today {
-  border-color: var(--wine);
-  background: var(--wine-soft);
+  border-color: var(--accent);
+  background: var(--accent-soft);
 }
 
 /* Shown while a dragged card is over this cell, so dropping it somewhere
@@ -490,8 +515,8 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
    purpose, "here's where this lands" reads the same whichever put it
    there. */
 .planning-calendar-cell.drag-over {
-  border-color: var(--wine);
-  background: var(--wine-soft);
+  border-color: var(--accent);
+  background: var(--accent-soft);
 }
 
 .planning-calendar-daynum-row {
@@ -502,27 +527,29 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 }
 
 .planning-calendar-daynum {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: inherit;
+  font-weight: 600;
   font-size: 11px;
   color: var(--ink-faint);
 }
 
 /* The Trip Calendar's per-day total (see costByDate in
-   PlanningCalendar.js) - amber like the cost estimate chip it's summed
+   PlanningCalendar.js) - sunset-orange like the cost estimate chip it's summed
    from, so the two visually read as the same kind of number. */
 .planning-calendar-day-cost {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: inherit;
+  font-weight: 600;
   font-size: 10px;
   font-weight: 600;
-  color: var(--amber);
+  color: var(--sunset);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .planning-calendar-pill {
-  background: var(--wine-soft);
-  color: var(--wine);
+  background: var(--accent-soft);
+  color: var(--accent);
   border: none;
   border-radius: 5px;
   padding: 2px 6px;
@@ -637,7 +664,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   opacity: .45;
 }
 
-.planning-calendar-pill-remove:hover { opacity: 1; color: var(--wine); }
+.planning-calendar-pill-remove:hover { opacity: 1; color: var(--accent); }
 
 @media (max-width: 640px) {
   .planning-calendar-cell { min-height: 50px; }
@@ -646,8 +673,8 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 }
 
 .category-chip {
-  background: var(--forest-soft);
-  color: var(--forest);
+  background: var(--ocean-soft);
+  color: var(--ocean);
   border-color: transparent;
 }
 
@@ -659,7 +686,8 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 }
 
 .category-filter-btn {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: inherit;
+  font-weight: 600;
   font-size: 11px;
   color: var(--ink-soft);
   background: var(--bg);
@@ -669,12 +697,12 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   cursor: pointer;
 }
 
-.category-filter-btn:hover { border-color: var(--wine); }
+.category-filter-btn:hover { border-color: var(--accent); }
 
 .category-filter-btn.active {
-  border-color: var(--wine);
-  background: var(--wine-soft);
-  color: var(--wine);
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 
 .category-picker {
@@ -691,7 +719,8 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 }
 
 .category-chip-btn {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: inherit;
+  font-weight: 600;
   font-size: 11px;
   color: var(--ink-soft);
   background: var(--bg);
@@ -701,12 +730,12 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   cursor: pointer;
 }
 
-.category-chip-btn:hover { border-color: var(--wine); }
+.category-chip-btn:hover { border-color: var(--accent); }
 
 .category-chip-btn.active {
-  border-color: var(--forest);
-  background: var(--forest-soft);
-  color: var(--forest);
+  border-color: var(--ocean);
+  background: var(--ocean-soft);
+  color: var(--ocean);
 }
 
 .category-picker-new {
@@ -745,7 +774,29 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   margin-bottom: 18px;
 }
 
-.topbar h1 { font-size: 24px; color: var(--wine); }
+.topbar h1 { font-size: 24px; color: var(--accent); line-height: 0; }
+
+/* The logo image - transparent background, so it sits on either theme. */
+.wordmark-img {
+  display: block;
+  width: min(440px, 100%);
+  height: auto;
+  margin: 0 auto;
+}
+
+/* The solid teal band across the top of winewildernesswanderlust.com.
+   Fixed and out of flow, so it can't add a scrollbar to the desktop
+   layout's exact 100vh shell. */
+body::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 5px;
+  background: var(--brand-teal);
+  z-index: 60;
+}
 
 /* Mirrors .monthly-spend's positioning on the opposite corner - that one
    is localhost-only, this one is for everyone, so they need to coexist
@@ -762,7 +813,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   font-size: 12px;
 }
 
-.signout-btn:hover { border-color: var(--wine); color: var(--wine); }
+.signout-btn:hover { border-color: var(--accent); color: var(--accent); }
 
 /* Pinned to the topbar's top-left corner (the topbar itself is
    position: relative - see .topbar above). This position: absolute also
@@ -776,7 +827,8 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   position: absolute;
   left: 0;
   bottom: 2px;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: inherit;
+  font-weight: 600;
   font-size: 12px;
   color: var(--ink-soft);
 }
@@ -823,7 +875,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   }
 }
 
-.monthly-spend strong { color: var(--wine); }
+.monthly-spend strong { color: var(--accent); }
 
 .monthly-spend-bar {
   width: 110px;
@@ -879,11 +931,12 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 }
 
 .topbar .eyebrow {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: inherit;
+  font-weight: 600;
   font-size: 11px;
   letter-spacing: .05em;
   text-transform: uppercase;
-  color: var(--wine);
+  color: var(--accent);
   margin: 0 0 4px;
 }
 
@@ -899,7 +952,8 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 
 .field label {
   display: block;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: inherit;
+  font-weight: 600;
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: .04em;
@@ -945,11 +999,11 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   cursor: pointer;
 }
 
-.goal-option:hover { border-color: var(--wine); }
+.goal-option:hover { border-color: var(--accent); }
 
 .goal-option.active {
-  border-color: var(--wine);
-  background: var(--wine-soft);
+  border-color: var(--accent);
+  background: var(--accent-soft);
 }
 
 .goal-title {
@@ -974,8 +1028,8 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 }
 
 .btn-primary {
-  background: var(--wine);
-  color: #fff;
+  background: var(--accent);
+  color: var(--on-accent);
   border: none;
   border-radius: 8px;
   padding: 10px 20px;
@@ -995,7 +1049,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   padding: 6px 11px;
   font-size: 12.5px;
 }
-.btn-ghost:hover { border-color: var(--wine); color: var(--wine); }
+.btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
 
 /* A form's main button with the tab's Clear button beside it. */
 .form-actions { display: flex; gap: 8px; }
@@ -1022,18 +1076,19 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 }
 
 .badge {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: inherit;
+  font-weight: 600;
   font-size: 10.5px;
   text-transform: uppercase;
   letter-spacing: .04em;
   padding: 3px 8px;
   border-radius: 5px;
 }
-.badge.live { background: var(--forest-soft); color: var(--forest); }
-.badge.estimated { background: var(--amber-soft); color: var(--amber); }
+.badge.live { background: var(--ocean-soft); color: var(--ocean); }
+.badge.estimated { background: var(--sunset-soft); color: var(--sunset); }
 
 .strategy-box {
-  background: var(--forest-soft);
+  background: var(--ocean-soft);
   border-radius: 8px;
   padding: 12px 14px;
   margin-bottom: 14px;
@@ -1046,18 +1101,19 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 }
 
 .warning-box {
-  background: var(--amber-soft);
+  background: var(--sunset-soft);
   border-radius: 8px;
   padding: 12px 14px;
   margin-bottom: 16px;
 }
 
 .warning-title {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: inherit;
+  font-weight: 600;
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: .04em;
-  color: var(--amber);
+  color: var(--sunset);
   display: block;
   margin-bottom: 4px;
 }
@@ -1114,7 +1170,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 .tab-btn {
   background: transparent;
   border: none;
-  border-bottom: 2px solid transparent;
+  border-bottom: 3px solid transparent;
   padding: 8px 4px;
   margin-bottom: -1px;
   font-size: 14px;
@@ -1123,21 +1179,21 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 }
 
 .tab-btn.active {
-  color: var(--wine);
-  border-bottom-color: var(--wine);
+  color: var(--accent);
+  border-bottom-color: var(--brand-teal);
 }
 
 .tab-btn:hover { color: var(--ink); }
 
 /* .tab-btn.active and .tab-btn:hover have equal specificity, so without
    this, hovering the CURRENTLY ACTIVE tab let :hover's color win by
-   source order alone - the active tab briefly lost its wine highlight
-   (color only; the border-bottom underline stayed wine, since :hover
+   source order alone - the active tab briefly lost its teal highlight
+   (color only; the border-bottom underline stayed teal, since :hover
    never touches it) right as the mouse landed on it, while an inactive
    neighbor showed its own hover cleanly. Looked like "hovering directly
    over it doesn't highlight, but next to it does." Higher specificity
-   here keeps the active tab wine-colored regardless of hover. */
-.tab-btn.active:hover { color: var(--wine); }
+   here keeps the active tab teal regardless of hover. */
+.tab-btn.active:hover { color: var(--accent); }
 
 .description-box {
   white-space: pre-wrap;
@@ -1154,7 +1210,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
    of choices rather than three separate boxes: same surface as
    .description-box so a title still looks like copyable output, but
    full-width, clickable, and tight against each other, with the selected
-   one carrying the same wine border/tint the other pick-one controls in
+   one carrying the same teal border/tint the other pick-one controls in
    this app use (.goal-option.active, .category-chip-btn.active). Left
    text-align because a title is read, not labelled. */
 .title-option {
@@ -1173,11 +1229,11 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   cursor: pointer;
 }
 
-.title-option:hover { border-color: var(--wine); }
+.title-option:hover { border-color: var(--accent); }
 
 .title-option.active {
-  border-color: var(--wine);
-  background: var(--wine-soft);
+  border-color: var(--accent);
+  background: var(--accent-soft);
 }
 
 /* The set as a whole still owes the copy button below it the same gap a
@@ -1187,10 +1243,11 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 .chipset { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
 
 .chip {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: inherit;
+  font-weight: 600;
   font-size: 13px;
-  background: var(--wine-soft);
-  color: var(--wine);
+  background: var(--accent-soft);
+  color: var(--accent);
   padding: 5px 10px;
   border-radius: 100px;
 }
@@ -1218,9 +1275,19 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 }
 
 .login-wordmark {
-  font-size: 34px;
-  color: var(--wine);
-  margin: 0 0 16px;
+  width: 100%;
+  margin: 0 0 20px;
+  text-align: center;
+}
+
+.login-subtitle {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
 }
 
 /* The wordmark above reads centered, but form fields inside the
@@ -1240,11 +1307,12 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 }
 
 .video-length-pill {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: inherit;
+  font-weight: 600;
   font-size: 15px;
   font-weight: 500;
-  color: var(--wine);
-  background: var(--wine-soft);
+  color: var(--accent);
+  background: var(--accent-soft);
   padding: 5px 12px;
   border-radius: 100px;
 }
@@ -1279,13 +1347,13 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
    several different layout contexts (.place-info, a plain research-result
    div, etc.) that don't all share one common ancestor. */
 .place-link { color: inherit; text-decoration: none; }
-.place-link:hover { color: var(--wine); text-decoration: underline; }
+.place-link:hover { color: var(--accent); text-decoration: underline; }
 
 .place-save-btn { flex-shrink: 0; }
 
 .cost-chip {
-  background: var(--amber-soft);
-  color: var(--amber);
+  background: var(--sunset-soft);
+  color: var(--sunset);
   border-color: transparent;
   white-space: nowrap;
 }
@@ -1334,7 +1402,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   flex-shrink: 0;
 }
 
-.cost-edit-save:hover { border-color: var(--forest); color: var(--forest); }
+.cost-edit-save:hover { border-color: var(--ocean); color: var(--ocean); }
 .cost-edit-cancel:hover { border-color: var(--bad); color: var(--bad); }
 
 .place-suggest-row {
@@ -1372,7 +1440,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   background: var(--bg-raised);
 }
 
-.style-link-card:hover { border-color: var(--wine); color: var(--wine); }
+.style-link-card:hover { border-color: var(--accent); color: var(--accent); }
 
 .style-link-card img {
   width: 100%;
@@ -1428,7 +1496,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 }
 
 .style-lightbox-caption a { color: var(--ink-faint); white-space: nowrap; }
-.style-lightbox-caption a:hover { color: var(--wine); }
+.style-lightbox-caption a:hover { color: var(--accent); }
 
 .style-lightbox-close {
   position: absolute;
@@ -1445,7 +1513,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   cursor: pointer;
 }
 
-.style-lightbox-close:hover { border-color: var(--wine); color: var(--wine); }
+.style-lightbox-close:hover { border-color: var(--accent); color: var(--accent); }
 
 /* Editing a calendar note - same overlay/centered-card pattern as the
    style lightbox above, own classnames since this one holds a form
@@ -1552,7 +1620,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 
 .food-item-price {
   font-weight: 500;
-  color: var(--wine);
+  color: var(--accent);
 }
 
 .food-item-source {
@@ -1566,7 +1634,8 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 .food-item-save-btn {
   flex-shrink: 0;
   margin-left: auto;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: inherit;
+  font-weight: 600;
   font-size: 10.5px;
   color: var(--ink-soft);
   background: var(--bg);
@@ -1576,11 +1645,11 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   cursor: pointer;
 }
 
-.food-item-save-btn:hover:not(:disabled) { border-color: var(--wine); color: var(--wine); }
+.food-item-save-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
 .food-item-save-btn:disabled { color: var(--ink-faint); cursor: default; }
 
 .cover-suggestion {
-  font-family: 'Work Sans', sans-serif;
+  font-family: inherit;
   font-weight: 600;
   font-size: 17px;
   color: var(--ink);
@@ -1633,8 +1702,8 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   margin-top: 12px;
   padding: 12px 14px;
   border-radius: 8px;
-  background: var(--forest-soft);
-  color: var(--forest);
+  background: var(--ocean-soft);
+  color: var(--ocean);
   font-size: 13.5px;
 }
 
@@ -1829,7 +1898,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   color: var(--ink-soft);
 }
 .view-toggle button + button { border-left: 1px solid var(--line); }
-.view-toggle button.active { background: var(--wine-soft); color: var(--wine); font-weight: 600; }
+.view-toggle button.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
 .view-toggle button:disabled { opacity: .5; cursor: default; }
 
 .map-legend {
@@ -1899,23 +1968,23 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 
 /* Popup sits on the light map tiles in both themes, so it keeps the
    light palette's ink rather than following dark mode. */
-.map-popup { font-family: 'Work Sans', ui-sans-serif, system-ui, sans-serif; color: #22252A; }
+.map-popup { font-family: 'Montserrat', ui-sans-serif, system-ui, sans-serif; color: #1E2B2E; }
 .map-popup strong { font-size: 14px; display: block; }
-.map-popup-area { font-size: 12px; color: #5B5F56; margin-top: 2px; }
+.map-popup-area { font-size: 12px; color: #4F6266; margin-top: 2px; }
 .map-popup-approx {
   font-size: 11.5px;
-  color: #A66A16;
-  background: #F5E6CB;
+  color: #A8522B;
+  background: #FBE9DE;
   border-radius: 6px;
   padding: 4px 7px;
   margin-top: 6px;
 }
 .map-popup p { font-size: 12.5px; line-height: 1.45; margin: 6px 0 8px; }
 .map-popup-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-.map-popup-actions a { font-size: 12.5px; color: #7A2E3A; font-weight: 600; text-decoration: none; }
+.map-popup-actions a { font-size: 12.5px; color: #1F7A75; font-weight: 600; text-decoration: none; }
 .map-popup-actions button {
   font-size: 12.5px;
-  background: #7A2E3A;
+  background: #1F7A75;
   color: #fff;
   border: 0;
   border-radius: 6px;
@@ -1945,7 +2014,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   background: var(--line);
 }
 .source-post-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.source-post-label { font-size: 12.5px; font-weight: 600; color: var(--wine); }
+.source-post-label { font-size: 12.5px; font-weight: 600; color: var(--accent); }
 .source-post-caption {
   font-size: 13px;
   color: var(--ink-soft);

@@ -79,7 +79,12 @@ export default function Shell() {
           Sign out
         </button>
         <div className="topbar-title">
-          <h1>Wine Wilderness Wanderlust</h1>
+          {/* Her real logo artwork (from winewildernesswanderlust.com), not
+              a font imitating it - see public/brand/. */}
+          <h1>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/brand/wordmark.png" alt="Wine Wilderness Wanderlust" width={1022} height={205} className="wordmark-img" />
+          </h1>
         </div>
         <MonthlySpend />
       </div>

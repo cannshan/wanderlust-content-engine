@@ -284,7 +284,7 @@ export default function PlacesMap({ places, legend }) {
     for (const p of placed) {
       const coord = coords[p.key];
       const { lat, lon } = coord;
-      const color = p.color || "var(--wine)";
+      const color = p.color || "var(--pin-teal)";
       const el = document.createElement("button");
       el.type = "button";
       // Approximate pins are hollow - same color, so the category still
