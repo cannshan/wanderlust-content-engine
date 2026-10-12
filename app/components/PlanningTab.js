@@ -82,7 +82,8 @@ function fileToBase64(file) {
   });
 }
 
-export default function PlanningTab() {
+// active: whether this tab is on screen - see the same prop on DiscoveryTab.
+export default function PlanningTab({ active = true }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   // Same "click a sidebar card to see it in full" pattern as ContentTab's
@@ -186,23 +187,26 @@ export default function PlanningTab() {
 
   // Card photos from each place's own website (see usePlaceImages) -
   // saved places and the current search results alike.
-  const placeImages = usePlaceImages([
-    ...items.map((i) => ({
-      key: i.id,
-      name: i.name,
-      area: shortArea(i.area),
-      near: mapNear(i),
-      address: i.address,
-      website: i.website,
-    })),
-    ...(searchResults || []).map((p) => ({
-      key: `search::${p.name}`,
-      name: p.name,
-      area: p.area,
-      address: p.address,
-      website: p.website,
-    })),
-  ]);
+  const placeImages = usePlaceImages(
+    [
+      ...items.map((i) => ({
+        key: i.id,
+        name: i.name,
+        area: shortArea(i.area),
+        near: mapNear(i),
+        address: i.address,
+        website: i.website,
+      })),
+      ...(searchResults || []).map((p) => ({
+        key: `search::${p.name}`,
+        name: p.name,
+        area: p.area,
+        address: p.address,
+        website: p.website,
+      })),
+    ],
+    { enabled: active }
+  );
 
   const [showMap, setShowMap] = useState(false);
   // The map follows the sidebar's category filter, so "Maine trip" shows

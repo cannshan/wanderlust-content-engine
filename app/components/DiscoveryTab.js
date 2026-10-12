@@ -113,7 +113,9 @@ function PlaceList({
   );
 }
 
-export default function DiscoveryTab() {
+// active: whether this tab is the one on screen - only used to hold off
+// photo lookups while it isn't (see usePlaceImages).
+export default function DiscoveryTab({ active = true }) {
   const [location, setLocation] = useState("");
   const [categories, setCategories] = useState(["all"]);
   // Optional theme/occasion ("christmas things", "date night spots") -
@@ -179,7 +181,8 @@ export default function DiscoveryTab() {
             website: p.website,
           }))
         )
-      : []
+      : [],
+    { enabled: active }
   );
 
   // Every place in the current result, colored by bucket, for the map.

@@ -58,7 +58,8 @@ function mapsSearchUrl(name, area) {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
 }
 
-export default function CollabSearchTab() {
+// active: whether this tab is on screen - see the same prop on DiscoveryTab.
+export default function CollabSearchTab({ active = true }) {
   const [location, setLocation] = useState("");
   const [types, setTypes] = useState(["all"]);
   const [focus, setFocus] = useState("");
@@ -257,7 +258,8 @@ export default function CollabSearchTab() {
   const leads = result?.leads || [];
   // A photo for each lead from its own website (free - see usePlaceImages).
   const leadImages = usePlaceImages(
-    leads.map((l) => ({ key: `lead::${l.name}`, name: l.name, area: l.town, near: resultLocation, website: l.website }))
+    leads.map((l) => ({ key: `lead::${l.name}`, name: l.name, area: l.town, near: resultLocation, website: l.website })),
+    { enabled: active }
   );
 
   return (

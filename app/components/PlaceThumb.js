@@ -21,6 +21,18 @@ const CATEGORY_EMOJI = [
   [/event|festival|show|concert|season/i, "🎉"],
 ];
 
+// Photos go through /api/img: shrunk to card size once, then cached for a
+// year by the browser and Vercel's CDN - instead of every card pulling a
+// multi-megabyte original straight from the business's site (some of
+// which only allow caching for minutes, so they re-downloaded on every
+// return to a card). Two fixed widths: 2x the on-screen size of each.
+const THUMB_WIDTH = 160;
+const BANNER_WIDTH = 720;
+
+function sized(imageUrl, width) {
+  return `/api/img?w=${width}&u=${encodeURIComponent(imageUrl)}`;
+}
+
 export function categoryEmoji(...hints) {
   const text = hints.filter(Boolean).join(" ");
   return CATEGORY_EMOJI.find(([re]) => re.test(text))?.[1] || "📍";
@@ -37,11 +49,11 @@ export default function PlaceThumb({ imageUrl, hints = [], variant = "thumb", al
     if (!showImage) return null;
     return (
       <div className="place-banner">
-        {/* Third-party site images, shown as-is - next/image would need
-            every possible domain allow-listed. no-referrer because some
-            sites refuse hotlinked images that carry one. */}
+        {/* A plain <img> of our own resized copy (see sized() above) -
+            next/image would need every possible source domain
+            allow-listed. Eager: the banner is the first thing on the card. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={imageUrl} alt={alt} loading="lazy" referrerPolicy="no-referrer" onError={() => setFailed(true)} />
+        <img src={sized(imageUrl, BANNER_WIDTH)} alt={alt} onError={() => setFailed(true)} />
       </div>
     );
   }
@@ -50,7 +62,7 @@ export default function PlaceThumb({ imageUrl, hints = [], variant = "thumb", al
     <div className="place-thumb" aria-hidden={showImage ? undefined : "true"}>
       {showImage ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={imageUrl} alt={alt} loading="lazy" referrerPolicy="no-referrer" onError={() => setFailed(true)} />
+        <img src={sized(imageUrl, THUMB_WIDTH)} alt={alt} loading="lazy" onError={() => setFailed(true)} />
       ) : (
         <span>{categoryEmoji(...hints)}</span>
       )}

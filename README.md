@@ -201,7 +201,7 @@ alter table planning_items add column if not exists website text;
 
 Without it, everything still saves - Planning places just don't get photos.
 
-Optional cache table (the map works without it, just with more first-time lookups):
+Cache table - optional, but strongly recommended once the app is deployed. Without it, lookups are only cached in memory, and Vercel starts fresh server instances often, so map pins and card photos get looked up again (at OpenStreetMap's one-per-second pace) far more than they need to. It also remembers which photo each place resolved to (the `extra` column):
 
 ```sql
 create table geocode_cache (
@@ -210,11 +210,13 @@ create table geocode_cache (
   lon double precision,
   bounding_box jsonb,
   place_type text,
+  extra jsonb,
   created_at timestamptz not null default now()
 );
 
--- if you created it before place_type existed:
+-- if you created it before place_type/extra existed:
 -- alter table geocode_cache add column if not exists place_type text;
+-- alter table geocode_cache add column if not exists extra jsonb;
 ```
 
 ## Reel Voiceover tab

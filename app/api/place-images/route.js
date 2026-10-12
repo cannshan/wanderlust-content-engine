@@ -38,20 +38,18 @@ export async function POST(req) {
     return NextResponse.json({ error: `Send between 1 and ${MAX_PLACES} named places.` }, { status: 400 });
   }
 
-  const images = [];
-  // One at a time: geocoding is rate-limited anyway, and website fetches
-  // are quick.
-  for (const place of places) {
-    const key = JSON.stringify(place);
-    const hit = cache.get(key);
-    if (hit && Date.now() - hit.at < CACHE_TTL_MS) {
-      images.push(hit.image);
-      continue;
-    }
-    const image = await imageForPlace(place).catch(() => null);
-    cache.set(key, { image, at: Date.now() });
-    images.push(image);
-  }
+  // All at once: website and Wikipedia fetches overlap, and any
+  // OpenStreetMap lookups queue themselves at one per second anyway.
+  const images = await Promise.all(
+    places.map(async (place) => {
+      const key = JSON.stringify(place);
+      const hit = cache.get(key);
+      if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.image;
+      const image = await imageForPlace(place).catch(() => null);
+      cache.set(key, { image, at: Date.now() });
+      return image;
+    })
+  );
 
   return NextResponse.json({ images });
 }

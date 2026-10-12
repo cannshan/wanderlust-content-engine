@@ -191,13 +191,13 @@ export default function Shell() {
           <CalendarTab kind="content" active={activeTab === "content-calendar"} />
         </div>
         <div className="tab-panel" hidden={activeTab !== "discovery"}>
-          <DiscoveryTab />
+          <DiscoveryTab active={activeTab === "discovery"} />
         </div>
         <div className="tab-panel" hidden={activeTab !== "collab-search"}>
-          <CollabSearchTab />
+          <CollabSearchTab active={activeTab === "collab-search"} />
         </div>
         <div className="tab-panel" hidden={activeTab !== "planning"}>
-          <PlanningTab />
+          <PlanningTab active={activeTab === "planning"} />
         </div>
         <div className="tab-panel" hidden={activeTab !== "trip-calendar"}>
           <CalendarTab kind="trip" active={activeTab === "trip-calendar"} />
