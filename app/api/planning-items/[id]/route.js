@@ -61,6 +61,9 @@ export async function PATCH(req, { params }) {
       updates.estimated_cost_usd = cost;
     }
   }
+  if ("address" in body) {
+    updates.address = typeof body.address === "string" ? body.address.trim().slice(0, 200) || null : null;
+  }
   if ("estimatedCostNote" in body) {
     updates.estimated_cost_note =
       typeof body.estimatedCostNote === "string" ? body.estimatedCostNote.trim().slice(0, 300) || null : null;

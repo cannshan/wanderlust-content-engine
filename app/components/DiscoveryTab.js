@@ -170,11 +170,42 @@ export default function DiscoveryTab() {
         name: place.name,
         area: place.area,
         near: resultLocation,
+        address: place.address || null,
         why: place.why,
         color,
+        // Saved into this result (and the saved search, if it is one), so
+        // reopening it doesn't search again.
+        onFindAddress: async () => {
+          const res = await fetch("/api/place-address", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              name: place.name,
+              area: place.area,
+              near: resultLocation,
+              savedSearchId: currentSavedSearchId,
+              bucket,
+            }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || "Couldn't look that up.");
+          if (data.address) {
+            const withAddress = (r) => ({
+              ...r,
+              [bucket]: (r[bucket] || []).map((p) => (p.name === place.name ? { ...p, address: data.address } : p)),
+            });
+            setResult((r) => (r ? withAddress(r) : r));
+            if (currentSavedSearchId) {
+              setSavedSearches((list) =>
+                list.map((s) => (s.id === currentSavedSearchId && s.results ? { ...s, results: withAddress(s.results) } : s))
+              );
+            }
+          }
+          return data.address;
+        },
       }))
     );
-  }, [result, resultLocation]);
+  }, [result, resultLocation, currentSavedSearchId]);
 
   useEffect(() => {
     loadSavedSearches();
@@ -316,6 +347,7 @@ export default function DiscoveryTab() {
           area: place.area || null,
           why: place.why || null,
           angle: place.angle || null,
+          address: place.address || null,
           bucket,
           searchLocation: resultLocation,
           category: category || null,

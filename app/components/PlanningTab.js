@@ -194,8 +194,28 @@ export default function PlanningTab() {
           name: item.name,
           area: shortArea(item.area),
           near: mapNear(item),
+          address: item.address || null,
           why: item.why,
           color: pin.color,
+          // Saved onto the item server-side, so it's looked up only once.
+          onFindAddress: async () => {
+            const res = await fetch("/api/place-address", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({
+                name: item.name,
+                area: item.area,
+                near: mapNear(item),
+                planningItemId: item.id,
+              }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Couldn't look that up.");
+            if (data.address) {
+              setItems((list) => list.map((i) => (i.id === item.id ? { ...i, address: data.address } : i)));
+            }
+            return data.address;
+          },
           // The opened card renders below the map and search box - on a
           // phone that's off screen, so bring it into view.
           onOpen: () => {
@@ -337,6 +357,7 @@ export default function PlanningTab() {
         area: place.area || null,
         why: place.why || null,
         angle: place.angle || null,
+        address: place.address || null,
         bucket: null,
         searchLocation: `Search: ${searchQuery.trim()}`,
         category: category || null,
@@ -648,10 +669,16 @@ export default function PlanningTab() {
       <>
         <div className="place-row">
           <div className="place-info">
-            <a href={mapsSearchUrl(item.name, item.area)} target="_blank" rel="noopener noreferrer" className="place-link">
+            <a href={mapsSearchUrl(item.name, item.address || item.area)} target="_blank" rel="noopener noreferrer" className="place-link">
               <strong>{item.name}</strong>
             </a>
             {item.area ? ` (${item.area})` : ""}
+            {item.address && (
+              <>
+                <br />
+                <span className="saved-item-meta">📍 {item.address}</span>
+              </>
+            )}
             {item.why && (
               <>
                 <br />

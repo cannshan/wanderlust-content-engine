@@ -56,20 +56,34 @@ export async function POST(req, { params }) {
     return NextResponse.json({ error: "Couldn't put together research for this place. Try again." }, { status: 500 });
   }
 
-  const { data, error } = await supabase
-    .from("planning_items")
-    .update({
-      research,
-      researched_at: new Date().toISOString(),
-      // Menu links persist on the item (like a saved idea's own menu
-      // links) so they don't need retyping next time - the uploaded
-      // file itself never does, same "only ever used inline for the one
-      // request that reads it" rule as everywhere else in this app.
-      menu_links: trimmedMenuLinks.length ? trimmedMenuLinks : null,
-    })
-    .eq("id", id)
-    .select()
-    .single();
+  const { address, ...researchFields } = research;
+  const updates = {
+    research: researchFields,
+    researched_at: new Date().toISOString(),
+    // Menu links persist on the item (like a saved idea's own menu
+    // links) so they don't need retyping next time - the uploaded
+    // file itself never does, same "only ever used inline for the one
+    // request that reads it" rule as everywhere else in this app.
+    menu_links: trimmedMenuLinks.length ? trimmedMenuLinks : null,
+  };
+  // A street address the research's searches turned up pins the item
+  // exactly on the Planning map. Only fills a gap - never overwrites one
+  // already saved (e.g. from "Find exact spot").
+  if (address) updates.address = address;
+
+  let query = supabase.from("planning_items").update(updates).eq("id", id);
+  if (address) query = query.is("address", null);
+  let { data, error } = await query.select().maybeSingle();
+  // Already had an address (so the filtered update matched nothing), or
+  // the address column doesn't exist yet (README) - save the research
+  // without it.
+  if (!error && !data && address) {
+    delete updates.address;
+    ({ data, error } = await supabase.from("planning_items").update(updates).eq("id", id).select().single());
+  } else if (error && address && /address/i.test(error.message)) {
+    delete updates.address;
+    ({ data, error } = await supabase.from("planning_items").update(updates).eq("id", id).select().single());
+  }
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ item: data });

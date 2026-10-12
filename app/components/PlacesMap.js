@@ -27,7 +27,7 @@ const DEFAULT_CENTER = [-71.5, 43.5];
 const DEFAULT_ZOOM = 5;
 
 function cacheKey(p) {
-  return `${CACHE_PREFIX}${p.name}|${p.area || ""}|${p.near || ""}`.toLowerCase();
+  return `${CACHE_PREFIX}${p.name}|${p.area || ""}|${p.near || ""}|${p.address || ""}`.toLowerCase();
 }
 
 // Per-browser cache on top of the server's own, so reopening a map is
@@ -82,7 +82,10 @@ function popupContent(place, coord) {
   if (coord.approximate) {
     const approx = document.createElement("div");
     approx.className = "map-popup-approx";
-    approx.textContent = `Approximate - pinned at ${coord.approxArea}, since the exact spot isn't on the free map yet.`;
+    approx.textContent =
+      coord.approxKind === "street"
+        ? `Approximate - pinned on its street (${coord.approxArea}); the exact building isn't on the free map.`
+        : `Approximate - pinned at ${coord.approxArea}, since the exact spot isn't on the free map yet.`;
     root.appendChild(approx);
   }
 
@@ -95,11 +98,33 @@ function popupContent(place, coord) {
   const actions = document.createElement("div");
   actions.className = "map-popup-actions";
   const link = document.createElement("a");
-  link.href = mapsSearchUrl(place.name, place.area);
+  link.href = mapsSearchUrl(place.name, place.address || place.area);
   link.target = "_blank";
   link.rel = "noopener noreferrer";
   link.textContent = "Google Maps ↗";
   actions.appendChild(link);
+
+  // Approximate pins can look up the place's street address (one paid
+  // search, a few cents) - the parent saves it, which re-pins the place.
+  if (coord.approximate && place.onFindAddress) {
+    const find = document.createElement("button");
+    find.type = "button";
+    find.textContent = "Find exact spot";
+    find.addEventListener("click", async () => {
+      find.disabled = true;
+      find.textContent = "Searching…";
+      let address = null;
+      try {
+        address = await place.onFindAddress();
+      } catch {
+        // Shown below, same as finding nothing.
+      }
+      // On success the pin is redrawn (closing this popup); this text
+      // only stays visible when nothing was found.
+      find.textContent = address ? "Found - updating…" : "No address found";
+    });
+    actions.appendChild(find);
+  }
 
   if (place.onOpen) {
     const open = document.createElement("button");
@@ -182,7 +207,11 @@ export default function PlacesMap({ places, legend }) {
 
   // Geocode whatever isn't cached yet, in small batches so pins appear as
   // they're found rather than all at once after a long wait.
-  const placesSignature = places.map((p) => p.key).join("\n");
+  // Includes each address, so a newly found one re-pins that place (the
+  // rest come straight from the cache).
+  const placesSignature = places.map((p) => `${p.key}|${p.address || ""}`).join("\n");
+  const keysSignature = places.map((p) => p.key).join("\n");
+  const lastKeysRef = useRef(null);
   useEffect(() => {
     let cancelled = false;
     const known = {};
@@ -193,7 +222,12 @@ export default function PlacesMap({ places, legend }) {
       else pending.push(p);
     }
     setCoords(known);
-    userMovedRef.current = false;
+    // A different set of places re-fits the view; the same places with
+    // one newly found address leave it where she was looking.
+    if (lastKeysRef.current !== keysSignature) {
+      userMovedRef.current = false;
+      lastKeysRef.current = keysSignature;
+    }
 
     (async () => {
       for (let i = 0; i < pending.length; i += GEOCODE_BATCH) {
@@ -204,7 +238,7 @@ export default function PlacesMap({ places, legend }) {
             method: "POST",
             headers: { "content-type": "application/json" },
             body: JSON.stringify({
-              places: batch.map((p) => ({ name: p.name, area: p.area, near: p.near })),
+              places: batch.map((p) => ({ name: p.name, area: p.area, near: p.near, address: p.address })),
             }),
           });
           if (res.ok) results = (await res.json()).results;

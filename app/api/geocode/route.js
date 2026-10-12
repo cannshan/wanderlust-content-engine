@@ -30,6 +30,7 @@ export async function POST(req) {
     name: String(p?.name || "").slice(0, 200),
     area: p?.area ? String(p.area).slice(0, 200) : null,
     near: p?.near ? String(p.near).slice(0, 200) : null,
+    address: p?.address ? String(p.address).slice(0, 200) : null,
   }));
   if (cleaned.some((p) => !p.name)) {
     return NextResponse.json({ error: "Every place needs a name." }, { status: 400 });

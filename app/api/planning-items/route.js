@@ -42,31 +42,37 @@ export async function POST(req) {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
-  const { name, placeCategory, area, why, angle, bucket, searchLocation, category } = body;
+  const { name, placeCategory, area, why, angle, bucket, searchLocation, category, address } = body;
 
   if (!name || !searchLocation) {
     return NextResponse.json({ error: "name and searchLocation are required." }, { status: 400 });
   }
 
-  const { data, error } = await supabase
-    .from("planning_items")
-    .insert({
-      name,
-      place_category: placeCategory || null,
-      area: area || null,
-      why: why || null,
-      angle: angle || null,
-      bucket: bucket || null,
-      search_location: searchLocation,
-      // The organizational category the user picks in the "Add to
-      // Planning" flow (or types fresh, right there) - same "create it by
-      // using it" model as saved_places' category, no separate categories
-      // table. Optional: left null lands the item as uncategorized, still
-      // assignable later via the Categorize button in the Planning tab.
-      category: category || null,
-    })
-    .select()
-    .single();
+  const row = {
+    name,
+    place_category: placeCategory || null,
+    area: area || null,
+    why: why || null,
+    angle: angle || null,
+    bucket: bucket || null,
+    search_location: searchLocation,
+    // The organizational category the user picks in the "Add to
+    // Planning" flow (or types fresh, right there) - same "create it by
+    // using it" model as saved_places' category, no separate categories
+    // table. Optional: left null lands the item as uncategorized, still
+    // assignable later via the Categorize button in the Planning tab.
+    category: category || null,
+    // The street address the search that found this place saw, if any -
+    // only used to pin it exactly on the Planning map (lib/geocode.js).
+    address: typeof address === "string" && address.trim() ? address.trim().slice(0, 200) : null,
+  };
+
+  let { data, error } = await supabase.from("planning_items").insert(row).select().single();
+  // Before the address column was added (README) - save the place anyway.
+  if (error && /address/i.test(error.message)) {
+    delete row.address;
+    ({ data, error } = await supabase.from("planning_items").insert(row).select().single());
+  }
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ item: data });
