@@ -25,6 +25,13 @@ const CACHE_PREFIX = "wwwGeo3:";
 // first pins land and the map fits to them.
 const DEFAULT_CENTER = [-71.5, 43.5];
 const DEFAULT_ZOOM = 5;
+// A coords value meaning the lookup itself didn't work (signed out,
+// network down, OpenStreetMap busy) - not "this place isn't on the map".
+const LOOKUP_FAILED = "failed";
+
+function isPinned(coord) {
+  return Boolean(coord) && coord !== LOOKUP_FAILED;
+}
 
 function cacheKey(p) {
   return `${CACHE_PREFIX}${p.name}|${p.area || ""}|${p.near || ""}|${p.address || ""}`.toLowerCase();
@@ -151,8 +158,12 @@ export default function PlacesMap({ places, legend }) {
   placesRef.current = places;
   const [mapReady, setMapReady] = useState(false);
   const [mapError, setMapError] = useState("");
-  // key -> { lat, lon } | null (couldn't be placed). Absent = still looking.
+  // key -> { lat, lon } | null (couldn't be placed) | LOOKUP_FAILED.
+  // Absent = still looking.
   const [coords, setCoords] = useState({});
+  // The login cookie is gone (cleared, or a different browser profile) -
+  // every lookup is refused, which must not read as "not on the map".
+  const [signedOut, setSignedOut] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -222,6 +233,7 @@ export default function PlacesMap({ places, legend }) {
       else pending.push(p);
     }
     setCoords(known);
+    setSignedOut(false);
     // A different set of places re-fits the view; the same places with
     // one newly found address leave it where she was looking.
     if (lastKeysRef.current !== keysSignature) {
@@ -233,6 +245,7 @@ export default function PlacesMap({ places, legend }) {
       for (let i = 0; i < pending.length; i += GEOCODE_BATCH) {
         const batch = pending.slice(i, i + GEOCODE_BATCH);
         let results = null;
+        let unauthorized = false;
         try {
           const res = await fetch("/api/geocode", {
             method: "POST",
@@ -242,18 +255,25 @@ export default function PlacesMap({ places, legend }) {
             }),
           });
           if (res.ok) results = (await res.json()).results;
+          else unauthorized = res.status === 401;
         } catch {
-          // Network failure - mark this batch unplaced (not cached, so a
-          // later open retries it).
+          // Network failure - this batch is marked failed below.
         }
         if (cancelled) return;
+        if (unauthorized) {
+          // The rest would be refused too - don't send them.
+          setSignedOut(true);
+          setCoords((c) => ({ ...c, ...Object.fromEntries(pending.slice(i).map((p) => [p.key, LOOKUP_FAILED])) }));
+          return;
+        }
         const found = {};
         batch.forEach((p, j) => {
-          const hit = results?.[j] ?? null;
-          // "error" = the lookup failed, not "not on the map" - shown as
-          // unplaced for now, but not remembered, so the next open retries.
-          found[p.key] = hit === "error" ? null : hit;
-          if (results && hit !== "error") writeCache(p, hit);
+          // No results at all (request failed) or "error" (the server's own
+          // lookup failed) = unknown, not "not on the map" - not
+          // remembered, so the next open retries.
+          const hit = results ? (results[j] ?? null) : "error";
+          found[p.key] = hit === "error" ? LOOKUP_FAILED : hit;
+          if (hit !== "error") writeCache(p, hit);
         });
         setCoords((c) => ({ ...c, ...found }));
       }
@@ -280,7 +300,7 @@ export default function PlacesMap({ places, legend }) {
     markersRef.current.forEach((m) => m.remove());
     markersRef.current = [];
 
-    const placed = places.filter((p) => coords[p.key]);
+    const placed = places.filter((p) => isPinned(coords[p.key]));
     for (const p of placed) {
       const coord = coords[p.key];
       const { lat, lon } = coord;
@@ -316,7 +336,8 @@ export default function PlacesMap({ places, legend }) {
 
   const lookingCount = places.filter((p) => coords[p.key] === undefined).length;
   const unplaced = places.filter((p) => coords[p.key] === null);
-  const anyApproximate = places.some((p) => coords[p.key]?.approximate);
+  const failedCount = places.filter((p) => coords[p.key] === LOOKUP_FAILED).length;
+  const anyApproximate = places.some((p) => isPinned(coords[p.key]) && coords[p.key].approximate);
 
   return (
     <div className="places-map">
@@ -346,6 +367,23 @@ export default function PlacesMap({ places, legend }) {
         )}
         {mapError && <div className="map-status map-status-error">{mapError}</div>}
       </div>
+
+      {signedOut ? (
+        <p className="hint map-unplaced map-status-error">
+          You&apos;ve been signed out, so the map can&apos;t look places up.{" "}
+          <a href="/login" className="place-link">
+            Sign in again
+          </a>
+          , then reopen the map.
+        </p>
+      ) : (
+        failedCount > 0 && (
+          <p className="hint map-unplaced">
+            Couldn&apos;t reach the map lookup for {failedCount === 1 ? "1 place" : `${failedCount} places`} just now -
+            switch to List and back to Map to try again.
+          </p>
+        )
+      )}
 
       {unplaced.length > 0 && (
         <p className="hint map-unplaced">
