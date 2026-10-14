@@ -201,6 +201,16 @@ alter table planning_items add column if not exists website text;
 
 Without it, everything still saves - Planning places just don't get photos.
 
+### Place links: Google Maps or Google search
+
+A place's name links to a Google Maps search when it's a venue (a restaurant, bar, museum, shop - something with its own map listing) and to a regular Google search for everything else: events, hikes, tours. Maps finds nothing useful for "Scary-oke" or a haunted trail; a web search finds the event page, dates and tickets. Each search labels its places with a `kind` (venue / event / outdoors / experience); results saved before that are guessed from the name and category (`lib/placeLinks.js`). Planning items keep the label in one more column:
+
+```sql
+alter table planning_items add column if not exists place_kind text;
+```
+
+Without it, Planning items still save and link - they just fall back to the guess.
+
 Cache table - optional, but strongly recommended once the app is deployed. Without it, lookups are only cached in memory, and Vercel starts fresh server instances often, so map pins and card photos get looked up again (at OpenStreetMap's one-per-second pace) far more than they need to. It also remembers which photo each place resolved to (the `extra` column):
 
 ```sql

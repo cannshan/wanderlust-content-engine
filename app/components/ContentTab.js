@@ -7,6 +7,7 @@ import { useCategorizedItems } from "../../lib/useCategorizedItems";
 import { useDraftAutosave, useWarnBeforeLeaving, confirmClear } from "../../lib/useDraftAutosave";
 import { CategoryFilterRow, CategorizePanel } from "./CategoryUI";
 import PlanningCalendar from "./PlanningCalendar";
+import { placeLink } from "../../lib/placeLinks";
 
 // Combined raw size cap across every uploaded menu photo/PDF (not per
 // file) - base64 encoding inflates size by ~33%, so 4MB raw becomes
@@ -16,15 +17,6 @@ const MAX_MENU_FILES_TOTAL_BYTES = 4 * 1024 * 1024;
 // A paper menu might need a front and back photo, or separate food/
 // drink shots - 3 is enough room for that without the request ballooning.
 const MAX_MENU_FILES = 3;
-
-// Same as DiscoveryTab's/PlanningTab's own version - a Google Maps search
-// link rather than a model-cited source URL the app never verifies. Only
-// ever passed a name here (nearby-ideas places carry DISTANCE, not AREA -
-// "~8 miles, 15 min drive" isn't useful appended to a maps query the way a
-// real town/neighborhood name is), which Maps resolves fine on its own.
-function mapsSearchUrl(name) {
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(name)}`;
-}
 
 // "Oct 15" for the sidebar's compact date chip - built from separate y/m/d
 // numbers rather than `new Date(item.planned_date)` directly, since that
@@ -1746,7 +1738,7 @@ export default function ContentTab() {
                   <ul className="shotlist">
                     {nearbyResult.viral.map((place, i) => (
                       <li key={i}>
-                        <a href={mapsSearchUrl(place.name)} target="_blank" rel="noopener noreferrer" className="place-link"><strong>{place.name}</strong></a>
+                        <a href={placeLink({ ...place, near: result.formSnapshot.location }).url} target="_blank" rel="noopener noreferrer" className="place-link"><strong>{place.name}</strong></a>
                         {place.category ? ` — ${place.category}` : ""}
                         {place.distance ? ` (${place.distance})` : ""}
                         <br />
@@ -1772,7 +1764,7 @@ export default function ContentTab() {
                   <ul className="shotlist">
                     {nearbyResult.hidden.map((place, i) => (
                       <li key={i}>
-                        <a href={mapsSearchUrl(place.name)} target="_blank" rel="noopener noreferrer" className="place-link"><strong>{place.name}</strong></a>
+                        <a href={placeLink({ ...place, near: result.formSnapshot.location }).url} target="_blank" rel="noopener noreferrer" className="place-link"><strong>{place.name}</strong></a>
                         {place.category ? ` — ${place.category}` : ""}
                         {place.distance ? ` (${place.distance})` : ""}
                         <br />

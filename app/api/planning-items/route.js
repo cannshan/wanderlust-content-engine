@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { PLACE_KINDS } from "../../../lib/placeLinks";
 import { getSupabase } from "../../../lib/supabase";
 
 // One planning item = one place moved over from a Discovery result via
@@ -42,7 +43,7 @@ export async function POST(req) {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
-  const { name, placeCategory, area, why, angle, bucket, searchLocation, category, address, website } = body;
+  const { name, placeCategory, placeKind, area, why, angle, bucket, searchLocation, category, address, website } = body;
 
   if (!name || !searchLocation) {
     return NextResponse.json({ error: "name and searchLocation are required." }, { status: 400 });
@@ -51,6 +52,10 @@ export async function POST(req) {
   const row = {
     name,
     place_category: placeCategory || null,
+    // venue/event/outdoors/experience, from the search that found it -
+    // decides whether its name links to Google Maps or a Google search
+    // (lib/placeLinks.js).
+    place_kind: PLACE_KINDS.includes(placeKind) ? placeKind : null,
     area: area || null,
     why: why || null,
     angle: angle || null,
@@ -71,9 +76,9 @@ export async function POST(req) {
   };
 
   let { data, error } = await supabase.from("planning_items").insert(row).select().single();
-  // Before the address/website columns were added (README) - drop
-  // whichever one the database doesn't have and save the place anyway.
-  for (const column of ["website", "address"]) {
+  // Before the address/website/place_kind columns were added (README) -
+  // drop whichever one the database doesn't have and save the place anyway.
+  for (const column of ["place_kind", "website", "address"]) {
     if (!error || !new RegExp(column, "i").test(error.message)) continue;
     delete row[column];
     ({ data, error } = await supabase.from("planning_items").insert(row).select().single());

@@ -8,6 +8,7 @@ import { CategoryFilterRow, CategorizePanel } from "./CategoryUI";
 import { AddToPlanningPicker } from "./PlanningPicker";
 import PlaceThumb from "./PlaceThumb";
 import { usePlaceImages } from "../../lib/usePlaceImages";
+import { placeLink } from "../../lib/placeLinks";
 
 // Browser-only autosave (see useDraftAutosave below). Bump the version if
 // the saved shape ever changes in a way an older draft can't be read into.
@@ -55,12 +56,16 @@ function formatShortDate(isoDate) {
   return new Date(y, m - 1, d).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-// Same as DiscoveryTab's own version - a Google Maps search link rather
-// than a model-cited source URL the app never verifies. Works for any
-// real place name, no risk of a wrong or invented link.
-function mapsSearchUrl(name, area) {
-  const query = [name, area].filter(Boolean).join(", ");
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+// A Planning item's Maps or Google search link (lib/placeLinks.js).
+function itemLink(item) {
+  return placeLink({
+    name: item.name,
+    kind: item.place_kind,
+    category: item.place_category,
+    area: shortArea(item.area),
+    address: item.address,
+    near: mapNear(item),
+  });
 }
 
 // Same caps/helper as ContentTab's own restaurant-menu upload - kept
@@ -221,6 +226,8 @@ export default function PlanningTab({ active = true }) {
           area: shortArea(item.area),
           near: mapNear(item),
           address: item.address || null,
+          kind: item.place_kind || null,
+          category: item.place_category || null,
           why: item.why,
           color: pin.color,
           // Saved onto the item server-side, so it's looked up only once.
@@ -382,6 +389,7 @@ export default function PlanningTab({ active = true }) {
       body: JSON.stringify({
         name: place.name,
         placeCategory: place.category || null,
+        placeKind: place.kind || null,
         area: place.area || null,
         why: place.why || null,
         angle: place.angle || null,
@@ -699,7 +707,7 @@ export default function PlanningTab({ active = true }) {
         <PlaceThumb variant="banner" imageUrl={placeImages[item.id]} alt={item.name} />
         <div className="place-row">
           <div className="place-info">
-            <a href={mapsSearchUrl(item.name, item.address || item.area)} target="_blank" rel="noopener noreferrer" className="place-link">
+            <a href={itemLink(item).url} target="_blank" rel="noopener noreferrer" className="place-link">
               <strong>{item.name}</strong>
             </a>
             {item.area ? ` (${item.area})` : ""}
@@ -978,7 +986,7 @@ export default function PlanningTab({ active = true }) {
                 </p>
                 {r.nearbyWorthGoing.map((p, pi) => (
                   <div key={pi} style={{ marginBottom: 8 }}>
-                    <a href={mapsSearchUrl(p.name, p.area)} target="_blank" rel="noopener noreferrer" className="place-link">
+                    <a href={placeLink(p).url} target="_blank" rel="noopener noreferrer" className="place-link">
                       <strong>{p.name}</strong>
                     </a>
                     {p.area && <span className="food-item-source"> · {p.area}</span>}
@@ -1156,7 +1164,7 @@ export default function PlanningTab({ active = true }) {
                     <div className="place-row">
                       <PlaceThumb imageUrl={placeImages[`search::${place.name}`]} hints={[place.category, place.name]} />
                       <div className="place-info">
-                        <a href={mapsSearchUrl(place.name, place.area)} target="_blank" rel="noopener noreferrer" className="place-link">
+                        <a href={placeLink(place).url} target="_blank" rel="noopener noreferrer" className="place-link">
                           <strong>{place.name}</strong>
                         </a>
                         {place.area ? ` (${place.area})` : ""}
@@ -1263,7 +1271,7 @@ export default function PlanningTab({ active = true }) {
                 >
                   <div className="saved-item-idea">
                     <a
-                      href={mapsSearchUrl(item.name, item.area)}
+                      href={itemLink(item).url}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="place-link"

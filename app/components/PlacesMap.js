@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import "maplibre-gl/dist/maplibre-gl.css";
+import { placeLink } from "../../lib/placeLinks";
 
 // Shared map view for Discovery results and the Planning list. Free all
 // the way down: OpenFreeMap tiles (no key, no usage limits, commercial use
@@ -9,7 +10,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 // /api/geocode for coordinates (OpenStreetMap's Nominatim, also free).
 // No Claude call anywhere in here.
 //
-// places: [{ key, name, area, near, why, color, onOpen? }]
+// places: [{ key, name, area, near, address?, kind?, category?, why, color, onOpen? }]
 // legend: [{ label, color }] (optional)
 
 const STYLE_URL = "https://tiles.openfreemap.org/styles/positron";
@@ -63,11 +64,6 @@ function writeCache(p, value) {
   }
 }
 
-function mapsSearchUrl(name, area) {
-  const query = [name, area].filter(Boolean).join(", ");
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
-}
-
 // Built with DOM calls rather than an HTML string: name/why come from
 // model output and must never be parsed as markup.
 // coord: { lat, lon, approximate?, approxArea? } from /api/geocode.
@@ -105,10 +101,11 @@ function popupContent(place, coord) {
   const actions = document.createElement("div");
   actions.className = "map-popup-actions";
   const link = document.createElement("a");
-  link.href = mapsSearchUrl(place.name, place.address || place.area);
+  const { url, label } = placeLink(place);
+  link.href = url;
   link.target = "_blank";
   link.rel = "noopener noreferrer";
-  link.textContent = "Google Maps ↗";
+  link.textContent = `${label} ↗`;
   actions.appendChild(link);
 
   // Approximate pins can look up the place's street address (one paid
@@ -388,11 +385,11 @@ export default function PlacesMap({ places, legend }) {
       {unplaced.length > 0 && (
         <p className="hint map-unplaced">
           Couldn&apos;t find {unplaced.length === 1 ? "this one" : `these ${unplaced.length}`} on the map - tap to
-          check in Google Maps:{" "}
+          look them up:{" "}
           {unplaced.map((p, i) => (
             <span key={p.key}>
               {i > 0 && ", "}
-              <a href={mapsSearchUrl(p.name, p.area)} target="_blank" rel="noopener noreferrer" className="place-link">
+              <a href={placeLink(p).url} target="_blank" rel="noopener noreferrer" className="place-link">
                 {p.name}
               </a>
             </span>

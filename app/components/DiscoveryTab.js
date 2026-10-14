@@ -9,6 +9,7 @@ import { CategoryFilterRow, CategorizePanel } from "./CategoryUI";
 import { AddToPlanningPicker } from "./PlanningPicker";
 import PlaceThumb from "./PlaceThumb";
 import { usePlaceImages } from "../../lib/usePlaceImages";
+import { placeLink } from "../../lib/placeLinks";
 
 // Browser-only autosave (see useDraftAutosave below). Bump the version if
 // the saved shape ever changes in a way an older draft can't be read into.
@@ -27,18 +28,6 @@ const BUCKET_PINS = [
   { bucket: "interesting", label: "✨ Interesting", color: "var(--pin-sunset)" },
   { bucket: "hidden", label: "💎 Hidden gems", color: "var(--pin-ocean)" },
 ];
-
-// A Google Maps search link rather than trying to have the model cite an
-// exact source URL for each place - that would mean trusting a citation
-// the app never verifies (unlike suggestForPlace's style/food images,
-// which go through a real fetch-and-check step before ever being shown).
-// A maps search always resolves to something real and useful for "let me
-// quickly check this place out" - photos, reviews, hours, address - for
-// any real place name, with no risk of a wrong or invented link.
-function mapsSearchUrl(name, area) {
-  const query = [name, area].filter(Boolean).join(", ");
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
-}
 
 // "Oct 15" for a saved search's date chip - same y/m/d-based build as
 // formatShortDate() in PlanningTab.js/ContentTab.js, for the same
@@ -77,7 +66,7 @@ function PlaceList({
             <div className="place-row">
               <PlaceThumb imageUrl={images[`${bucket}::${place.name}`]} hints={[place.category, place.name]} />
               <div className="place-info">
-                <a href={mapsSearchUrl(place.name, place.address || place.area)} target="_blank" rel="noopener noreferrer" className="place-link">
+                <a href={placeLink({ ...place, near: resultLocation }).url} target="_blank" rel="noopener noreferrer" className="place-link">
                   <strong>{place.name}</strong>
                 </a>
                 {place.category ? ` — ${place.category}` : ""}
@@ -197,6 +186,8 @@ export default function DiscoveryTab({ active = true }) {
         area: place.area,
         near: resultLocation,
         address: place.address || null,
+        kind: place.kind || null,
+        category: place.category || null,
         why: place.why,
         color,
         // Saved into this result (and the saved search, if it is one), so
@@ -371,6 +362,7 @@ export default function DiscoveryTab({ active = true }) {
         body: JSON.stringify({
           name: place.name,
           placeCategory: place.category || null,
+          placeKind: place.kind || null,
           area: place.area || null,
           why: place.why || null,
           angle: place.angle || null,
