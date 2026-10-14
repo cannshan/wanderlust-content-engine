@@ -30,8 +30,10 @@ function LoginForm() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ password }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Login failed.");
+      // A non-JSON reply (proxy error, timeout) would otherwise surface as
+      // a raw "Unexpected token" message.
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data) throw new Error(data?.error || "Couldn't sign in just now. Try again.");
       router.push(params.get("next") || "/");
       router.refresh();
     } catch (err) {
@@ -49,7 +51,7 @@ function LoginForm() {
         <span className="login-subtitle">Wander HQ</span>
       </h1>
       <form onSubmit={onSubmit} className="card">
-        {error && <div className="error-banner">{error}</div>}
+        {error && <div className="error-banner" role="alert">{error}</div>}
         <div className="field">
           <label htmlFor="password">Password</label>
           <input

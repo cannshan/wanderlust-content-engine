@@ -791,7 +791,7 @@ export default function PlanningTab({ active = true }) {
           </button>
         </div>
         {editingCostId === item.id && costEditError && (
-          <p className="hint" style={{ color: "var(--bad)", marginTop: -8, marginBottom: 8 }}>
+          <p className="hint error" role="alert" style={{ marginTop: -8, marginBottom: 8 }}>
             {costEditError}
           </p>
         )}
@@ -894,7 +894,7 @@ export default function PlanningTab({ active = true }) {
                 </div>
               )}
               {menuFileError && (
-                <p className="hint" style={{ marginTop: 6, color: "var(--bad)" }}>
+                <p className="hint error" role="alert" style={{ marginTop: 6 }}>
                   {menuFileError}
                 </p>
               )}
@@ -919,17 +919,17 @@ export default function PlanningTab({ active = true }) {
         </div>
 
         {state.error && (
-          <p className="hint" style={{ color: "var(--bad)", marginTop: 6 }}>
+          <p className="hint error" role="alert" style={{ marginTop: 6 }}>
             {state.error}
           </p>
         )}
         {style.error && (
-          <p className="hint" style={{ color: "var(--bad)", marginTop: 6 }}>
+          <p className="hint error" role="alert" style={{ marginTop: 6 }}>
             {style.error}
           </p>
         )}
         {cost.error && (
-          <p className="hint" style={{ color: "var(--bad)", marginTop: 6 }}>
+          <p className="hint error" role="alert" style={{ marginTop: 6 }}>
             {cost.error}
           </p>
         )}
@@ -1063,7 +1063,12 @@ export default function PlanningTab({ active = true }) {
           </div>
         )}
 
-        <form onSubmit={onSearchSubmit} className="card">
+        {/* Only the search row is the <form>. The results below hold their
+            own inputs (focus, menu links, dates), and inside the form an
+            Enter in any of them submitted it - re-running the paid search
+            and wiping the results. */}
+        <div className="card">
+        <form onSubmit={onSearchSubmit}>
           <h3 style={{ margin: 0, marginBottom: 16 }}>Planning</h3>
           <div className="field" style={{ marginBottom: 0 }}>
             <label htmlFor="planningSearch">Search for a place, or paste a TikTok/Instagram link</label>
@@ -1105,8 +1110,9 @@ export default function PlanningTab({ active = true }) {
               </button>
             </div>
           </div>
+        </form>
 
-          {searchError && <div className="error-banner" style={{ marginTop: 12 }}>{searchError}</div>}
+          {searchError && <div className="error-banner" role="alert" style={{ marginTop: 12 }}>{searchError}</div>}
 
           {searchSourcePost && (
             <a
@@ -1223,7 +1229,7 @@ export default function PlanningTab({ active = true }) {
               })}
             </ul>
           )}
-        </form>
+        </div>
 
         {selected && !selectedShownInResults && (
           <div className="card" id="planning-selected">{renderPlannedCard(selected)}</div>

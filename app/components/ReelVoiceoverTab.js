@@ -302,7 +302,10 @@ export default function ReelVoiceoverTab() {
           platform,
         }),
       });
-      const data = await res.json();
+      // A non-JSON body means the platform killed the request (most
+      // likely its timeout) before our own code could answer.
+      const data = await res.json().catch(() => null);
+      if (!data) throw new Error("Request timed out or failed before completing. Try again.");
       if (!res.ok) throw new Error(data.error || "Couldn't write a voiceover for this reel.");
       setResult({ ...data, input: { idea: idea.trim(), location: location.trim(), notes: notes.trim(), platform } });
     } catch (err) {
@@ -385,7 +388,8 @@ export default function ReelVoiceoverTab() {
           platform,
         }),
       });
-      const planData = await planRes.json();
+      const planData = await planRes.json().catch(() => null);
+      if (!planData) throw new Error("Request timed out or failed before completing. Try again.");
       if (!planRes.ok) throw new Error(planData.error || "Couldn't put together an edit from these clips.");
 
       setAssembleProgress({ phase: "trimming", done: 0, total: planData.editPlan.length });
@@ -452,7 +456,7 @@ export default function ReelVoiceoverTab() {
                   Processed entirely in your browser — the video file itself is never uploaded, only a handful of
                   still frames pulled from it.
                 </p>
-                {fileError && <p className="hint" style={{ marginTop: 6, color: "var(--bad)" }}>{fileError}</p>}
+                {fileError && <p className="hint error" role="alert" style={{ marginTop: 6 }}>{fileError}</p>}
               </div>
 
               {videoUrl && (
@@ -473,7 +477,7 @@ export default function ReelVoiceoverTab() {
                 Up to {MAX_CLIPS} clips. Processing time depends on your device and how much footage you give it —
                 with a lot of clips (or long ones), this can take several minutes.
               </p>
-              {clipsError && <p className="hint" style={{ marginTop: 6, color: "var(--bad)" }}>{clipsError}</p>}
+              {clipsError && <p className="hint error" role="alert" style={{ marginTop: 6 }}>{clipsError}</p>}
 
               {clips.length > 0 && (
                 <ul className="shotlist" style={{ marginTop: 10 }}>
@@ -546,8 +550,8 @@ export default function ReelVoiceoverTab() {
             </div>
           </div>
 
-          {mode === "single" && error && <div className="error-banner">{error}</div>}
-          {mode === "assemble" && assembleError && <div className="error-banner">{assembleError}</div>}
+          {mode === "single" && error && <div className="error-banner" role="alert">{error}</div>}
+          {mode === "assemble" && assembleError && <div className="error-banner" role="alert">{assembleError}</div>}
 
           <div className="form-actions">
             {mode === "single" ? (
@@ -587,7 +591,7 @@ export default function ReelVoiceoverTab() {
                 {result.savedId ? "Saved" : savingVoiceover ? "Saving…" : "Save this voiceover"}
               </button>
             </div>
-            {saveError && <div className="error-banner">{saveError}</div>}
+            {saveError && <div className="error-banner" role="alert">{saveError}</div>}
 
             {result.sceneSummary?.length > 0 && (
               <div className="field" style={{ marginBottom: 20 }}>
@@ -626,7 +630,7 @@ export default function ReelVoiceoverTab() {
                 {assembleResult.savedId ? "Saved" : savingVoiceover ? "Saving…" : "Save this voiceover"}
               </button>
             </div>
-            {saveError && <div className="error-banner">{saveError}</div>}
+            {saveError && <div className="error-banner" role="alert">{saveError}</div>}
 
             <div className="field" style={{ marginBottom: 20 }}>
               <label>Assembled reel (~{Math.round(assembleResult.totalDurationSeconds)}s)</label>

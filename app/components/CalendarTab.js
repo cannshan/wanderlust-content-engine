@@ -413,7 +413,7 @@ export default function CalendarTab({ kind, active }) {
         </form>
       )}
 
-      {error && <p className="hint" style={{ color: "var(--bad)", marginBottom: 10 }}>{error}</p>}
+      {error && <p className="hint error" role="alert" style={{ marginBottom: 10 }}>{error}</p>}
 
       <PlanningCalendar
         items={items}
@@ -451,7 +451,9 @@ export default function CalendarTab({ kind, active }) {
             <form
               onSubmit={saveEditNote}
               onKeyDown={(e) => {
-                if (e.key !== "Enter") return;
+                // Fields only - Enter on Delete/Cancel must do what that
+                // button says, not save.
+                if (e.key !== "Enter" || e.target.tagName !== "INPUT") return;
                 e.preventDefault();
                 if (editSaving || !editingNote.title.trim() || !editingNote.plannedDate) return;
                 saveEditNote(e);
@@ -486,7 +488,7 @@ export default function CalendarTab({ kind, active }) {
                 <label htmlFor="editNoteCompleted">Mark as completed</label>
               </div>
 
-              {editError && <p className="hint" style={{ color: "var(--bad)" }}>{editError}</p>}
+              {editError && <p className="hint error" role="alert">{editError}</p>}
 
               <div className="calendar-edit-actions">
                 <button
@@ -525,7 +527,9 @@ export default function CalendarTab({ kind, active }) {
             <form
               onSubmit={savePlanningItemEdit}
               onKeyDown={(e) => {
-                if (e.key !== "Enter") return;
+                // Fields only - Enter on Delete/Cancel must do what that
+                // button says, not save.
+                if (e.key !== "Enter" || e.target.tagName !== "INPUT") return;
                 e.preventDefault();
                 if (planningEditSaving || !editingPlanningItem.name.trim() || !editingPlanningItem.plannedDate) return;
                 savePlanningItemEdit(e);
@@ -563,7 +567,7 @@ export default function CalendarTab({ kind, active }) {
                 />
               </div>
 
-              {planningEditError && <p className="hint" style={{ color: "var(--bad)" }}>{planningEditError}</p>}
+              {planningEditError && <p className="hint error" role="alert">{planningEditError}</p>}
 
               <div className="calendar-edit-actions">
                 <button

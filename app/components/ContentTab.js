@@ -1188,7 +1188,7 @@ export default function ContentTab() {
           <label htmlFor="reelVideo">Already filmed it? Upload the finished reel (optional)</label>
           <input id="reelVideo" ref={reelVideoInputRef} type="file" accept="video/*" onChange={handleReelVideoChange} />
           {reelVideoFileError && (
-            <p className="hint" style={{ marginTop: 6, color: "var(--bad)" }}>{reelVideoFileError}</p>
+            <p className="hint error" role="alert" style={{ marginTop: 6 }}>{reelVideoFileError}</p>
           )}
           {reelVideoUrl && (
             <video src={reelVideoUrl} controls style={{ width: "100%", borderRadius: 8, maxHeight: 300, marginTop: 10 }} />
@@ -1282,7 +1282,7 @@ export default function ContentTab() {
                 </div>
               )}
               {menuFileError && (
-                <p className="hint" style={{ marginTop: 6, color: "var(--bad)" }}>{menuFileError}</p>
+                <p className="hint error" role="alert" style={{ marginTop: 6 }}>{menuFileError}</p>
               )}
             </div>
           </>
@@ -1320,7 +1320,7 @@ export default function ContentTab() {
           />
         </div>
 
-        {error && <div className="error-banner">{error}</div>}
+        {error && <div className="error-banner" role="alert">{error}</div>}
 
         <div className="form-actions">
           <button className="btn-primary" disabled={loading || platformsToGenerate.length === 0}>
@@ -1387,7 +1387,7 @@ export default function ContentTab() {
           </div>
 
           {!platform && result.errors?.[activeTab] && (
-            <div className="error-banner">
+            <div className="error-banner" role="alert">
               {PLATFORM_LABELS[activeTab]} generation failed: {result.errors[activeTab]}
             </div>
           )}
@@ -1475,7 +1475,7 @@ export default function ContentTab() {
                     </button>
                   )}
                 </div>
-                {tweakError && <div className="error-banner" style={{ marginTop: 10 }}>{tweakError}</div>}
+                {tweakError && <div className="error-banner" role="alert" style={{ marginTop: 10 }}>{tweakError}</div>}
 
                 {pendingLesson && (
                   <div className="lesson-box">
@@ -1504,7 +1504,7 @@ export default function ContentTab() {
                           </button>
                         </div>
                         {lessonState === "error" && (
-                          <p className="hint" style={{ color: "var(--bad)" }}>
+                          <p className="hint error" role="alert">
                             Couldn't save it — add it by hand on the Profile tab.
                           </p>
                         )}
@@ -1625,7 +1625,7 @@ export default function ContentTab() {
             <button type="button" className="btn-ghost" onClick={findWhoToTag} disabled={tagLoading}>
               {tagLoading ? "Finding accounts…" : result.tagSuggestions ? "Check again" : "🏷️ Who to tag in this post"}
             </button>
-            {tagError && <div className="error-banner" style={{ marginTop: 12 }}>{tagError}</div>}
+            {tagError && <div className="error-banner" role="alert" style={{ marginTop: 12 }}>{tagError}</div>}
 
             {result.tagSuggestions && (
               <div style={{ marginTop: 16 }}>
@@ -1718,7 +1718,7 @@ export default function ContentTab() {
             </button>
 
             {nearbyError && (
-              <div className="error-banner" style={{ marginTop: 12 }}>
+              <div className="error-banner" role="alert" style={{ marginTop: 12 }}>
                 {nearbyError}
               </div>
             )}

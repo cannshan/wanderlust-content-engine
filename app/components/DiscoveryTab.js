@@ -511,7 +511,7 @@ export default function DiscoveryTab({ active = true }) {
             </div>
           </div>
 
-          {error && <div className="error-banner">{error}</div>}
+          {error && <div className="error-banner" role="alert">{error}</div>}
 
           <div className="form-actions">
             <button className="btn-primary" disabled={loading || !location.trim()}>

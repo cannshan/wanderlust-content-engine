@@ -464,7 +464,7 @@ export default function StoriesTab() {
               It gets split into a few short Instagram Story clips, each with one short line of text on it.
               Everything happens in your browser — only a handful of still frames are sent to plan the cuts.
             </p>
-            {fileError && <p className="hint" style={{ marginTop: 6, color: "var(--bad)" }}>{fileError}</p>}
+            {fileError && <p className="hint error" role="alert" style={{ marginTop: 6 }}>{fileError}</p>}
             {videoUrl && (
               <video src={videoUrl} controls style={{ width: "100%", borderRadius: 8, maxHeight: 360, marginTop: 10 }} />
             )}
@@ -501,7 +501,7 @@ export default function StoriesTab() {
             />
           </div>
 
-          {error && <div className="error-banner">{error}</div>}
+          {error && <div className="error-banner" role="alert">{error}</div>}
 
           <div className="form-actions">
             <button className="btn-primary" disabled={!videoFile || loading}>
@@ -600,7 +600,7 @@ export default function StoriesTab() {
 
             {plan.slides.length === 0 && <p className="hint">Every story was removed — plan again to start over.</p>}
 
-            {renderError && <div className="error-banner" style={{ marginTop: 14 }}>{renderError}</div>}
+            {renderError && <div className="error-banner" role="alert" style={{ marginTop: 14 }}>{renderError}</div>}
 
             {plan.slides.length > 0 && (
               <div style={{ marginTop: 16 }}>

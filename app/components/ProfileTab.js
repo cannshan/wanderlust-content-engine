@@ -30,6 +30,8 @@ export default function ProfileTab({ active }) {
   // Trello-style drag reorder - id (not index) of the row currently being
   // dragged, or null when nothing is. See handleInstructionDragOver below.
   const [draggedInstructionId, setDraggedInstructionId] = useState(null);
+  // Long instructions show 3 lines until opened, same idea as captions.
+  const [expandedInstructionId, setExpandedInstructionId] = useState(null);
 
   const [captions, setCaptions] = useState([]);
   const [captionsLoading, setCaptionsLoading] = useState(true);
@@ -321,7 +323,25 @@ export default function ProfileTab({ active }) {
                       </div>
                     ) : (
                       <div className="saved-item-main" style={{ cursor: "default" }}>
-                        {i.text}
+                        {(() => {
+                          const isLong = i.text.length > 240 || i.text.split("\n").length > 3;
+                          const isOpen = expandedInstructionId === i.id;
+                          return (
+                            <>
+                              <div className={`instruction-text ${isLong && !isOpen ? "clamped" : ""}`}>{i.text}</div>
+                              {isLong && (
+                                <button
+                                  type="button"
+                                  className="instruction-toggle"
+                                  aria-expanded={isOpen}
+                                  onClick={() => setExpandedInstructionId(isOpen ? null : i.id)}
+                                >
+                                  {isOpen ? "Show less" : "Show all"}
+                                </button>
+                              )}
+                            </>
+                          );
+                        })()}
                       </div>
                     )}
                     <div className="saved-item-actions">

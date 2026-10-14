@@ -15,7 +15,9 @@
   --bg-raised: #FFFFFF;
   --ink: #1E2B2E;
   --ink-soft: #4F6266;
-  --ink-faint: #7D8F93;
+  /* 4.8:1 on --bg - the small uppercase labels and meta lines use this,
+     and the old #7D8F93 was 3.1:1, below the 4.5:1 readable minimum. */
+  --ink-faint: #5E7175;
   --line: #D6E5E5;
   --brand-teal: #5CC4C4;
   --accent: #1F7A75;
@@ -28,6 +30,7 @@
   --bad: #9B2C2C;
   --bad-soft: #F8E3E1;
   --shadow: 0 1px 2px rgba(30,43,46,.06), 0 6px 20px rgba(30,43,46,.06);
+  --shadow-up: 0 -6px 18px rgba(30,43,46,.06);
   /* Map pins sit on the light map tiles in both themes, so they keep the
      light palette's colors - deliberately not redefined in dark mode. */
   --pin-teal: #1F7A75;
@@ -54,6 +57,7 @@
     --bad: #E79A97;
     --bad-soft: #3A2224;
     --shadow: 0 1px 2px rgba(0,0,0,.3), 0 6px 24px rgba(0,0,0,.35);
+    --shadow-up: 0 -6px 18px rgba(0,0,0,.35);
   }
 }
 
@@ -193,6 +197,12 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   border-radius: 12px;
   box-shadow: var(--shadow);
   padding: 18px;
+}
+
+/* Stacked under .main on narrower screens, the fixed 320px left it
+   narrower than the cards above it. */
+@media (max-width: 900px) {
+  .sidebar { width: auto; }
 }
 
 /* Below this width, everything above stays in its natural, mobile-first
@@ -362,6 +372,33 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   padding: 10px 10px;
 }
 
+/* Profile's custom instructions - keeps the line breaks they were written
+   with (they used to collapse into one paragraph, separators and all),
+   and holds long ones to 3 lines until "Show all". */
+.instruction-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.instruction-text.clamped {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+}
+
+.instruction-toggle {
+  background: transparent;
+  border: none;
+  padding: 4px 0 0;
+  color: var(--accent);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.instruction-toggle:hover { text-decoration: underline; }
+
 .reorder-row .saved-item-actions {
   align-items: flex-start;
   padding: 6px 0 0;
@@ -438,6 +475,16 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
 }
 
 .saved-item-delete:hover { color: var(--bad); }
+
+/* × and Categorize are drawn small but were also ~16-20px to tap. An
+   invisible overlay grows each one's tap area to ~32px tall without
+   moving anything. */
+.saved-item-delete, .saved-item-categorize { position: relative; }
+.saved-item-delete::after, .saved-item-categorize::after {
+  content: "";
+  position: absolute;
+  inset: -8px 0;
+}
 
 .planning-heading-row {
   display: flex;
@@ -961,11 +1008,23 @@ body::before {
   margin-bottom: 4px;
 }
 
+/* Base style for every helper line, empty state and "Loading…" - before
+   this, .hint was only styled inside .field, so the rest rendered as
+   full-size body text, bigger than the headings above them. */
+.hint {
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
 .field .hint {
   font-size: 12px;
   color: var(--ink-faint);
   margin-top: 3px;
 }
+
+/* After .field .hint so an error inside a field stays red. */
+.hint.error { color: var(--bad); }
 
 .goal-toggle {
   display: grid;
@@ -1133,7 +1192,9 @@ body::before {
 
 .top-tabs {
   display: flex;
-  justify-content: center;
+  /* `safe`: centered while the row fits, start-aligned once it doesn't -
+     plain center clipped Discovery and Profile off both ends. */
+  justify-content: safe center;
   gap: 8px;
   border-bottom: 1px solid var(--line);
   margin-bottom: 28px;
@@ -1159,8 +1220,10 @@ body::before {
   .top-tabs { justify-content: flex-start; }
 }
 
+/* 12px sides, not 16: all nine tabs then fit the 1060px row (~1018px)
+   instead of overflowing it by 30px. */
 .top-tabs .tab-btn {
-  padding: 10px 16px;
+  padding: 10px 12px;
   font-size: 15px;
   /* Without this, flex would squeeze labels ("Reel Voiceover") to fit
      rather than let the strip scroll, which is the whole point above. */
@@ -1914,7 +1977,10 @@ body::before {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  border: 2px solid #fff;
+  /* The legend sits on the page, not the map, so its ring takes the
+     surface color - white in light mode like the real pins, and not a
+     bright white dot on the dark surface in dark mode. */
+  border: 2px solid var(--bg-raised);
   box-shadow: 0 0 0 1px rgba(0,0,0,.15);
 }
 
@@ -1962,7 +2028,7 @@ body::before {
   border-style: solid;
   box-shadow: 0 0 0 1px #fff, 0 1px 4px rgba(0,0,0,.35);
 }
-.map-legend-dot-approx { background: #fff; border: 2px solid var(--ink-soft); box-shadow: none; }
+.map-legend-dot-approx { background: var(--bg-raised); border: 2px solid var(--ink-soft); box-shadow: none; }
 
 .map-unplaced { margin-top: 10px; }
 
@@ -2050,7 +2116,7 @@ body::before {
     z-index: 50;
     background: var(--bg-raised);
     border-top: 1px solid var(--line);
-    box-shadow: 0 -6px 18px rgba(30,43,46,.06);
+    box-shadow: var(--shadow-up);
     /* Clears the iPhone home indicator (viewportFit: "cover" in layout.js). */
     padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
   }
@@ -2133,4 +2199,13 @@ body::before {
   font-size: 13.5px;
   font-weight: 600;
   line-height: 1.4;
+}
+
+/* iOS Safari zooms the whole page into any field under 16px when it's
+   tapped. Last in the file so it outranks the smaller sizes set on
+   individual inputs above. */
+@media (max-width: 700px) {
+  input, select, textarea,
+  .category-picker-new input,
+  .cost-edit-input { font-size: 16px; }
 }
