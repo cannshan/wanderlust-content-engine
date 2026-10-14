@@ -1,7 +1,38 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import MonthlySpend from "./MonthlySpend";
+
+// Instructions run from one line to pages of structured rules, and a
+// single-line <input> silently dropped every line break typed or pasted
+// into one. This grows with its text (CSS caps it, then it scrolls).
+// Ctrl/Cmd+Enter submits; plain Enter is a new line.
+function InstructionTextarea({ value, onSubmit, onCancel, ...props }) {
+  const ref = useRef(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight + el.offsetHeight - el.clientHeight}px`;
+  }, [value]);
+  return (
+    <textarea
+      ref={ref}
+      rows={1}
+      className="instruction-input"
+      value={value}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+          e.preventDefault();
+          onSubmit();
+        } else if (e.key === "Escape" && onCancel) {
+          onCancel();
+        }
+      }}
+      {...props}
+    />
+  );
+}
 
 const initialCaptionForm = { platform: "", stats: "", tier: "baseline", why: "", caption: "" };
 
@@ -87,8 +118,9 @@ export default function ProfileTab({ active }) {
     setCaptionsLoading(false);
   }
 
+  // `e` is absent when called from the textarea's Ctrl/Cmd+Enter.
   async function submitInstruction(e) {
-    e.preventDefault();
+    e?.preventDefault();
     const text = newInstruction.trim();
     if (!text || savingInstruction) return;
     setSavingInstruction(true);
@@ -266,16 +298,20 @@ export default function ProfileTab({ active }) {
         <div className="card">
           <h3 style={{ marginTop: 0 }}>Custom instructions</h3>
           <p className="hint">Instructions the app follows on every generation.</p>
-          <form onSubmit={submitInstruction} style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-            <input
-              placeholder='e.g. "No double hyphens (--) or em dashes in captions"'
-              value={newInstruction}
-              onChange={(e) => setNewInstruction(e.target.value)}
-              style={{ flex: 1 }}
-            />
-            <button type="submit" className="btn-ghost" disabled={savingInstruction || !newInstruction.trim()}>
-              {savingInstruction ? "Saving…" : "Add"}
-            </button>
+          <form onSubmit={submitInstruction} style={{ marginBottom: 12 }}>
+            <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+              <InstructionTextarea
+                aria-label="New instruction"
+                placeholder='e.g. "No double hyphens (--) or em dashes in captions"'
+                value={newInstruction}
+                onChange={(e) => setNewInstruction(e.target.value)}
+                onSubmit={() => submitInstruction()}
+              />
+              <button type="submit" className="btn-ghost" disabled={savingInstruction || !newInstruction.trim()}>
+                {savingInstruction ? "Saving…" : "Add"}
+              </button>
+            </div>
+            <p className="hint" style={{ margin: "4px 0 0" }}>Enter starts a new line · Ctrl/⌘ + Enter to add</p>
           </form>
           {instructionsLoading && <p className="hint">Loading…</p>}
           {!instructionsLoading && instructions.length === 0 && <p className="hint">Nothing added yet.</p>}
@@ -305,21 +341,16 @@ export default function ProfileTab({ active }) {
                       </span>
                     )}
                     {isEditing ? (
-                      <div style={{ display: "flex", gap: 8, flex: 1, padding: "6px 10px" }}>
-                        <input
+                      <div style={{ flex: 1, minWidth: 0, padding: "6px 10px" }}>
+                        <InstructionTextarea
                           autoFocus
+                          aria-label="Edit instruction"
                           value={editingInstructionDraft}
                           onChange={(e) => setEditingInstructionDraft(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              e.preventDefault();
-                              saveInstructionEdit(i.id);
-                            } else if (e.key === "Escape") {
-                              cancelEditInstruction();
-                            }
-                          }}
-                          style={{ flex: 1 }}
+                          onSubmit={() => saveInstructionEdit(i.id)}
+                          onCancel={cancelEditInstruction}
                         />
+                        <p className="hint" style={{ margin: "4px 0 0" }}>Ctrl/⌘ + Enter to save · Esc to cancel</p>
                       </div>
                     ) : (
                       <div className="saved-item-main" style={{ cursor: "default" }}>

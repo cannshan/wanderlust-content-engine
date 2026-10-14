@@ -388,6 +388,17 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   overflow: hidden;
 }
 
+/* min-height keeps it a one-line field even when measured while the
+   Profile tab is hidden (scrollHeight is 0 then). */
+.instruction-input {
+  flex: 1;
+  min-height: 40px;
+  max-height: 50vh;
+  overflow-y: auto;
+  resize: vertical;
+  line-height: 1.5;
+}
+
 .instruction-toggle {
   background: transparent;
   border: none;
