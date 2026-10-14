@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import "../lib/sessionGuard";
 import ContentTab from "./components/ContentTab";
 import CalendarTab from "./components/CalendarTab";
 import DiscoveryTab from "./components/DiscoveryTab";
