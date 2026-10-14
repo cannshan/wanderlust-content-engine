@@ -19,6 +19,8 @@ const GEOCODE_BATCH = 8;
 // How far below center a tapped pin is moved, leaving room above it for
 // its popup (the map is 360-420px tall).
 const POPUP_ROOM_PX = 110;
+// Zoom a stop tapped in the list is shown at (about a few blocks across).
+const FOCUS_ZOOM = 15;
 // Bumped whenever the server's lookup logic changes what a place
 // resolves to, so old per-browser answers (and cached misses) are dropped.
 const CACHE_PREFIX = "wwwGeo3:";
@@ -67,12 +69,13 @@ function writeCache(p, value) {
 // Built with DOM calls rather than an HTML string: name/why come from
 // model output and must never be parsed as markup.
 // coord: { lat, lon, approximate?, approxArea? } from /api/geocode.
-function popupContent(place, coord) {
+// number: the place's stop number, shared by its pin and its list row.
+function popupContent(place, coord, number) {
   const root = document.createElement("div");
   root.className = "map-popup";
 
   const title = document.createElement("strong");
-  title.textContent = place.name;
+  title.textContent = `${number}. ${place.name}`;
   root.appendChild(title);
 
   if (place.area) {
@@ -146,6 +149,8 @@ export default function PlacesMap({ places, legend }) {
   const mapRef = useRef(null);
   const libRef = useRef(null);
   const markersRef = useRef([]);
+  // place key -> its marker, for jumping to a pin from the stop list.
+  const markersByKeyRef = useRef(new Map());
   // Once she pans or zooms herself, stop re-fitting the view every time
   // another batch of pins lands.
   const userMovedRef = useRef(false);
@@ -161,6 +166,9 @@ export default function PlacesMap({ places, legend }) {
   // The login cookie is gone (cleared, or a different browser profile) -
   // every lookup is refused, which must not read as "not on the map".
   const [signedOut, setSignedOut] = useState(false);
+  // The stop whose pin popup is open - highlighted in the list below the
+  // map, so pin 4 and list item 4 read as the same place.
+  const [activeKey, setActiveKey] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -208,6 +216,7 @@ export default function PlacesMap({ places, legend }) {
       cancelled = true;
       markersRef.current.forEach((m) => m.remove());
       markersRef.current = [];
+      markersByKeyRef.current.clear();
       mapRef.current?.remove();
       mapRef.current = null;
     };
@@ -296,20 +305,27 @@ export default function PlacesMap({ places, legend }) {
 
     markersRef.current.forEach((m) => m.remove());
     markersRef.current = [];
+    markersByKeyRef.current.clear();
 
-    const placed = places.filter((p) => isPinned(coords[p.key]));
-    for (const p of placed) {
+    places.forEach((p, i) => {
       const coord = coords[p.key];
+      if (!isPinned(coord)) return;
+      const number = i + 1;
       const { lat, lon } = coord;
       const color = p.color || "var(--pin-teal)";
       const el = document.createElement("button");
       el.type = "button";
+      el.textContent = String(number);
       // Approximate pins are hollow - same color, so the category still
       // reads, but visibly "somewhere around here", not a real location.
       el.className = coord.approximate ? "map-pin map-pin-approx" : "map-pin";
-      if (coord.approximate) el.style.borderColor = color;
-      else el.style.background = color;
-      el.setAttribute("aria-label", coord.approximate ? `${p.name} (approximate)` : p.name);
+      if (coord.approximate) {
+        el.style.borderColor = color;
+        el.style.color = color;
+      } else {
+        el.style.background = color;
+      }
+      el.setAttribute("aria-label", `${number}. ${p.name}${coord.approximate ? " (approximate)" : ""}`);
       // Popups always open above their pin, so move the tapped pin into
       // the lower part of the frame first - near the edge of a phone-
       // sized map the popup would otherwise be clipped.
@@ -317,22 +333,64 @@ export default function PlacesMap({ places, legend }) {
         userMovedRef.current = true;
         map.easeTo({ center: [lon, lat], offset: [0, POPUP_ROOM_PX], duration: 300 });
       });
-      const marker = new maplibregl.Marker({ element: el })
-        .setLngLat([lon, lat])
-        .setPopup(new maplibregl.Popup({ anchor: "bottom", offset: 14, maxWidth: "260px" }).setDOMContent(popupContent(p, coord)))
-        .addTo(map);
+      const popup = new maplibregl.Popup({ anchor: "bottom", offset: 16, maxWidth: "260px" }).setDOMContent(
+        popupContent(p, coord, number)
+      );
+      popup.on("open", () => setActiveKey(p.key));
+      popup.on("close", () => setActiveKey((k) => (k === p.key ? null : k)));
+      const marker = new maplibregl.Marker({ element: el }).setLngLat([lon, lat]).setPopup(popup).addTo(map);
       markersRef.current.push(marker);
-    }
+      markersByKeyRef.current.set(p.key, marker);
+    });
+    const placed = places.filter((p) => isPinned(coords[p.key]));
 
     if (placed.length > 0 && !userMovedRef.current) {
       const bounds = new maplibregl.LngLatBounds();
       placed.forEach((p) => bounds.extend([coords[p.key].lon, coords[p.key].lat]));
-      map.fitBounds(bounds, { padding: 48, maxZoom: 14, duration: 400 });
+      const fit = () => {
+        if (!userMovedRef.current) map.fitBounds(bounds, { padding: 48, maxZoom: 14, duration: map.loaded() ? 400 : 0 });
+      };
+      fit();
+      // When every pin comes from the cache this runs before the map's
+      // style has loaded, and that first camera move gets dropped - the
+      // map stayed zoomed out on New England with every pin stacked in
+      // one spot. Fit again once it has loaded.
+      if (!map.loaded()) map.once("load", fit);
     }
   }, [mapReady, coords, pinSignature]);
 
+  // The open stop's pin is drawn larger and on top of its neighbors.
+  useEffect(() => {
+    for (const [key, marker] of markersByKeyRef.current) {
+      const el = marker.getElement();
+      el.classList.toggle("map-pin-active", key === activeKey);
+      el.style.zIndex = key === activeKey ? "2" : "";
+    }
+  }, [activeKey, coords, pinSignature]);
+
+  // A list row was tapped: bring the map into view, center its pin (with
+  // room above for the popup) and open it, closing whichever was open.
+  function focusStop(key) {
+    const map = mapRef.current;
+    const marker = markersByKeyRef.current.get(key);
+    if (!map || !marker) return;
+    containerRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    for (const m of markersRef.current) {
+      if (m !== marker && m.getPopup()?.isOpen()) m.togglePopup();
+    }
+    userMovedRef.current = true;
+    // Close enough to tell neighboring pins apart, without zooming back
+    // out when the view is already closer.
+    map.easeTo({
+      center: marker.getLngLat(),
+      zoom: Math.max(map.getZoom(), FOCUS_ZOOM),
+      offset: [0, POPUP_ROOM_PX],
+      duration: 400,
+    });
+    if (!marker.getPopup()?.isOpen()) marker.togglePopup();
+  }
+
   const lookingCount = places.filter((p) => coords[p.key] === undefined).length;
-  const unplaced = places.filter((p) => coords[p.key] === null);
   const failedCount = places.filter((p) => coords[p.key] === LOOKUP_FAILED).length;
   const anyApproximate = places.some((p) => isPinned(coords[p.key]) && coords[p.key].approximate);
 
@@ -382,20 +440,64 @@ export default function PlacesMap({ places, legend }) {
         )
       )}
 
-      {unplaced.length > 0 && (
-        <p className="hint map-unplaced">
-          Couldn&apos;t find {unplaced.length === 1 ? "this one" : `these ${unplaced.length}`} on the map - tap to
-          look them up:{" "}
-          {unplaced.map((p, i) => (
-            <span key={p.key}>
-              {i > 0 && ", "}
-              <a href={placeLink(p).url} target="_blank" rel="noopener noreferrer" className="place-link">
-                {p.name}
-              </a>
-            </span>
-          ))}
-        </p>
-      )}
+      {/* Every place, numbered to match its pin. Tapping one jumps to its
+          pin; places that couldn't be pinned still get their number and a
+          link, so the list is always the whole set. */}
+      <ol className="map-stops">
+        {places.map((p, i) => {
+          const coord = coords[p.key];
+          const pinned = isPinned(coord);
+          const color = p.color || "var(--pin-teal)";
+          const status =
+            coord === undefined
+              ? "Finding on the map…"
+              : coord === null
+              ? "Not on the map"
+              : coord === LOOKUP_FAILED
+              ? "Couldn't look up just now"
+              : coord.approximate
+              ? "Approximate spot"
+              : "";
+          const link = placeLink(p);
+          return (
+            <li key={p.key} className={`map-stop${activeKey === p.key ? " is-active" : ""}`}>
+              <span
+                className={`map-stop-num${!pinned ? " is-unpinned" : coord.approximate ? " is-approx" : ""}`}
+                style={!pinned ? undefined : coord.approximate ? { borderColor: color, color } : { background: color }}
+                aria-hidden="true"
+              >
+                {i + 1}
+              </span>
+              <div className="map-stop-body">
+                {pinned ? (
+                  <button type="button" className="map-stop-name" onClick={() => focusStop(p.key)}>
+                    {p.name}
+                  </button>
+                ) : (
+                  <span className="map-stop-name">{p.name}</span>
+                )}
+                {(p.area || status) && (
+                  <div className="map-stop-meta">
+                    {p.area}
+                    {p.area && status ? " · " : ""}
+                    {status && <span className={pinned ? undefined : "map-stop-missing"}>{status}</span>}
+                  </div>
+                )}
+              </div>
+              <div className="map-stop-actions">
+                <a href={link.url} target="_blank" rel="noopener noreferrer">
+                  {link.label} ↗
+                </a>
+                {p.onOpen && (
+                  <button type="button" onClick={() => p.onOpen()}>
+                    Details
+                  </button>
+                )}
+              </div>
+            </li>
+          );
+        })}
+      </ol>
     </div>
   );
 }

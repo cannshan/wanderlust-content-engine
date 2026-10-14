@@ -2023,25 +2023,115 @@ body::before {
 }
 .map-status-error { color: var(--bad); }
 
+/* Numbered pins - the number matches the place's row in the stop list
+   under the map. No transform on hover: MapLibre positions markers with
+   an inline transform, which a CSS one would fight. */
 .map-pin {
-  width: 18px;
-  height: 18px;
+  width: 26px;
+  height: 26px;
   padding: 0;
   border-radius: 50%;
-  border: 3px solid #fff;
+  border: 2px solid #fff;
   box-shadow: 0 1px 4px rgba(0,0,0,.35);
   cursor: pointer;
+  color: #fff;
+  font: 700 12px/22px 'Montserrat', ui-sans-serif, system-ui, sans-serif;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
 }
-.map-pin:hover { transform: scale(1.15); }
 .map-pin-approx {
   background: #fff;
-  border-width: 4px;
+  border-width: 3px;
   border-style: solid;
+  line-height: 20px;
   box-shadow: 0 0 0 1px #fff, 0 1px 4px rgba(0,0,0,.35);
+}
+/* The stop whose popup is open (tapped on the map or in the list). */
+.map-pin-active {
+  box-shadow: 0 0 0 3px rgba(255,255,255,.95), 0 0 0 6px rgba(30,43,46,.35), 0 2px 8px rgba(0,0,0,.4);
 }
 .map-legend-dot-approx { background: var(--bg-raised); border: 2px solid var(--ink-soft); box-shadow: none; }
 
 .map-unplaced { margin-top: 10px; }
+
+/* The numbered stop list under the map. */
+.map-stops {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--bg-raised);
+}
+.map-stop {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--line);
+  transition: background-color .15s ease;
+}
+.map-stop:first-child { border-top: 0; }
+.map-stop.is-active { background: var(--accent-soft); }
+.map-stop-num {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  color: #fff;
+  font: 700 12px/22px 'Montserrat', ui-sans-serif, system-ui, sans-serif;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.map-stop-num.is-approx { background: var(--bg-raised); border-width: 3px; line-height: 20px; }
+.map-stop-num.is-unpinned { background: transparent; border: 2px dashed var(--ink-faint); color: var(--ink-faint); }
+.map-stop-body { flex: 1; min-width: 0; }
+.map-stop-name {
+  display: block;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  font-size: 14px;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+button.map-stop-name { cursor: pointer; }
+button.map-stop-name:hover { color: var(--accent); }
+.map-stop-meta {
+  margin-top: 2px;
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.map-stop-missing { color: var(--sunset); }
+.map-stop-actions { flex: none; display: flex; align-items: center; gap: 10px; }
+.map-stop-actions a { font-size: 12.5px; font-weight: 600; color: var(--accent); text-decoration: none; white-space: nowrap; }
+.map-stop-actions a:hover { text-decoration: underline; }
+.map-stop-actions button {
+  font-size: 12.5px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--bg-raised);
+  color: var(--ink);
+  cursor: pointer;
+}
+@media (max-width: 640px) {
+  .map-stop { padding: 10px; gap: 10px; }
+  /* Too narrow to cut names off at one line - "SomerStreets: Monst…". */
+  .map-stop-name { white-space: normal; }
+  .map-stop-actions { flex-direction: column; align-items: flex-end; gap: 4px; }
+}
 
 /* Popup sits on the light map tiles in both themes, so it keeps the
    light palette's ink rather than following dark mode. */
