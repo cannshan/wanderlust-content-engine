@@ -21,6 +21,8 @@ const GEOCODE_BATCH = 8;
 const POPUP_ROOM_PX = 110;
 // Zoom a stop tapped in the list is shown at (about a few blocks across).
 const FOCUS_ZOOM = 15;
+// How many stops the page scrolls to reveal when the map opens.
+const STOPS_ON_OPEN = 4;
 // Bumped whenever the server's lookup logic changes what a place
 // resolves to, so old per-browser answers (and cached misses) are dropped.
 const CACHE_PREFIX = "wwwGeo3:";
@@ -64,6 +66,40 @@ function writeCache(p, value) {
   } catch {
     // Storage full or blocked - the server cache still covers it.
   }
+}
+
+// The element that scrolls this map: the desktop layout's own scrolling
+// column, or null for the page itself (phones).
+function scrollParent(el) {
+  for (let p = el.parentElement; p; p = p.parentElement) {
+    if (/auto|scroll/.test(getComputedStyle(p).overflowY) && p.scrollHeight > p.clientHeight) return p;
+  }
+  return null;
+}
+
+// Scroll just far enough that the map and its first few stops are all on
+// screen. On a short screen the stops win, but at most the top third of
+// the map scrolls out of view.
+function revealFirstStops(map, list) {
+  const rows = list?.children;
+  if (!map || !rows?.length) return;
+  const lastRow = rows[Math.min(STOPS_ON_OPEN, rows.length) - 1];
+  const scroller = scrollParent(list);
+  let top = 0;
+  let bottom = window.innerHeight;
+  if (scroller) {
+    ({ top, bottom } = scroller.getBoundingClientRect());
+  } else {
+    // The phone tab bar covers the bottom of the page.
+    const nav = document.querySelector(".bottom-nav");
+    if (nav && getComputedStyle(nav).display !== "none") bottom -= nav.getBoundingClientRect().height;
+  }
+  const GAP = 12;
+  const mapRect = map.getBoundingClientRect();
+  const needed = lastRow.getBoundingClientRect().bottom + GAP - bottom;
+  const room = mapRect.top - GAP - top + mapRect.height / 3;
+  const by = Math.min(needed, room);
+  if (by > 0) (scroller || window).scrollBy({ top: by, behavior: "smooth" });
 }
 
 // Built with DOM calls rather than an HTML string: name/why come from
@@ -151,6 +187,7 @@ export default function PlacesMap({ places, legend }) {
   const markersRef = useRef([]);
   // place key -> its marker, for jumping to a pin from the stop list.
   const markersByKeyRef = useRef(new Map());
+  const stopsRef = useRef(null);
   // Once she pans or zooms herself, stop re-fitting the view every time
   // another batch of pins lands.
   const userMovedRef = useRef(false);
@@ -220,6 +257,13 @@ export default function PlacesMap({ places, legend }) {
       mapRef.current?.remove();
       mapRef.current = null;
     };
+  }, []);
+
+  // Opening the map (Discovery's Map button, Planning's Show places)
+  // brings it and its first stops into view. Rows render right away
+  // (as "Finding on the map…"), so their positions are already final.
+  useEffect(() => {
+    revealFirstStops(containerRef.current, stopsRef.current);
   }, []);
 
   // Geocode whatever isn't cached yet, in small batches so pins appear as
@@ -443,7 +487,7 @@ export default function PlacesMap({ places, legend }) {
       {/* Every place, numbered to match its pin. Tapping one jumps to its
           pin; places that couldn't be pinned still get their number and a
           link, so the list is always the whole set. */}
-      <ol className="map-stops">
+      <ol ref={stopsRef} className="map-stops">
         {places.map((p, i) => {
           const coord = coords[p.key];
           const pinned = isPinned(coord);
